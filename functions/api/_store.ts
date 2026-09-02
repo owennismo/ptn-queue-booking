@@ -366,7 +366,9 @@ export class DataStore {
       }
     }
 
-    const computedSlots = slots.map((s: TimeSlot) => {
+    const activeSlots = slots.filter((s: TimeSlot) => s.is_active === 1);
+
+    const computedSlots = activeSlots.map((s: TimeSlot) => {
       const booked = countMap.get(s.slot_name) || 0;
       const available = Math.max(0, s.max_capacity - booked);
       return {
@@ -378,6 +380,7 @@ export class DataStore {
         booked_count: booked,
         available_slots: available,
         is_available: !isBlocked && available > 0,
+        is_active: s.is_active,
       };
     });
 
@@ -391,6 +394,17 @@ export class DataStore {
 
   // --- BOOKINGS ---
   async createBooking(data: any): Promise<Booking> {
+    // Check if date or slot is inactive
+    const isDateBlocked = globalStore.blockedDates.some((b: BlockedDate) => b.blocked_date === data.requested_date);
+    if (isDateBlocked) {
+      throw new Error(`วันที่ ${data.requested_date} ปิดรับจองคิวส่งของ`);
+    }
+
+    const slotObj = globalStore.timeSlots.find((s: TimeSlot) => s.slot_name === data.requested_time);
+    if (slotObj && slotObj.is_active === 0) {
+      throw new Error(`รอบเวลา ${data.requested_time} ปิดรับจองแล้ว กรุณาเลือกรอบเวลาอื่น`);
+    }
+
     const cleanDate = data.requested_date.replace(/-/g, '');
     const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
     const bookingId = `PTN-${cleanDate}-${randomChars}`;

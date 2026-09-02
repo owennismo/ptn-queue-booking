@@ -50,6 +50,7 @@ export interface AvailabilityResponse {
     booked_count: number;
     available_slots: number;
     is_available: boolean;
+    is_active?: number;
   }>;
 }
 

@@ -89,7 +89,8 @@ export default function BookingPage() {
         } else {
           setIsBlocked(data.is_blocked);
           setBlockReason(data.block_reason);
-          setSlots(data.slots || []);
+          const activeSlots = (data.slots || []).filter((s: any) => s.is_active !== 0);
+          setSlots(activeSlots);
         }
       })
       .catch((err) => {
