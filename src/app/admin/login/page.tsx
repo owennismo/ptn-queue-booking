@@ -7,7 +7,7 @@ import { ShieldCheck, Lock, ArrowRight, AlertCircle, Truck, User, Clock, ShieldA
 function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [username, setUsername] = useState('admin');
+  const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +35,7 @@ function AdminLoginForm() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pin.trim() || isLocked) return;
+    if (!username.trim() || !pin.trim() || isLocked) return;
 
     setLoading(true);
     setError(null);
@@ -57,7 +57,7 @@ function AdminLoginForm() {
           setIsLocked(true);
           setLockoutSeconds(data.remaining_seconds || 900);
         }
-        throw new Error(data.error || 'รหัส PIN ไม่ถูกต้อง');
+        throw new Error(data.error || 'ชื่อผู้ใช้หรือรหัส PIN ไม่ถูกต้อง');
       }
 
       // Save cryptographically signed admin JWT token & staff info in sessionStorage
@@ -74,11 +74,6 @@ function AdminLoginForm() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const setQuickAccount = (u: string, p: string) => {
-    setUsername(u);
-    setPin(p);
   };
 
   const formatLockoutTime = (sec: number) => {
@@ -132,7 +127,8 @@ function AdminLoginForm() {
               <input
                 type="text"
                 required
-                placeholder="เช่น admin, wh01, sec01"
+                autoFocus
+                placeholder="กรอกชื่อผู้ใช้ หรือรหัสพนักงาน"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={isLocked}
@@ -152,41 +148,12 @@ function AdminLoginForm() {
               <input
                 type="password"
                 required
-                autoFocus
                 disabled={isLocked}
-                placeholder="กรอกรหัส PIN"
+                placeholder="กรอกรหัส PIN ประจำตัว"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none tracking-widest text-center text-lg placeholder:text-xs placeholder:tracking-normal placeholder:text-slate-500 disabled:opacity-50"
               />
-            </div>
-          </div>
-
-          {/* Quick Demo Staff Pills */}
-          <div className="space-y-1.5 pt-1">
-            <span className="text-[11px] text-slate-400 block">บัญชีทดสอบเริ่มต้น:</span>
-            <div className="flex flex-wrap gap-1.5 text-[10px]">
-              <button
-                type="button"
-                onClick={() => setQuickAccount('admin', '8888')}
-                className="px-2 py-1 bg-slate-700/60 hover:bg-emerald-600/30 border border-slate-600 rounded-lg text-slate-300 hover:text-white transition"
-              >
-                👑 Super Admin (8888)
-              </button>
-              <button
-                type="button"
-                onClick={() => setQuickAccount('wh01', '1234')}
-                className="px-2 py-1 bg-slate-700/60 hover:bg-emerald-600/30 border border-slate-600 rounded-lg text-slate-300 hover:text-white transition"
-              >
-                📦 คลังสินค้า (1234)
-              </button>
-              <button
-                type="button"
-                onClick={() => setQuickAccount('sec01', '5678')}
-                className="px-2 py-1 bg-slate-700/60 hover:bg-emerald-600/30 border border-slate-600 rounded-lg text-slate-300 hover:text-white transition"
-              >
-                🛡️ รปภ. ประตู (5678)
-              </button>
             </div>
           </div>
 
@@ -199,7 +166,7 @@ function AdminLoginForm() {
 
           <button
             type="submit"
-            disabled={loading || !pin.trim() || isLocked}
+            disabled={loading || !username.trim() || !pin.trim() || isLocked}
             className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/40 transition flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {loading ? (
