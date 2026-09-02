@@ -40,8 +40,8 @@ export async function createAdminToken(payload: Record<string, any> = {}, expire
   const header = { alg: 'HS256', typ: 'JWT' };
   const now = Math.floor(Date.now() / 1000);
   const fullPayload = {
+    role: payload.role || 'admin',
     ...payload,
-    role: 'admin',
     iat: now,
     exp: now + expiresInSeconds, // 8 hours default
   };

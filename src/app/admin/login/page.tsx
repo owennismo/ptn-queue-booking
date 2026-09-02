@@ -2,13 +2,13 @@
 
 import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ShieldCheck, Lock, ArrowRight, AlertCircle, Truck, User, Clock, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, Lock, ArrowRight, AlertCircle, Truck, User, Clock, ShieldAlert, KeyRound } from 'lucide-react';
 
 function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [username, setUsername] = useState('admin');
   const [pin, setPin] = useState('');
-  const [operatorName, setOperatorName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
@@ -45,8 +45,8 @@ function AdminLoginForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          username: username.trim(),
           pin: pin.trim(),
-          operator_name: operatorName.trim() || 'เจ้าหน้าที่คลังสินค้า',
         }),
       });
 
@@ -60,9 +60,12 @@ function AdminLoginForm() {
         throw new Error(data.error || 'รหัส PIN ไม่ถูกต้อง');
       }
 
-      // Save cryptographically signed admin JWT token in sessionStorage
+      // Save cryptographically signed admin JWT token & staff info in sessionStorage
       sessionStorage.setItem('ptn_admin_jwt', data.token);
-      sessionStorage.setItem('ptn_admin_operator', data.operator_name || 'เจ้าหน้าที่คลังสินค้า');
+      sessionStorage.setItem('ptn_admin_staff', JSON.stringify(data.staff));
+      sessionStorage.setItem('ptn_admin_operator', data.staff?.full_name || 'เจ้าหน้าที่คลังสินค้า');
+      sessionStorage.setItem('ptn_admin_role', data.staff?.role || 'warehouse_officer');
+      sessionStorage.setItem('ptn_admin_role_name', data.staff?.role_name || 'เจ้าหน้าที่');
       sessionStorage.setItem('ptn_admin_login_time', Date.now().toString());
 
       router.push('/admin');
@@ -71,6 +74,11 @@ function AdminLoginForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const setQuickAccount = (u: string, p: string) => {
+    setUsername(u);
+    setPin(p);
   };
 
   const formatLockoutTime = (sec: number) => {
@@ -86,9 +94,9 @@ function AdminLoginForm() {
           <div className="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-emerald-900/50">
             <Truck className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">ระบบเจ้าหน้าที่คลังสินค้า</h1>
+          <h1 className="text-2xl font-bold tracking-tight">เข้าสู่ระบบเจ้าหน้าที่</h1>
           <p className="text-xs text-slate-400">
-            บจก. พีทีเอ็น ฟาร์มาเซ็นเตอร์ (พัฒนาเภสัช)
+            บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)
           </p>
         </div>
 
@@ -115,7 +123,7 @@ function AdminLoginForm() {
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-slate-300">
-              ชื่อเจ้าหน้าที่ / รหัสพนักงาน <span className="text-slate-500 font-normal">(ไม่ระบุก็ได้)</span>
+              ชื่อผู้ใช้ / รหัสพนักงาน (Username) <span className="text-rose-400">*</span>
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -123,9 +131,10 @@ function AdminLoginForm() {
               </div>
               <input
                 type="text"
-                placeholder="เช่น สมศักดิ์ (คลัง A)"
-                value={operatorName}
-                onChange={(e) => setOperatorName(e.target.value)}
+                required
+                placeholder="เช่น admin, wh01, sec01"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 disabled={isLocked}
                 className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm placeholder:text-slate-500 disabled:opacity-50"
               />
@@ -134,7 +143,7 @@ function AdminLoginForm() {
 
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-slate-300">
-              รหัสผ่าน / PIN เจ้าหน้าที่ <span className="text-rose-400">*</span>
+              รหัสผ่าน / PIN ประจำตัว <span className="text-rose-400">*</span>
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -145,11 +154,39 @@ function AdminLoginForm() {
                 required
                 autoFocus
                 disabled={isLocked}
-                placeholder="กรอก PIN (ค่าเริ่มต้น: 8888)"
+                placeholder="กรอกรหัส PIN"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none tracking-widest text-center text-lg placeholder:text-xs placeholder:tracking-normal placeholder:text-slate-500 disabled:opacity-50"
               />
+            </div>
+          </div>
+
+          {/* Quick Demo Staff Pills */}
+          <div className="space-y-1.5 pt-1">
+            <span className="text-[11px] text-slate-400 block">บัญชีทดสอบเริ่มต้น:</span>
+            <div className="flex flex-wrap gap-1.5 text-[10px]">
+              <button
+                type="button"
+                onClick={() => setQuickAccount('admin', '8888')}
+                className="px-2 py-1 bg-slate-700/60 hover:bg-emerald-600/30 border border-slate-600 rounded-lg text-slate-300 hover:text-white transition"
+              >
+                👑 Super Admin (8888)
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuickAccount('wh01', '1234')}
+                className="px-2 py-1 bg-slate-700/60 hover:bg-emerald-600/30 border border-slate-600 rounded-lg text-slate-300 hover:text-white transition"
+              >
+                📦 คลังสินค้า (1234)
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuickAccount('sec01', '5678')}
+                className="px-2 py-1 bg-slate-700/60 hover:bg-emerald-600/30 border border-slate-600 rounded-lg text-slate-300 hover:text-white transition"
+              >
+                🛡️ รปภ. ประตู (5678)
+              </button>
             </div>
           </div>
 
@@ -170,7 +207,7 @@ function AdminLoginForm() {
             ) : (
               <>
                 <ShieldCheck className="w-4 h-4" />
-                <span>เข้าสู่ระบบความปลอดภัยสูง</span>
+                <span>เข้าสู่ระบบ</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
@@ -179,8 +216,8 @@ function AdminLoginForm() {
 
         <div className="text-center pt-2 space-y-1">
           <p className="text-[11px] text-slate-400 flex items-center justify-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            ระบบป้องกัน Brute-force & เข้ารหัสความปลอดภัย Edge JWT
+            <KeyRound className="w-3.5 h-3.5 text-emerald-400" />
+            ระบบสิทธิ์การใช้งานแยกตามตำแหน่ง (RBAC) & Edge JWT Security
           </p>
         </div>
       </div>

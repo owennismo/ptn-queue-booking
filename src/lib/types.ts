@@ -65,3 +65,17 @@ export interface DailyForecast {
   total_pending_all: number;
   notification_message?: string;
 }
+
+export type StaffRole = 'super_admin' | 'warehouse_officer' | 'security_gate';
+
+export interface StaffUser {
+  id: string;
+  username: string;
+  full_name: string;
+  pin: string;
+  role: StaffRole;
+  role_name: string;
+  is_active: number;
+  created_at: string;
+  last_login?: string | null;
+}

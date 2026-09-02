@@ -38,17 +38,44 @@ export interface BlockedDate {
 
 export interface AuditLog {
   id: number;
-  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'UPDATE_SLOT' | 'BLOCK_DATE' | 'UNBLOCK_DATE';
+  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'UPDATE_SLOT' | 'BLOCK_DATE' | 'UNBLOCK_DATE' | 'ADD_STAFF' | 'UPDATE_STAFF' | 'DELETE_STAFF' | 'RESET_PIN';
   details: string;
   operator: string;
   ip_address: string;
   created_at: string;
 }
 
+export type StaffRole = 'super_admin' | 'warehouse_officer' | 'security_gate';
+
+export interface StaffUser {
+  id: string;
+  username: string;
+  full_name: string;
+  pin: string;
+  role: StaffRole;
+  role_name: string;
+  is_active: number;
+  created_at: string;
+  last_login?: string | null;
+}
+
 interface LoginAttemptRecord {
   attempts: number;
   lockedUntil: number | null;
   lastAttempt: number;
+}
+
+function getRoleName(role: StaffRole): string {
+  switch (role) {
+    case 'super_admin':
+      return 'ผู้ดูแลระบบสูงสุด (Super Admin)';
+    case 'warehouse_officer':
+      return 'เจ้าหน้าที่คลังสินค้า (Warehouse Officer)';
+    case 'security_gate':
+      return 'รปภ. จุดตรวจหน้าประตู (Security Gate)';
+    default:
+      return 'เจ้าหน้าที่ทั่วไป';
+  }
 }
 
 // Global persistent state for Edge instance
@@ -81,11 +108,43 @@ const globalStore = (globalThis as any).__PTN_STORE__ || {
     { id: 8, slot_name: '16:00 - 17:00', start_time: '16:00', end_time: '17:00', max_capacity: 2, is_active: 1 },
   ] as TimeSlot[],
   blockedDates: [] as BlockedDate[],
+  staffUsers: [
+    {
+      id: 'staff_1',
+      username: 'admin',
+      full_name: 'ผู้ดูแลระบบสูงสุด (Super Admin)',
+      pin: '8888',
+      role: 'super_admin',
+      role_name: 'ผู้ดูแลระบบสูงสุด (Super Admin)',
+      is_active: 1,
+      created_at: '2026-09-02 08:00:00',
+    },
+    {
+      id: 'staff_2',
+      username: 'wh01',
+      full_name: 'นายสมชาย คลังสินค้า',
+      pin: '1234',
+      role: 'warehouse_officer',
+      role_name: 'เจ้าหน้าที่คลังสินค้า (Warehouse Officer)',
+      is_active: 1,
+      created_at: '2026-09-02 08:30:00',
+    },
+    {
+      id: 'staff_3',
+      username: 'sec01',
+      full_name: 'เจ้าหน้าที่ รปภ. ประตูหน้า',
+      pin: '5678',
+      role: 'security_gate',
+      role_name: 'รปภ. จุดตรวจหน้าประตู (Security Gate)',
+      is_active: 1,
+      created_at: '2026-09-02 09:00:00',
+    },
+  ] as StaffUser[],
   auditLogs: [
     {
       id: 1,
       action: 'LOGIN_SUCCESS',
-      details: 'ระบบเริ่มต้นการทำงาน (System Initialized)',
+      details: 'ระบบเริ่มต้นการทำงานและโหลดข้อมูลบุคลากรเริ่มต้น',
       operator: 'System',
       ip_address: '127.0.0.1',
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
@@ -108,6 +167,155 @@ export class DataStore {
 
   private get d1() {
     return this.env?.DB;
+  }
+
+  // --- STAFF USER MANAGEMENT ---
+  async getAllStaff(): Promise<StaffUser[]> {
+    return globalStore.staffUsers.map((s: StaffUser) => ({
+      ...s,
+      pin: '••••', // Mask PIN on list
+    }));
+  }
+
+  async getStaffById(id: string): Promise<StaffUser | null> {
+    const user = globalStore.staffUsers.find((s: StaffUser) => s.id === id);
+    return user || null;
+  }
+
+  async authenticateStaff(usernameOrPin: string, pinInput?: string): Promise<StaffUser | null> {
+    const staffList: StaffUser[] = globalStore.staffUsers;
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+    // If both username and pin provided
+    if (usernameOrPin && pinInput) {
+      const u = usernameOrPin.trim().toLowerCase();
+      const p = pinInput.trim();
+      const user = staffList.find(
+        (s) => (s.username.toLowerCase() === u || s.full_name.toLowerCase() === u) && s.pin === p && s.is_active === 1
+      );
+      if (user) {
+        user.last_login = nowStr;
+        return user;
+      }
+      return null;
+    }
+
+    // If only PIN provided (legacy or quick pin)
+    const pin = (pinInput || usernameOrPin).trim();
+    // 1. Check direct staff PIN match
+    const matched = staffList.find((s) => s.pin === pin && s.is_active === 1);
+    if (matched) {
+      matched.last_login = nowStr;
+      return matched;
+    }
+
+    // 2. Check master system PIN (8888)
+    if (pin === '8888' || pin === globalStore.settings.admin_pin) {
+      const adminUser = staffList.find((s) => s.role === 'super_admin') || staffList[0];
+      if (adminUser) {
+        adminUser.last_login = nowStr;
+        return adminUser;
+      }
+    }
+
+    return null;
+  }
+
+  async createStaff(data: { username: string; full_name: string; pin: string; role: StaffRole }, operator = 'Admin', ip = '127.0.0.1'): Promise<StaffUser> {
+    const cleanUsername = data.username.trim().toLowerCase();
+    const existing = globalStore.staffUsers.find((s: StaffUser) => s.username.toLowerCase() === cleanUsername);
+    if (existing) {
+      throw new Error(`ชื่อผู้ใช้ (Username) "${data.username}" มีอยู่ในระบบแล้ว`);
+    }
+
+    const newStaff: StaffUser = {
+      id: `staff_${Date.now()}`,
+      username: cleanUsername,
+      full_name: data.full_name.trim(),
+      pin: data.pin.trim(),
+      role: data.role,
+      role_name: getRoleName(data.role),
+      is_active: 1,
+      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+    };
+
+    globalStore.staffUsers.push(newStaff);
+    await this.addAuditLog(
+      'ADD_STAFF',
+      `เพิ่มเจ้าหน้าที่ใหม่: ${newStaff.full_name} (@${newStaff.username}) บทบาท: ${newStaff.role_name}`,
+      operator,
+      ip
+    );
+
+    return { ...newStaff, pin: '••••' };
+  }
+
+  async updateStaff(
+    id: string,
+    data: { full_name?: string; role?: StaffRole; is_active?: number; pin?: string },
+    operator = 'Admin',
+    ip = '127.0.0.1'
+  ): Promise<StaffUser> {
+    const staff = globalStore.staffUsers.find((s: StaffUser) => s.id === id);
+    if (!staff) {
+      throw new Error('ไม่พบข้อมูลเจ้าหน้าที่');
+    }
+
+    if (data.full_name) staff.full_name = data.full_name.trim();
+    if (data.role) {
+      staff.role = data.role;
+      staff.role_name = getRoleName(data.role);
+    }
+    if (data.is_active !== undefined) staff.is_active = data.is_active;
+    if (data.pin && data.pin.trim()) {
+      staff.pin = data.pin.trim();
+    }
+
+    await this.addAuditLog(
+      'UPDATE_STAFF',
+      `แก้ไขข้อมูลเจ้าหน้าที่: ${staff.full_name} (@${staff.username}) สถานะ: ${staff.is_active ? 'เปิดใช้งาน' : 'ระงับการใช้งาน'}`,
+      operator,
+      ip
+    );
+
+    return { ...staff, pin: '••••' };
+  }
+
+  async deleteStaff(id: string, operator = 'Admin', ip = '127.0.0.1'): Promise<boolean> {
+    const staff = globalStore.staffUsers.find((s: StaffUser) => s.id === id);
+    if (!staff) {
+      throw new Error('ไม่พบข้อมูลเจ้าหน้าที่');
+    }
+    if (staff.username === 'admin') {
+      throw new Error('ไม่สามารถลบบัญชีผู้ดูแลระบบหลัก (admin) ได้');
+    }
+
+    globalStore.staffUsers = globalStore.staffUsers.filter((s: StaffUser) => s.id !== id);
+    await this.addAuditLog(
+      'DELETE_STAFF',
+      `ลบบัญชีเจ้าหน้าที่: ${staff.full_name} (@${staff.username})`,
+      operator,
+      ip
+    );
+
+    return true;
+  }
+
+  async resetStaffPin(id: string, newPin: string, operator = 'Admin', ip = '127.0.0.1'): Promise<boolean> {
+    const staff = globalStore.staffUsers.find((s: StaffUser) => s.id === id);
+    if (!staff) {
+      throw new Error('ไม่พบข้อมูลเจ้าหน้าที่');
+    }
+
+    staff.pin = newPin.trim();
+    await this.addAuditLog(
+      'RESET_PIN',
+      `รีเซ็ตรหัส PIN ใหม่สำหรับเจ้าหน้าที่: ${staff.full_name} (@${staff.username})`,
+      operator,
+      ip
+    );
+
+    return true;
   }
 
   // --- AVAILABILITY ---
@@ -521,7 +729,7 @@ export class DataStore {
     return { isLocked: false, remainingLockoutSeconds: 0, remainingAttempts: remaining };
   }
 
-  recordFailedLogin(identifier: string, ip: string): { isLocked: boolean; remainingAttempts: number; remainingLockoutSeconds: number } {
+  recordFailedLogin(identifier: string, ip: string, attemptedUser = 'Unknown'): { isLocked: boolean; remainingAttempts: number; remainingLockoutSeconds: number } {
     const now = Date.now();
     const attemptsMap: Map<string, LoginAttemptRecord> = globalStore.loginAttempts;
     let record = attemptsMap.get(identifier);
@@ -537,28 +745,17 @@ export class DataStore {
       // Lock for 15 minutes
       record.lockedUntil = now + 15 * 60 * 1000;
       attemptsMap.set(identifier, record);
-      this.addAuditLog('LOGIN_FAILED', `กรอกรหัส PIN ผิดครบ 5 ครั้ง — ระบบสั่งระงับชั่วคราว 15 นาที`, 'Unknown', ip);
+      this.addAuditLog('LOGIN_FAILED', `กรอกรหัสผ่านผิดครบ 5 ครั้ง (ชื่อ: ${attemptedUser}) — ระบบสั่งระงับชั่วคราว 15 นาที`, attemptedUser, ip);
       return { isLocked: true, remainingAttempts: 0, remainingLockoutSeconds: 15 * 60 };
     }
 
     attemptsMap.set(identifier, record);
-    this.addAuditLog('LOGIN_FAILED', `กรอกรหัส PIN ไม่ถูกต้อง (ครั้งที่ ${record.attempts}/5)`, 'Unknown', ip);
+    this.addAuditLog('LOGIN_FAILED', `พยายามเข้าสู่ระบบไม่สำเร็จ (ครั้งที่ ${record.attempts}/5, ชื่อ: ${attemptedUser})`, attemptedUser, ip);
     return { isLocked: false, remainingAttempts: 5 - record.attempts, remainingLockoutSeconds: 0 };
   }
 
-  recordSuccessfulLogin(identifier: string, ip: string, operator = 'Admin') {
+  recordSuccessfulLogin(identifier: string, ip: string, staffName: string, roleName: string) {
     globalStore.loginAttempts.delete(identifier);
-    this.addAuditLog('LOGIN_SUCCESS', `เข้าสู่ระบบสำเร็จผ่าน Admin Authentication`, operator, ip);
-  }
-
-  async verifyPin(pin: string): Promise<boolean> {
-    let systemPin = globalStore.settings.admin_pin || '8888';
-    if (this.d1) {
-      try {
-        const item = await this.d1.prepare('SELECT value FROM system_settings WHERE key = ?').bind('admin_pin').first();
-        if (item) systemPin = item.value;
-      } catch (e) {}
-    }
-    return pin.trim() === systemPin || pin.trim() === '8888';
+    this.addAuditLog('LOGIN_SUCCESS', `เข้าสู่ระบบสำเร็จ: ${staffName} (${roleName})`, staffName, ip);
   }
 }

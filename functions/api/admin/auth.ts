@@ -22,7 +22,7 @@ export async function onRequestPost(context: { request: Request; env: any }) {
     }
 
     const body: any = await request.json();
-    const { pin, operator_name = 'เจ้าหน้าที่คลังสินค้า' } = body;
+    const { username, pin } = body;
 
     if (!pin) {
       return new Response(JSON.stringify({ error: 'กรุณากรอกรหัส PIN' }), {
@@ -31,31 +31,42 @@ export async function onRequestPost(context: { request: Request; env: any }) {
       });
     }
 
-    const isValid = await store.verifyPin(pin);
+    // 2. Authenticate Staff Member
+    const staff = await store.authenticateStaff(username || '', pin);
 
-    if (isValid) {
-      store.recordSuccessfulLogin(clientIp, clientIp, operator_name);
-      
-      // Issue cryptographically signed JWT Token (Valid 8 hours)
+    if (staff) {
+      store.recordSuccessfulLogin(clientIp, clientIp, staff.full_name, staff.role_name);
+
+      // Issue JWT Token with Staff Role & Identity
       const token = await createAdminToken({
-        operator: operator_name,
+        staff_id: staff.id,
+        username: staff.username,
+        operator: staff.full_name,
+        role: staff.role, // 'super_admin' | 'warehouse_officer' | 'security_gate'
+        role_name: staff.role_name,
         ip: clientIp,
       }, 28800);
 
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'เข้าสู่ระบบสำเร็จ',
+          message: `เข้าสู่ระบบสำเร็จ: ยินดีต้อนรับ ${staff.full_name}`,
           token,
           expires_in: 28800,
-          operator_name,
+          staff: {
+            id: staff.id,
+            username: staff.username,
+            full_name: staff.full_name,
+            role: staff.role,
+            role_name: staff.role_name,
+          },
         }),
         { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
       );
     }
 
     // Record failure
-    const failInfo = store.recordFailedLogin(clientIp, clientIp);
+    const failInfo = store.recordFailedLogin(clientIp, clientIp, username || 'PIN');
     if (failInfo.isLocked) {
       return new Response(
         JSON.stringify({
@@ -70,7 +81,7 @@ export async function onRequestPost(context: { request: Request; env: any }) {
 
     return new Response(
       JSON.stringify({
-        error: `รหัส PIN ไม่ถูกต้อง (เหลือโอกาสกรอกอีก ${failInfo.remainingAttempts} ครั้ง)`,
+        error: `ชื่อผู้ใช้หรือรหัส PIN ไม่ถูกต้อง (เหลือโอกาสกรอกอีก ${failInfo.remainingAttempts} ครั้ง)`,
         remaining_attempts: failInfo.remainingAttempts,
         is_locked: false,
       }),
@@ -96,6 +107,8 @@ export async function onRequestGet(context: { request: Request }) {
     JSON.stringify({
       valid: true,
       operator: auth.payload?.operator || 'Admin',
+      role: auth.payload?.role || 'warehouse_officer',
+      role_name: auth.payload?.role_name || 'เจ้าหน้าที่',
       expires_at: auth.payload?.exp,
     }),
     { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
