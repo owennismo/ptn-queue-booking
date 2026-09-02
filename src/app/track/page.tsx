@@ -114,7 +114,7 @@ export default function TrackPage() {
             {results.map((item) => (
               <Link
                 key={item.booking_id}
-                href={`/booking/${item.booking_id}`}
+                href={`/booking?id=${item.booking_id}`}
                 className="block bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md hover:border-emerald-300 transition group"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">

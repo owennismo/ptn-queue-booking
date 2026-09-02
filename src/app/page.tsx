@@ -166,7 +166,7 @@ export default function BookingPage() {
       }
 
       // Redirect to digital ticket page
-      router.push(`/booking/${data.booking.booking_id}`);
+      router.push(`/booking?id=${data.booking.booking_id}`);
     } catch (err: any) {
       setErrorMessage(err.message || 'เกิดข้อผิดพลาดในการจองคิว');
     } finally {
