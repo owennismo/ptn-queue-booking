@@ -1,5 +1,5 @@
-import { DataStore } from '../../_store';
-import { checkAuthHeader } from '../../_jwt';
+import { DataStore } from '../_store';
+import { checkAuthHeader } from '../_jwt';
 
 export async function onRequestGet(context: { request: Request; env: any }) {
   try {
@@ -11,15 +11,10 @@ export async function onRequestGet(context: { request: Request; env: any }) {
       return auth.errorResponse!;
     }
 
-    const url = new URL(request.url);
-    const date = url.searchParams.get('date');
-    const status = url.searchParams.get('status');
-    const search = url.searchParams.get('search');
-
     const store = new DataStore(env);
-    const bookings = await store.getAdminBookings(date, status, search);
+    const logs = await store.getAuditLogs(100);
 
-    return new Response(JSON.stringify({ bookings }), {
+    return new Response(JSON.stringify({ logs }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
   } catch (error: any) {

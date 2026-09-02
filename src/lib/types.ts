@@ -63,4 +63,5 @@ export interface DailyForecast {
   tomorrow_pending: number;
   tomorrow_approved: number;
   total_pending_all: number;
+  notification_message?: string;
 }

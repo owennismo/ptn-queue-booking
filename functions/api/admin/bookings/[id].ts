@@ -1,11 +1,21 @@
 import { DataStore } from '../../_store';
+import { checkAuthHeader } from '../../_jwt';
 
 export async function onRequestPatch(context: { params: any; request: Request; env: any }) {
   try {
     const { params, request, env } = context;
+
+    // Verify JWT Token
+    const auth = await checkAuthHeader(request);
+    if (!auth.authorized) {
+      return auth.errorResponse!;
+    }
+
     const id = params.id;
     const body: any = await request.json();
-    const { status, admin_reason, admin_action_by = 'Admin' } = body;
+    const { status, admin_reason } = body;
+    const operatorName = auth.payload?.operator || 'Admin';
+    const clientIp = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
 
     if (!id || !status) {
       return new Response(JSON.stringify({ error: 'Missing booking ID or status' }), {
@@ -22,7 +32,7 @@ export async function onRequestPatch(context: { params: any; request: Request; e
     }
 
     const store = new DataStore(env);
-    const updated = await store.updateBookingStatus(id, status, admin_reason, admin_action_by);
+    const updated = await store.updateBookingStatus(id, status, admin_reason, operatorName, clientIp);
 
     if (!updated) {
       return new Response(JSON.stringify({ error: 'ไม่พบรายการจองนี้' }), {
@@ -50,9 +60,18 @@ export async function onRequestPatch(context: { params: any; request: Request; e
 export async function onRequestPost(context: { params: any; request: Request; env: any }) {
   try {
     const { params, request, env } = context;
+
+    // Verify JWT Token
+    const auth = await checkAuthHeader(request);
+    if (!auth.authorized) {
+      return auth.errorResponse!;
+    }
+
     const id = params.id;
     const body: any = await request.json();
-    const { cancellation_reason, confirm_code, admin_action_by = 'Admin' } = body;
+    const { cancellation_reason, confirm_code } = body;
+    const operatorName = auth.payload?.operator || 'Admin';
+    const clientIp = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
 
     if (!id) {
       return new Response(JSON.stringify({ error: 'Missing booking ID' }), {
@@ -89,7 +108,8 @@ export async function onRequestPost(context: { params: any; request: Request; en
       id,
       'Cancelled',
       `[ยกเลิกคิว] ${cancellation_reason.trim()}`,
-      admin_action_by
+      operatorName,
+      clientIp
     );
 
     return new Response(

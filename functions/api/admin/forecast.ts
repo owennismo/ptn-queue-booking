@@ -1,8 +1,16 @@
 import { DataStore } from '../_store';
+import { checkAuthHeader } from '../_jwt';
 
-export async function onRequestGet(context: { env: any }) {
+export async function onRequestGet(context: { request: Request; env: any }) {
   try {
-    const { env } = context;
+    const { request, env } = context;
+
+    // Verify JWT Token
+    const auth = await checkAuthHeader(request);
+    if (!auth.authorized) {
+      return auth.errorResponse!;
+    }
+
     const store = new DataStore(env);
 
     const now = new Date();

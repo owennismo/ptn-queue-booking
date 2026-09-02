@@ -36,6 +36,21 @@ export interface BlockedDate {
   created_at: string;
 }
 
+export interface AuditLog {
+  id: number;
+  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'UPDATE_SLOT' | 'BLOCK_DATE' | 'UNBLOCK_DATE';
+  details: string;
+  operator: string;
+  ip_address: string;
+  created_at: string;
+}
+
+interface LoginAttemptRecord {
+  attempts: number;
+  lockedUntil: number | null;
+  lastAttempt: number;
+}
+
 // Global persistent state for Edge instance
 const globalStore = (globalThis as any).__PTN_STORE__ || {
   bookings: [
@@ -66,6 +81,17 @@ const globalStore = (globalThis as any).__PTN_STORE__ || {
     { id: 8, slot_name: '16:00 - 17:00', start_time: '16:00', end_time: '17:00', max_capacity: 2, is_active: 1 },
   ] as TimeSlot[],
   blockedDates: [] as BlockedDate[],
+  auditLogs: [
+    {
+      id: 1,
+      action: 'LOGIN_SUCCESS',
+      details: 'ระบบเริ่มต้นการทำงาน (System Initialized)',
+      operator: 'System',
+      ip_address: '127.0.0.1',
+      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+    },
+  ] as AuditLog[],
+  loginAttempts: new Map<string, LoginAttemptRecord>(),
   settings: {
     company_name: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
     admin_pin: '8888',
@@ -302,7 +328,7 @@ export class DataStore {
     return results;
   }
 
-  async updateBookingStatus(id: string, status: string, reason?: string | null, actionBy = 'Admin'): Promise<Booking | null> {
+  async updateBookingStatus(id: string, status: string, reason?: string | null, actionBy = 'Admin', ip = '127.0.0.1'): Promise<Booking | null> {
     const cleanId = id.trim().toUpperCase();
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
@@ -322,6 +348,19 @@ export class DataStore {
       memItem.admin_reason = reason || null;
       memItem.admin_action_date = nowStr;
       memItem.admin_action_by = actionBy;
+
+      // Add audit log
+      let logAction: AuditLog['action'] = 'APPROVE_QUEUE';
+      if (status === 'Rejected') logAction = 'REJECT_QUEUE';
+      if (status === 'Cancelled') logAction = 'CANCEL_QUEUE';
+
+      await this.addAuditLog(
+        logAction,
+        `เปลี่ยนสถานะคิว ${cleanId} เป็น ${status}${reason ? ` (เหตุผล: ${reason})` : ''}`,
+        actionBy,
+        ip
+      );
+
       return memItem;
     }
     return null;
@@ -353,7 +392,7 @@ export class DataStore {
     return { slots, blockedDates, settings };
   }
 
-  async updateSlot(id: number, maxCapacity: number, isActive: boolean) {
+  async updateSlot(id: number, maxCapacity: number, isActive: boolean, operator = 'Admin', ip = '127.0.0.1') {
     if (this.d1) {
       try {
         await this.d1.prepare('UPDATE time_slots SET max_capacity = ?, is_active = ? WHERE id = ?')
@@ -365,11 +404,17 @@ export class DataStore {
     if (slot) {
       slot.max_capacity = maxCapacity;
       slot.is_active = isActive ? 1 : 0;
+      await this.addAuditLog(
+        'UPDATE_SLOT',
+        `ปรับแต่งรอบเวลา ${slot.slot_name}: รองรับ ${maxCapacity} คิว, เปิดใช้งาน: ${isActive ? 'ใช่' : 'ปิด'}`,
+        operator,
+        ip
+      );
     }
     return true;
   }
 
-  async addBlockedDate(date: string, reason: string) {
+  async addBlockedDate(date: string, reason: string, operator = 'Admin', ip = '127.0.0.1') {
     if (this.d1) {
       try {
         await this.d1.prepare('INSERT OR REPLACE INTO blocked_dates (blocked_date, reason) VALUES (?, ?)')
@@ -388,10 +433,18 @@ export class DataStore {
         created_at: new Date().toISOString(),
       });
     }
+
+    await this.addAuditLog(
+      'BLOCK_DATE',
+      `ปิดรับจองคิววันที่ ${date} (เหตุผล: ${reason})`,
+      operator,
+      ip
+    );
+
     return true;
   }
 
-  async removeBlockedDate(target: string | number) {
+  async removeBlockedDate(target: string | number, operator = 'Admin', ip = '127.0.0.1') {
     if (this.d1) {
       try {
         if (typeof target === 'number') {
@@ -405,7 +458,97 @@ export class DataStore {
     globalStore.blockedDates = globalStore.blockedDates.filter(
       (b: BlockedDate) => b.id !== target && b.blocked_date !== target
     );
+
+    await this.addAuditLog(
+      'UNBLOCK_DATE',
+      `เปิดรับจองคิวตามปกติสำหรับ ${target}`,
+      operator,
+      ip
+    );
+
     return true;
+  }
+
+  // --- AUDIT LOGS ---
+  async addAuditLog(action: AuditLog['action'], details: string, operator = 'Admin', ip = '127.0.0.1') {
+    const log: AuditLog = {
+      id: Date.now(),
+      action,
+      details,
+      operator,
+      ip_address: ip,
+      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+    };
+    globalStore.auditLogs.unshift(log);
+    if (globalStore.auditLogs.length > 200) {
+      globalStore.auditLogs.pop();
+    }
+  }
+
+  async getAuditLogs(limit = 50): Promise<AuditLog[]> {
+    return globalStore.auditLogs.slice(0, limit);
+  }
+
+  // --- BRUTE FORCE & RATE LIMITING ---
+  checkRateLimit(identifier: string): { isLocked: boolean; remainingLockoutSeconds: number; remainingAttempts: number } {
+    const now = Date.now();
+    const attemptsMap: Map<string, LoginAttemptRecord> = globalStore.loginAttempts;
+    const record = attemptsMap.get(identifier);
+
+    if (!record) {
+      return { isLocked: false, remainingLockoutSeconds: 0, remainingAttempts: 5 };
+    }
+
+    // Check if locked
+    if (record.lockedUntil && record.lockedUntil > now) {
+      const remainingSeconds = Math.ceil((record.lockedUntil - now) / 1000);
+      return { isLocked: true, remainingLockoutSeconds: remainingSeconds, remainingAttempts: 0 };
+    }
+
+    // If lock expired, reset
+    if (record.lockedUntil && record.lockedUntil <= now) {
+      attemptsMap.delete(identifier);
+      return { isLocked: false, remainingLockoutSeconds: 0, remainingAttempts: 5 };
+    }
+
+    // Window expiration (15 minutes of inactivity clears failed count)
+    if (now - record.lastAttempt > 15 * 60 * 1000) {
+      attemptsMap.delete(identifier);
+      return { isLocked: false, remainingLockoutSeconds: 0, remainingAttempts: 5 };
+    }
+
+    const remaining = Math.max(0, 5 - record.attempts);
+    return { isLocked: false, remainingLockoutSeconds: 0, remainingAttempts: remaining };
+  }
+
+  recordFailedLogin(identifier: string, ip: string): { isLocked: boolean; remainingAttempts: number; remainingLockoutSeconds: number } {
+    const now = Date.now();
+    const attemptsMap: Map<string, LoginAttemptRecord> = globalStore.loginAttempts;
+    let record = attemptsMap.get(identifier);
+
+    if (!record || (record.lockedUntil && record.lockedUntil <= now)) {
+      record = { attempts: 1, lockedUntil: null, lastAttempt: now };
+    } else {
+      record.attempts += 1;
+      record.lastAttempt = now;
+    }
+
+    if (record.attempts >= 5) {
+      // Lock for 15 minutes
+      record.lockedUntil = now + 15 * 60 * 1000;
+      attemptsMap.set(identifier, record);
+      this.addAuditLog('LOGIN_FAILED', `กรอกรหัส PIN ผิดครบ 5 ครั้ง — ระบบสั่งระงับชั่วคราว 15 นาที`, 'Unknown', ip);
+      return { isLocked: true, remainingAttempts: 0, remainingLockoutSeconds: 15 * 60 };
+    }
+
+    attemptsMap.set(identifier, record);
+    this.addAuditLog('LOGIN_FAILED', `กรอกรหัส PIN ไม่ถูกต้อง (ครั้งที่ ${record.attempts}/5)`, 'Unknown', ip);
+    return { isLocked: false, remainingAttempts: 5 - record.attempts, remainingLockoutSeconds: 0 };
+  }
+
+  recordSuccessfulLogin(identifier: string, ip: string, operator = 'Admin') {
+    globalStore.loginAttempts.delete(identifier);
+    this.addAuditLog('LOGIN_SUCCESS', `เข้าสู่ระบบสำเร็จผ่าน Admin Authentication`, operator, ip);
   }
 
   async verifyPin(pin: string): Promise<boolean> {
