@@ -614,11 +614,86 @@ export class DataStore {
       slot.is_active = isActive ? 1 : 0;
       await this.addAuditLog(
         'UPDATE_SLOT',
-        `ปรับแต่งรอบเวลา ${slot.slot_name}: รองรับ ${maxCapacity} คิว, เปิดใช้งาน: ${isActive ? 'ใช่' : 'ปิด'}`,
+        `ปรับแต่งรอบเวลา ${slot.slot_name}: ความจุ ${maxCapacity} คิว/วัน, สถานะ: ${isActive ? 'เปิดรับ' : 'ปิด'}`,
         operator,
         ip
       );
     }
+    return true;
+  }
+
+  async addSlot(data: { slot_name: string; start_time: string; end_time: string; max_capacity: number }, operator = 'Admin', ip = '127.0.0.1') {
+    const newId = Date.now();
+    const newSlot: TimeSlot = {
+      id: newId,
+      slot_name: data.slot_name.trim(),
+      start_time: data.start_time.trim(),
+      end_time: data.end_time.trim(),
+      max_capacity: data.max_capacity || 3,
+      is_active: 1,
+    };
+
+    if (this.d1) {
+      try {
+        await this.d1.prepare('INSERT INTO time_slots (slot_name, start_time, end_time, max_capacity, is_active) VALUES (?, ?, ?, ?, 1)')
+          .bind(newSlot.slot_name, newSlot.start_time, newSlot.end_time, newSlot.max_capacity).run();
+      } catch (e) {}
+    }
+
+    globalStore.timeSlots.push(newSlot);
+    // Sort slots by start_time
+    globalStore.timeSlots.sort((a: TimeSlot, b: TimeSlot) => a.start_time.localeCompare(b.start_time));
+
+    await this.addAuditLog(
+      'UPDATE_SLOT',
+      `เพิ่มรอบเวลาใหม่: ${newSlot.slot_name} (ความจุ ${newSlot.max_capacity} คิว/วัน)`,
+      operator,
+      ip
+    );
+
+    return newSlot;
+  }
+
+  async deleteSlot(id: number, operator = 'Admin', ip = '127.0.0.1') {
+    if (this.d1) {
+      try {
+        await this.d1.prepare('DELETE FROM time_slots WHERE id = ?').bind(id).run();
+      } catch (e) {}
+    }
+
+    const targetSlot = globalStore.timeSlots.find((s: TimeSlot) => s.id === id);
+    globalStore.timeSlots = globalStore.timeSlots.filter((s: TimeSlot) => s.id !== id);
+
+    if (targetSlot) {
+      await this.addAuditLog(
+        'UPDATE_SLOT',
+        `ลบรอบเวลา: ${targetSlot.slot_name}`,
+        operator,
+        ip
+      );
+    }
+
+    return true;
+  }
+
+  async batchUpdateSlots(maxCapacity: number, operator = 'Admin', ip = '127.0.0.1') {
+    if (this.d1) {
+      try {
+        await this.d1.prepare('UPDATE time_slots SET max_capacity = ?').bind(maxCapacity).run();
+      } catch (e) {}
+    }
+
+    for (const slot of globalStore.timeSlots) {
+      slot.max_capacity = maxCapacity;
+    }
+
+    await this.addAuditLog(
+      'UPDATE_SLOT',
+      `ปรับความจุทุกรอบเวลาเป็น ${maxCapacity} คิว/รอบ (มีผลทันทีทุกวัน)`,
+      operator,
+      ip
+    );
+
     return true;
   }
 

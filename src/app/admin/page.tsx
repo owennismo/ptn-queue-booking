@@ -974,34 +974,168 @@ export default function AdminDashboardPage() {
         {/* 🌟 TAB 2: CAPACITY & TIME SLOTS */}
         {!isSecurityOnly && activeTab === 'capacity' && (
           <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-6">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900">จัดการรอบเวลาและความจุสูงสุดต่อรอบ (Capacity)</h3>
-              <p className="text-xs text-slate-500">ปรับเปลี่ยนจำนวนคิวที่รองรับได้ในแต่ละช่วงเวลา</p>
+            {/* Real-time & Permanent Effect Rule Notice */}
+            <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl flex items-start gap-3.5 text-xs text-emerald-900">
+              <div className="p-2 bg-emerald-600 text-white rounded-xl shrink-0 mt-0.5">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div className="space-y-0.5">
+                <strong className="block text-sm text-emerald-950 font-bold">
+                  ⚡ มีผลบังคับใช้ทันทีกับทุกวันในระบบ (Real-Time & Permanent Setting)
+                </strong>
+                <p className="text-slate-600 leading-relaxed">
+                  เมื่อมีการปรับเปลี่ยนรอบเวลา หรือแก้ไขจำนวนความจุสูงสุด (คิว) ระบบจะบันทึกและมีผลทันทีกับ <strong>ทุกวันเปิดทำการ (จันทร์-เสาร์)</strong> ในระบบการจองของผู้ส่งสินค้า และจะคงอยู่ตลอดไปจนกว่าเจ้าหน้าที่จะเข้ามาแก้ไขใหม่อีกครั้ง
+                </p>
+              </div>
             </div>
 
+            {/* Header and Action Tools */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">ตั้งค่ารอบเวลาและความจุสูงสุดต่อรอบ</h3>
+                <p className="text-xs text-slate-500">กำหนดจำนวนรถขนส่งที่สามารถเข้าส่งสินค้าได้พร้อมกันในแต่ละช่วงเวลา</p>
+              </div>
+
+              {/* Batch Capacity Tool & Add Slot Button */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const val = prompt('กรุณาระบุจำนวนความจุที่ต้องการตั้งค่าให้กับทุกรอบเวลา (เช่น 4):', '4');
+                    if (val && !isNaN(parseInt(val, 10)) && parseInt(val, 10) > 0) {
+                      authFetch('/api/admin/settings', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                          action: 'batch_update_capacity',
+                          max_capacity: parseInt(val, 10),
+                        }),
+                      })
+                        .then((res) => res.json())
+                        .then((data) => {
+                          if (data.error) throw new Error(data.error);
+                          showToast(data.message || 'บันทึกความจุทุกรอบเวลาสำเร็จ');
+                          fetchSettings();
+                        })
+                        .catch((err) => showToast(err.message || 'เกิดข้อผิดพลาด', 'error'));
+                    }
+                  }}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                  title="เปลี่ยนความจุทุกรอบเวลาให้เท่ากันในคลิกเดียว"
+                >
+                  <Sliders className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>ปรับทุกรอบเท่ากัน</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const start = prompt('กรุณาระบุเวลาเริ่ม (เช่น 07:30):', '07:30');
+                    if (!start) return;
+                    const end = prompt('กรุณาระบุเวลาสิ้นสุด (เช่น 08:30):', '08:30');
+                    if (!end) return;
+                    const cap = prompt('ความจุสูงสุด (คิว):', '3');
+                    const slotName = `${start} - ${end}`;
+
+                    authFetch('/api/admin/settings', {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        action: 'add_slot',
+                        slot_name: slotName,
+                        start_time: start,
+                        end_time: end,
+                        max_capacity: parseInt(cap || '3', 10) || 3,
+                      }),
+                    })
+                      .then((res) => res.json())
+                      .then((data) => {
+                        if (data.error) throw new Error(data.error);
+                        showToast(data.message || 'เพิ่มรอบเวลาสำเร็จ');
+                        fetchSettings();
+                      })
+                      .catch((err) => showToast(err.message || 'เกิดข้อผิดพลาด', 'error'));
+                  }}
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ เพิ่มรอบเวลาใหม่</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Time Slot Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               {slots.map((slot) => (
-                <div key={slot.id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-3">
+                <div
+                  key={slot.id}
+                  className={`p-4 rounded-2xl border transition ${
+                    slot.is_active === 1
+                      ? 'border-emerald-200 bg-emerald-50/30'
+                      : 'border-slate-200 bg-slate-50 opacity-60'
+                  } space-y-3 relative group`}
+                >
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900 text-sm">{slot.slot_name}</span>
-                    <input
-                      type="checkbox"
-                      checked={slot.is_active === 1}
-                      onChange={(e) => handleSlotCapacityChange(slot.id, slot.max_capacity, e.target.checked)}
-                      className="w-4 h-4 text-emerald-600 rounded"
-                    />
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-emerald-600" />
+                      <span className="font-bold text-slate-900 text-sm">{slot.slot_name}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={slot.is_active === 1}
+                          onChange={(e) => handleSlotCapacityChange(slot.id, slot.max_capacity, e.target.checked)}
+                          className="w-4 h-4 text-emerald-600 rounded"
+                        />
+                        <span>{slot.is_active === 1 ? 'เปิด' : 'ปิด'}</span>
+                      </label>
+
+                      {slots.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`ต้องการลบรอบเวลา "${slot.slot_name}" ใช่หรือไม่?`)) {
+                              authFetch('/api/admin/settings', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                  action: 'delete_slot',
+                                  id: slot.id,
+                                }),
+                              })
+                                .then((res) => res.json())
+                                .then((data) => {
+                                  if (data.error) throw new Error(data.error);
+                                  showToast('ลบรอบเวลาเรียบร้อยแล้ว');
+                                  fetchSettings();
+                                })
+                                .catch((err) => showToast(err.message || 'เกิดข้อผิดพลาด', 'error'));
+                            }
+                          }}
+                          className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition"
+                          title="ลบรอบเวลานี้"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-slate-600">ความจุสูงสุด (คิว)</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="20"
-                      value={slot.max_capacity}
-                      onChange={(e) => handleSlotCapacityChange(slot.id, parseInt(e.target.value, 10) || 1, slot.is_active === 1)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-center text-slate-900"
-                    />
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600">
+                      <span>ความจุสูงสุดต่อวัน</span>
+                      <span className="text-emerald-700 font-bold">{slot.max_capacity} คิว/รอบ</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="50"
+                        value={slot.max_capacity}
+                        onChange={(e) => handleSlotCapacityChange(slot.id, parseInt(e.target.value, 10) || 1, slot.is_active === 1)}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-center text-slate-900 focus:ring-2 focus:ring-emerald-500 text-sm"
+                      />
+                      <span className="text-xs text-slate-500 font-medium shrink-0">คิว</span>
+                    </div>
                   </div>
                 </div>
               ))}
