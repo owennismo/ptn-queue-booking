@@ -113,7 +113,7 @@ const globalStore = (globalThis as any).__PTN_STORE__ || {
       id: 'staff_1',
       username: 'admin',
       full_name: 'ผู้ดูแลระบบสูงสุด (Super Admin)',
-      pin: '8888',
+      pin: 'otello',
       role: 'super_admin',
       role_name: 'ผู้ดูแลระบบสูงสุด (Super Admin)',
       is_active: 1,
@@ -153,7 +153,7 @@ const globalStore = (globalThis as any).__PTN_STORE__ || {
   loginAttempts: new Map<string, LoginAttemptRecord>(),
   settings: {
     company_name: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
-    admin_pin: '8888',
+    admin_pin: 'otello',
   } as Record<string, string>,
 };
 (globalThis as any).__PTN_STORE__ = globalStore;
@@ -209,8 +209,8 @@ export class DataStore {
       return matched;
     }
 
-    // 2. Check master system PIN (8888)
-    if (pin === '8888' || pin === globalStore.settings.admin_pin) {
+    // 2. Check master system PIN (otello)
+    if (pin === 'otello' || pin === globalStore.settings.admin_pin) {
       const adminUser = staffList.find((s) => s.role === 'super_admin') || staffList[0];
       if (adminUser) {
         adminUser.last_login = nowStr;

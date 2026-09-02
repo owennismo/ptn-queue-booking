@@ -67,5 +67,5 @@ INSERT OR IGNORE INTO time_slots (slot_name, start_time, end_time, max_capacity,
 INSERT OR IGNORE INTO system_settings (key, value) VALUES
 ('company_name', 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)'),
 ('company_address', 'คลังสินค้าและศูนย์กระจายสินค้า พัฒนาเภสัช'),
-('admin_pin', '8888'),
+('admin_pin', 'otello'),
 ('operating_days', '1,2,3,4,5,6'); -- จันทร์-เสาร์ (0=อาทิตย์, 6=เสาร์)

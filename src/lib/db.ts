@@ -21,7 +21,7 @@ const inMemoryStore = {
   blockedDates: [] as BlockedDate[],
   settings: {
     company_name: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
-    admin_pin: '8888',
+    admin_pin: 'otello',
   } as Record<string, string>,
 };
 
