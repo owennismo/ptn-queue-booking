@@ -2,27 +2,32 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Search, Phone, Hash, ArrowRight, Calendar, Clock, CheckCircle2, AlertCircle, XCircle, Truck } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Search, Phone, Hash, ArrowRight, Calendar, Clock, CheckCircle2, AlertCircle, XCircle, Truck, Camera } from 'lucide-react';
 import { Booking } from '@/lib/types';
+import QRScannerModal from '@/components/QRScannerModal';
 
 export default function TrackPage() {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Booking[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+  const handleSearch = async (e?: React.FormEvent, directQuery?: string) => {
+    if (e) e.preventDefault();
+    const searchQuery = (directQuery || query).trim();
+    if (!searchQuery) return;
 
     setLoading(true);
     setError(null);
     setResults(null);
 
-    const isPhone = /^[0-9-+ ]+$/.test(query.trim()) && query.trim().length >= 8;
+    const isPhone = /^[0-9-+ ]+$/.test(searchQuery) && searchQuery.length >= 8;
     const url = isPhone
-      ? `/api/bookings?phone=${encodeURIComponent(query.trim())}`
-      : `/api/bookings?id=${encodeURIComponent(query.trim())}`;
+      ? `/api/bookings?phone=${encodeURIComponent(searchQuery)}`
+      : `/api/bookings?id=${encodeURIComponent(searchQuery)}`;
 
     try {
       const res = await fetch(url);
@@ -40,6 +45,17 @@ export default function TrackPage() {
       setError(err.message || 'เกิดข้อผิดพลาดในการค้นหา');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleQRScanned = (scannedId: string) => {
+    setScannerOpen(false);
+    setQuery(scannedId);
+    // If it's a single booking ID, redirect directly to digital ticket!
+    if (scannedId.startsWith('PTN-')) {
+      router.push(`/booking?id=${scannedId}`);
+    } else {
+      handleSearch(undefined, scannedId);
     }
   };
 
@@ -64,11 +80,11 @@ export default function TrackPage() {
             ตรวจสอบสถานะคิวการจอง
           </h1>
           <p className="text-sm text-slate-500">
-            ค้นหาด้วยรหัสการจอง (Booking ID) หรือเบอร์โทรศัพท์ที่ใช้ลงทะเบียน
+            ค้นหาด้วยรหัสการจอง (Booking ID) เบอร์โทรศัพท์ หรือสแกน QR Code บนบัตรคิว
           </p>
         </div>
 
-        {/* Search Input Box */}
+        {/* Search Input Box & QR Camera Button */}
         <form onSubmit={handleSearch} className="bg-white rounded-3xl border border-slate-200 p-3 sm:p-4 shadow-md flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -79,23 +95,36 @@ export default function TrackPage() {
               placeholder="กรอก Booking ID หรือ เบอร์โทรศัพท์..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500 focus:bg-white transition"
+              className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-sm"
             />
           </div>
-          <button
-            type="submit"
-            disabled={loading || !query.trim()}
-            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-sm transition disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
-          >
-            {loading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <>
-                <span>ค้นหา</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setScannerOpen(true)}
+              className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition flex items-center justify-center gap-1.5 shrink-0 text-sm"
+              title="เปิดกล้องสแกน QR Code"
+            >
+              <Camera className="w-4 h-4 text-emerald-600" />
+              <span>สแกน QR</span>
+            </button>
+
+            <button
+              type="submit"
+              disabled={loading || !query.trim()}
+              className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-sm transition disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 text-sm"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <span>ค้นหา</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
         </form>
 
         {/* Error message */}
@@ -118,40 +147,43 @@ export default function TrackPage() {
                 className="block bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md hover:border-emerald-300 transition group"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-slate-900 text-base group-hover:text-emerald-700 transition">
+                  <div>
+                    <span className="font-mono font-bold text-slate-900 group-hover:text-emerald-600 transition text-base">
                       {item.booking_id}
+                    </span>
+                    <span className="text-xs text-slate-400 block sm:inline sm:ml-2">
+                      ({item.client_name})
                     </span>
                   </div>
                   <div>{getStatusBadge(item.status)}</div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 text-xs sm:text-sm">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 text-xs text-slate-600">
                   <div>
-                    <span className="text-slate-400 block text-[11px]">วันที่เข้าส่ง</span>
+                    <span className="text-slate-400 block">วันที่นัดหมาย</span>
                     <span className="font-semibold text-slate-800">{item.requested_date}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">ช่วงเวลา</span>
+                    <span className="text-slate-400 block">ช่วงเวลา</span>
                     <span className="font-semibold text-slate-800">{item.requested_time}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">บริษัทขนส่ง</span>
-                    <span className="font-semibold text-slate-800 truncate block">{item.carrier_name}</span>
+                    <span className="text-slate-400 block">ขนส่ง</span>
+                    <span className="font-semibold text-slate-800">{item.carrier_name}</span>
                   </div>
-                </div>
-
-                <div className="mt-3 flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-50">
-                  <span>ผู้ส่ง: {item.client_name}</span>
-                  <span className="text-emerald-600 font-semibold group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                    ดูบัตรคิว <ArrowRight className="w-3 h-3" />
-                  </span>
                 </div>
               </Link>
             ))}
           </div>
         )}
       </div>
+
+      {/* 📷 Camera QR Scanner Modal */}
+      <QRScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScanSuccess={handleQRScanned}
+      />
     </div>
   );
 }

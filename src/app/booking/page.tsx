@@ -247,7 +247,11 @@ function BookingContent() {
               </div>
               <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-sm shrink-0">
                 <QRCodeSVG
-                  value={booking.booking_id}
+                  value={
+                    typeof window !== 'undefined'
+                      ? `${window.location.origin}/booking?id=${booking.booking_id}`
+                      : `https://ptn-queue-booking.pages.dev/booking?id=${booking.booking_id}`
+                  }
                   size={120}
                   level="H"
                   includeMargin={false}

@@ -39,8 +39,10 @@ import {
   Edit,
   KeyRound,
   Shield,
+  Camera,
 } from 'lucide-react';
 import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole } from '@/lib/types';
+import QRScannerModal from '@/components/QRScannerModal';
 
 interface AuditLog {
   id: number;
@@ -124,6 +126,9 @@ export default function AdminDashboardPage() {
   const [confirmCodeInput, setConfirmCodeInput] = useState('');
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+
+  // QR Scanner Modal State
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   // Notification Toast message
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -305,6 +310,24 @@ export default function AdminDashboardPage() {
       fetchAuditLogs();
     }
   }, [activeTab, token, fetchStaff, fetchAuditLogs]);
+
+  // Live QR Code Scanner Success Handler
+  const handleQRScanned = async (scannedId: string) => {
+    setScannerOpen(false);
+    setSearchQuery(scannedId);
+    try {
+      const res = await fetch(`/api/bookings/${scannedId}`);
+      const data = await res.json();
+      if (res.ok && data.booking) {
+        setSelectedBooking(data.booking);
+        showToast(`สแกนสำเร็จ: พบข้อมูลคิว ${scannedId}`);
+      } else {
+        showToast(`ไม่พบข้อมูลคิวรหัส ${scannedId}`, 'error');
+      }
+    } catch (e) {
+      showToast(`ค้นหาคิว ${scannedId}`);
+    }
+  };
 
   // 1-Click Approve Action
   const handleApprove = async (booking: Booking) => {
@@ -822,13 +845,23 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              {/* Search Box */}
+              {/* Search Box & Camera QR Scanner */}
               <div className="flex items-center gap-2">
-                <div className="relative flex-1 md:w-64">
+                <button
+                  type="button"
+                  onClick={() => setScannerOpen(true)}
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm whitespace-nowrap"
+                  title="เปิดกล้องสแกน QR Code ตรวจคิว"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>สแกน QR</span>
+                </button>
+
+                <div className="relative flex-1 md:w-56">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    placeholder="ค้นหา ID, ขนส่ง, ผู้ส่ง..."
+                    placeholder="ค้นหา ID, ขนส่ง..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -838,7 +871,7 @@ export default function AdminDashboardPage() {
                 <button
                   onClick={fetchBookings}
                   disabled={loadingBookings}
-                  className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl transition"
+                  className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl transition"
                   title="รีเฟรชข้อมูล"
                 >
                   <RefreshCw className={`w-4 h-4 ${loadingBookings ? 'animate-spin text-emerald-600' : ''}`} />
@@ -1699,6 +1732,13 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* 📷 Live Camera QR Scanner Modal */}
+      <QRScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScanSuccess={handleQRScanned}
+      />
     </div>
   );
 }
