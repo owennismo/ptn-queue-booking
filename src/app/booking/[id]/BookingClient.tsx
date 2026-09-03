@@ -19,8 +19,15 @@ import {
   RefreshCw,
   ArrowLeft,
   User,
+  Download,
+  Share2,
+  MapPin,
+  ThermometerSnowflake,
+  ShieldCheck,
 } from 'lucide-react';
 import { Booking } from '@/lib/types';
+import { toPng } from 'html-to-image';
+import { formatThaiDate, formatThaiShortDate } from '@/lib/dateUtils';
 
 export default function BookingDetailPage({
   params,
@@ -35,6 +42,7 @@ export default function BookingDetailPage({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [downloadingImage, setDownloadingImage] = useState<boolean>(false);
 
   const fetchBooking = async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -79,6 +87,315 @@ export default function BookingDetailPage({
   const handlePrint = () => {
     if (typeof window !== 'undefined') {
       window.print();
+    }
+  };
+
+  // 📲 Share to LINE Handler
+  const handleShareLine = () => {
+    if (!booking) return;
+    const url = typeof window !== 'undefined' ? window.location.href : `https://ptn-queue-booking.pages.dev/booking/${booking.booking_id}`;
+    const statusText = booking.status === 'Approved' ? '✅ อนุมัติแล้ว (Approved)' : booking.status === 'Pending' ? '⏳ รอการตรวจสอบ' : booking.status;
+    const dateText = formatThaiDate(booking.requested_date);
+
+    const text = `🚚 บัตรคิวเข้าส่งสินค้า PTN Pharma Center
+📌 รหัสคิว: ${booking.booking_id}
+📅 วันที่นัดหมาย: ${dateText}
+⏰ รอบเวลา: ${booking.requested_time}
+🏢 ขนส่ง: ${booking.carrier_name}
+📦 สินค้า: ${booking.cargo_type || 'ยาและเวชภัณฑ์'} (${booking.pallet_count} พาเลท)
+🚛 ประเภทรถ: ${booking.vehicle_type || 'รถกระบะ'} (${booking.vehicle_count} คัน)
+${booking.license_plate ? `🚗 ทะเบียนรถ: ${booking.license_plate}\n` : ''}${booking.driver_name ? `👤 คนขับ: ${booking.driver_name}\n` : ''}📊 สถานะ: ${statusText}
+
+🔗 เปิดดูบัตรคิวดิจิทัล:
+${url}`;
+
+    const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
+    window.open(lineUrl, '_blank');
+  };
+
+  // 🗺️ Open Google Maps Directions Handler
+  const handleOpenGoogleMaps = () => {
+    const destination = encodeURIComponent('บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด');
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${destination}`;
+    window.open(mapsUrl, '_blank');
+  };
+
+  // 🖼️ Generate and Download Ticket as PNG Image via html-to-image (High-Res Retina)
+  const handleDownloadImage = async () => {
+    if (!booking) return;
+    setDownloadingImage(true);
+
+    try {
+      const ticketElement = document.querySelector('.ticket-card') as HTMLElement;
+      if (ticketElement) {
+        const dataUrl = await toPng(ticketElement, {
+          quality: 1,
+          pixelRatio: 3, // Crisp 3x Ultra-HD export
+          backgroundColor: '#ffffff',
+          filter: (node) => {
+            if (node instanceof HTMLElement && node.classList.contains('no-print')) {
+              return false;
+            }
+            return true;
+          },
+        });
+
+        const link = document.createElement('a');
+        link.download = `PTN-Ticket-${booking.booking_id}.png`;
+        link.href = dataUrl;
+        link.click();
+        setDownloadingImage(false);
+        return;
+      }
+    } catch (e) {
+      console.warn('html-to-image error, attempting canvas fallback:', e);
+    }
+
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas context not available');
+
+      // High Resolution Canvas (2x Retina)
+      const width = 800;
+      const height = 1150;
+      canvas.width = width;
+      canvas.height = height;
+
+      // 1. Background
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, width, height);
+
+      // Card Container
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
+      ctx.shadowBlur = 20;
+      ctx.shadowOffsetY = 10;
+      ctx.beginPath();
+      ctx.roundRect(30, 30, 740, 1090, 28);
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+
+      // 2. Header Gradient
+      const grad = ctx.createLinearGradient(30, 30, 770, 200);
+      if (booking.status === 'Approved') {
+        grad.addColorStop(0, '#059669');
+        grad.addColorStop(1, '#0f766e');
+      } else if (booking.status === 'Rejected') {
+        grad.addColorStop(0, '#dc2626');
+        grad.addColorStop(1, '#991b1b');
+      } else {
+        grad.addColorStop(0, '#d97706');
+        grad.addColorStop(1, '#047857');
+      }
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(30, 30, 740, 170, [28, 28, 0, 0]);
+      ctx.fill();
+
+      // Header Texts
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.font = '600 15px sans-serif';
+      ctx.fillText('บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)', 400, 75);
+
+      ctx.font = '900 28px sans-serif';
+      ctx.fillText('บัตรคิวเข้าส่งสินค้าดิจิทัล', 400, 115);
+
+      // Booking ID Pill
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.beginPath();
+      ctx.roundRect(260, 135, 280, 42, 21);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 20px monospace';
+      ctx.fillText(booking.booking_id, 400, 163);
+
+      // 3. Status Box
+      ctx.textAlign = 'left';
+      let statusBg = '#ecfdf5';
+      let statusBorder = '#a7f3d0';
+      let statusTextColor = '#065f46';
+      let statusTitle = 'อนุมัติคิวเรียบร้อย (Approved)';
+      let statusSub = 'สามารถนำรถและสินค้าเข้าส่งตามวันและเวลาที่ระบุได้';
+
+      if (booking.status === 'Rejected') {
+        statusBg = '#fef2f2';
+        statusBorder = '#fecaca';
+        statusTextColor = '#991b1b';
+        statusTitle = 'ไม่อนุมัติคิว (Rejected)';
+        statusSub = 'คิวนี้ถูกปฏิเสธโดยเจ้าหน้าที่คลังสินค้า';
+      } else if (booking.status === 'Cancelled') {
+        statusBg = '#f1f5f9';
+        statusBorder = '#cbd5e1';
+        statusTextColor = '#334155';
+        statusTitle = 'ยกเลิกคิวแล้ว (Cancelled)';
+        statusSub = 'คิวนี้ถูกยกเลิกแล้ว';
+      } else if (booking.status === 'Pending') {
+        statusBg = '#fffbeb';
+        statusBorder = '#fde68a';
+        statusTextColor = '#92400e';
+        statusTitle = 'รอการตรวจสอบ (Pending)';
+        statusSub = 'ระบบได้บันทึกคิวแล้ว เจ้าหน้าที่กำลังตรวจสอบ';
+      }
+
+      ctx.fillStyle = statusBg;
+      ctx.beginPath();
+      ctx.roundRect(60, 225, 680, 65, 16);
+      ctx.fill();
+      ctx.strokeStyle = statusBorder;
+      ctx.stroke();
+
+      ctx.fillStyle = statusTextColor;
+      ctx.font = 'bold 17px sans-serif';
+      ctx.fillText(statusTitle, 80, 252);
+      ctx.font = '13px sans-serif';
+      ctx.fillText(statusSub, 80, 273);
+
+      // 4. QR Code Box
+      const qrSvg = document.querySelector('.ticket-card svg');
+      if (qrSvg) {
+        const svgData = new XMLSerializer().serializeToString(qrSvg);
+        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const URL = window.URL || window.webkitURL || window;
+        const blobURL = URL.createObjectURL(svgBlob);
+
+        const img = new Image();
+        img.onload = () => {
+          // QR Card Container
+          ctx.fillStyle = '#f8fafc';
+          ctx.beginPath();
+          ctx.roundRect(60, 305, 680, 160, 20);
+          ctx.fill();
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.stroke();
+
+          ctx.drawImage(img, 570, 320, 130, 130);
+
+          ctx.fillStyle = '#059669';
+          ctx.font = 'bold 14px sans-serif';
+          ctx.fillText('DIGITAL PASS QR CODE', 90, 345);
+
+          ctx.fillStyle = '#0f172a';
+          ctx.font = 'bold 20px sans-serif';
+          ctx.fillText('สแกนตรวจสอบที่คลังสินค้า', 90, 378);
+
+          ctx.fillStyle = '#64748b';
+          ctx.font = '13px sans-serif';
+          ctx.fillText('แสดง QR Code นี้ให้เจ้าหน้าที่ รปภ. หรือฝ่ายรับสินค้า', 90, 410);
+          ctx.fillText('เพื่อเช็คอินและเรียกเข้าช่องโหลดสินค้า', 90, 432);
+
+          // 5. Grid Details
+          drawDetailsSection();
+          URL.revokeObjectURL(blobURL);
+        };
+        img.src = blobURL;
+      } else {
+        drawDetailsSection();
+      }
+
+      function drawDetailsSection() {
+        if (!ctx || !booking) return;
+
+        const startY = 485;
+        const cellW = 330;
+        const cellH = 75;
+
+        const items = [
+          { label: '📅 วันที่เข้าส่ง (พ.ศ.)', val: formatThaiDate(booking.requested_date) },
+          { label: '⏰ ช่วงเวลานัดหมาย', val: booking.requested_time },
+          { label: '🚚 บริษัทขนส่ง', val: booking.carrier_name },
+          { label: '📞 เบอร์โทรติดต่อ', val: booking.user_phone },
+          { label: '🏢 บริษัทเจ้าของสินค้า / ผู้ส่ง', val: booking.client_name, full: true },
+          { label: '📦 ประเภทสินค้า', val: booking.cargo_type || 'ยาและเวชภัณฑ์ทั่วไป', full: true, highlight: booking.cargo_type?.includes('ยาเย็น') },
+          { label: '🚛 ประเภทรถขนส่ง', val: `${booking.vehicle_type || 'รถกระบะ 4 ล้อ'} (${booking.vehicle_count} คัน)` },
+          { label: '📦 จำนวนสินค้า', val: `${booking.pallet_count} ลัง / พาเลท` },
+        ];
+
+        let currY = startY;
+        let col = 0;
+
+        items.forEach((item) => {
+          const x = item.full || col === 0 ? 60 : 410;
+          const w = item.full ? 680 : cellW;
+
+          ctx.fillStyle = item.highlight ? '#ecfeff' : '#f8fafc';
+          ctx.beginPath();
+          ctx.roundRect(x, currY, w, cellH, 14);
+          ctx.fill();
+          ctx.strokeStyle = item.highlight ? '#a5f3fc' : '#f1f5f9';
+          ctx.stroke();
+
+          ctx.fillStyle = item.highlight ? '#0e7490' : '#64748b';
+          ctx.font = '12px sans-serif';
+          ctx.fillText(item.label, x + 16, currY + 28);
+
+          ctx.fillStyle = item.highlight ? '#155e75' : '#0f172a';
+          ctx.font = 'bold 15px sans-serif';
+          ctx.fillText(item.val, x + 16, currY + 54);
+
+          if (item.full) {
+            currY += cellH + 10;
+            col = 0;
+          } else {
+            if (col === 1) {
+              currY += cellH + 10;
+              col = 0;
+            } else {
+              col = 1;
+            }
+          }
+        });
+
+        // Driver & License Plate
+        if (booking.driver_name || booking.license_plate) {
+          ctx.fillStyle = '#f8fafc';
+          ctx.beginPath();
+          ctx.roundRect(60, currY, 680, 60, 14);
+          ctx.fill();
+          ctx.strokeStyle = '#f1f5f9';
+          ctx.stroke();
+
+          ctx.fillStyle = '#64748b';
+          ctx.font = '12px sans-serif';
+          ctx.fillText('👤 ข้อมูลคนขับและทะเบียนรถ', 76, currY + 24);
+
+          ctx.fillStyle = '#0f172a';
+          ctx.font = 'bold 14px sans-serif';
+          const info = `คนขับ: ${booking.driver_name || '-'}  |  ทะเบียน: ${booking.license_plate || '-'}`;
+          ctx.fillText(info, 76, currY + 46);
+          currY += 70;
+        }
+
+        // Footer Banner
+        ctx.fillStyle = '#ecfdf5';
+        ctx.beginPath();
+        ctx.roundRect(60, 1030, 680, 60, 16);
+        ctx.fill();
+        ctx.strokeStyle = '#d1fae5';
+        ctx.stroke();
+
+        ctx.fillStyle = '#065f46';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('คำแนะนำ: กรุณาเดินทางมาถึงก่อนเวลานัดหมาย 10-15 นาที และแสดงบัตรคิวนี้ให้ฝ่ายรับสินค้า', 400, 1065);
+
+        // Trigger Download
+        const link = document.createElement('a');
+        link.download = `PTN-Ticket-${booking.booking_id}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        setDownloadingImage(false);
+      }
+    } catch (e) {
+      console.error('Download ticket image error:', e);
+      alert('ไม่สามารถดาวน์โหลดรูปภาพได้ กรุณาใช้ปุ่มพิมพ์หรือถ่ายภาพหน้าจอ');
+      setDownloadingImage(false);
     }
   };
 
@@ -154,11 +471,13 @@ export default function BookingDetailPage({
   };
 
   const statusInfo = getStatusDisplay();
+  const isColdChain = booking.cargo_type?.includes('ยาเย็น') || booking.cargo_type?.includes('Cold Chain');
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex items-center justify-between no-print">
+        {/* Top Actions Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 no-print">
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-emerald-700 transition"
@@ -167,7 +486,7 @@ export default function BookingDetailPage({
             <span>จองคิวใหม่</span>
           </Link>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => fetchBooking(false)}
               disabled={refreshing}
@@ -181,18 +500,19 @@ export default function BookingDetailPage({
               className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-sm"
             >
               <Copy className="w-3.5 h-3.5" />
-              <span>{copied ? 'คัดลอกลิงก์แล้ว!' : 'คัดลอกลิงก์'}</span>
+              <span>{copied ? 'คัดลอกแล้ว!' : 'คัดลอกลิงก์'}</span>
             </button>
             <button
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-sm"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>พิมพ์บัตรคิว</span>
+              <span>พิมพ์</span>
             </button>
           </div>
         </div>
 
+        {/* Digital Ticket Card */}
         <div className="ticket-card bg-white rounded-3xl border border-slate-200/80 shadow-xl overflow-hidden">
           <div className={`bg-gradient-to-r ${statusInfo.headerBg} p-6 sm:p-8 text-white text-center relative`}>
             <p className="text-xs uppercase tracking-widest text-emerald-100 font-semibold mb-1">
@@ -205,6 +525,7 @@ export default function BookingDetailPage({
           </div>
 
           <div className="p-6 sm:p-8 space-y-6">
+            {/* Status Alert Banner */}
             <div className={`p-4 rounded-2xl border flex items-start gap-4 ${statusInfo.badgeBg}`}>
               <div className="shrink-0">{statusInfo.icon}</div>
               <div>
@@ -218,6 +539,45 @@ export default function BookingDetailPage({
               </div>
             </div>
 
+            {/* Quick Action Buttons Bar (Save Image, Share LINE, Google Maps) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 no-print">
+              {/* 1. Download as PNG Image Button */}
+              <button
+                type="button"
+                onClick={handleDownloadImage}
+                disabled={downloadingImage}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-xs sm:text-sm shadow-md shadow-emerald-200 transition active:scale-[0.98]"
+              >
+                {downloadingImage ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                <span>บันทึกเป็นรูปภาพ</span>
+              </button>
+
+              {/* 2. Share to LINE Button */}
+              <button
+                type="button"
+                onClick={handleShareLine}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-2xl font-bold text-xs sm:text-sm shadow-md shadow-green-200 transition active:scale-[0.98]"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>แชร์เข้า LINE</span>
+              </button>
+
+              {/* 3. Google Maps GPS Navigation */}
+              <button
+                type="button"
+                onClick={handleOpenGoogleMaps}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-xs sm:text-sm shadow-md shadow-slate-300 transition active:scale-[0.98]"
+              >
+                <MapPin className="w-4 h-4 text-emerald-400" />
+                <span>แผนที่ GPS นำทาง</span>
+              </button>
+            </div>
+
+            {/* QR Code Pass Box */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-100">
               <div className="text-center sm:text-left space-y-1">
                 <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Digital Pass QR</span>
@@ -230,8 +590,8 @@ export default function BookingDetailPage({
                 <QRCodeSVG
                   value={
                     typeof window !== 'undefined'
-                      ? `${window.location.origin}/booking?id=${booking.booking_id}`
-                      : `https://ptn-queue-booking.pages.dev/booking?id=${booking.booking_id}`
+                      ? `${window.location.origin}/booking/${booking.booking_id}`
+                      : `https://ptn-queue-booking.pages.dev/booking/${booking.booking_id}`
                   }
                   size={120}
                   level="H"
@@ -240,14 +600,18 @@ export default function BookingDetailPage({
               </div>
             </div>
 
+            {/* Delivery Details Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              {/* Date in Thai format */}
               <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1">
                 <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-emerald-600" /> วันที่เข้าส่ง
+                  <Calendar className="w-3.5 h-3.5 text-emerald-600" /> วันที่เข้าส่ง (พ.ศ.)
                 </span>
-                <p className="font-bold text-slate-900 text-base">{booking.requested_date}</p>
+                <p className="font-bold text-slate-900 text-base">{formatThaiDate(booking.requested_date)}</p>
+                <p className="text-[11px] text-slate-400 font-mono">({booking.requested_date})</p>
               </div>
 
+              {/* Time Slot */}
               <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1">
                 <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-emerald-600" /> ช่วงเวลานัดหมาย
@@ -255,6 +619,7 @@ export default function BookingDetailPage({
                 <p className="font-bold text-slate-900 text-base">{booking.requested_time}</p>
               </div>
 
+              {/* Carrier */}
               <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1">
                 <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
                   <Truck className="w-3.5 h-3.5 text-emerald-600" /> บริษัทขนส่ง
@@ -262,6 +627,7 @@ export default function BookingDetailPage({
                 <p className="font-bold text-slate-900 text-base">{booking.carrier_name}</p>
               </div>
 
+              {/* Phone */}
               <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1">
                 <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
                   <Phone className="w-3.5 h-3.5 text-emerald-600" /> เบอร์โทรติดต่อ
@@ -269,6 +635,7 @@ export default function BookingDetailPage({
                 <p className="font-bold text-slate-900 text-base">{booking.user_phone}</p>
               </div>
 
+              {/* Client Name */}
               <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1 sm:col-span-2">
                 <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
                   <Building2 className="w-3.5 h-3.5 text-emerald-600" /> บริษัทเจ้าของสินค้า / ผู้ส่ง
@@ -276,24 +643,46 @@ export default function BookingDetailPage({
                 <p className="font-bold text-slate-900 text-base">{booking.client_name}</p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1">
-                <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                  <Package className="w-3.5 h-3.5 text-emerald-600" /> จำนวนลัง / พาเลท
+              {/* Cargo Category (ยาธรรมดา vs ยาเย็น) */}
+              <div className={`p-4 rounded-2xl border space-y-1 sm:col-span-2 ${
+                isColdChain ? 'bg-cyan-50/80 border-cyan-200 text-cyan-950' : 'bg-slate-50/70 border-slate-100 text-slate-900'
+              }`}>
+                <span className="text-xs font-medium flex items-center gap-1.5 text-slate-500">
+                  {isColdChain ? <ThermometerSnowflake className="w-3.5 h-3.5 text-cyan-600" /> : <Package className="w-3.5 h-3.5 text-emerald-600" />}
+                  ประเภทสินค้า (Cargo Category)
                 </span>
-                <p className="font-bold text-slate-900 text-base">{booking.pallet_count} รายการ</p>
+                <div className="flex items-center justify-between">
+                  <p className="font-bold text-base">{booking.cargo_type || 'ยาและเวชภัณฑ์ทั่วไป (Room Temp)'}</p>
+                  {isColdChain && (
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-200 text-cyan-900 flex items-center gap-1">
+                      <ThermometerSnowflake className="w-3 h-3" /> ยาเย็น 2-8°C
+                    </span>
+                  )}
+                </div>
               </div>
 
+              {/* Vehicle Type */}
               <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1">
                 <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                  <Car className="w-3.5 h-3.5 text-emerald-600" /> จำนวนรถขนส่ง
+                  <Car className="w-3.5 h-3.5 text-emerald-600" /> ประเภทรถขนส่ง
                 </span>
-                <p className="font-bold text-slate-900 text-base">{booking.vehicle_count} คัน</p>
+                <p className="font-bold text-slate-900 text-base">{booking.vehicle_type || 'รถกระบะ 4 ล้อ'}</p>
+              </div>
+
+              {/* Pallet & Vehicle Count */}
+              <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1">
+                <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+                  <Package className="w-3.5 h-3.5 text-emerald-600" /> ปริมาณและจำนวนรถ
+                </span>
+                <p className="font-bold text-slate-900 text-base">
+                  {booking.pallet_count} พาเลท / {booking.vehicle_count} คัน
+                </p>
               </div>
 
               {(booking.driver_name || booking.license_plate) && (
                 <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1 sm:col-span-2">
                   <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-emerald-600" /> ข้อมูลคนขับและรถ
+                    <User className="w-3.5 h-3.5 text-emerald-600" /> ข้อมูลคนขับและทะเบียนรถ
                   </span>
                   <p className="font-bold text-slate-900 text-sm">
                     {booking.driver_name ? `คนขับ: ${booking.driver_name}` : ''}
@@ -311,8 +700,11 @@ export default function BookingDetailPage({
               )}
             </div>
 
+            {/* Advice Footer */}
             <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-center text-xs text-emerald-800 space-y-1">
-              <p className="font-bold">คำแนะนำสำหรับผู้ส่งสินค้า:</p>
+              <p className="font-bold flex items-center justify-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" /> คำแนะนำสำหรับผู้ส่งสินค้า:
+              </p>
               <p>กรุณาเดินทางมาถึงก่อนเวลานัดหมาย 10-15 นาที และแสดงบัตรคิวนี้ให้ฝ่ายรับสินค้า</p>
             </div>
           </div>

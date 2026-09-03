@@ -14,6 +14,8 @@ export async function onRequestPost(context: { request: Request; env: any }) {
       requested_time,
       driver_name,
       license_plate,
+      vehicle_type,
+      cargo_type,
       notes,
     } = body;
 
@@ -43,6 +45,8 @@ export async function onRequestPost(context: { request: Request; env: any }) {
       requested_time,
       driver_name,
       license_plate,
+      vehicle_type,
+      cargo_type,
       notes,
     });
 

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Booking } from '@/lib/types';
 import QRScannerModal from '@/components/QRScannerModal';
+import { formatThaiDate, formatThaiShortDate } from '@/lib/dateUtils';
 
 export default function TrackPage() {
   const router = useRouter();
@@ -323,10 +324,10 @@ export default function TrackPage() {
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 text-xs text-slate-600">
                   <div>
-                    <span className="text-slate-400 block text-[11px]">วันที่นัดหมาย</span>
+                    <span className="text-slate-400 block text-[11px]">วันที่นัดหมาย (พ.ศ.)</span>
                     <span className="font-bold text-slate-800 flex items-center gap-1 mt-0.5">
                       <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      {item.requested_date}
+                      {formatThaiShortDate(item.requested_date)}
                     </span>
                   </div>
                   <div>
@@ -352,14 +353,33 @@ export default function TrackPage() {
                   </div>
                 </div>
 
+                {/* Cargo Type & Vehicle Type Badges */}
+                <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {item.cargo_type && (
+                      <span className={`px-2 py-0.5 rounded-md font-medium ${
+                        item.cargo_type.includes('ยาเย็น') || item.cargo_type.includes('Cold Chain')
+                          ? 'bg-cyan-100 text-cyan-800 border border-cyan-200'
+                          : 'bg-slate-100 text-slate-700'
+                      }`}>
+                        📦 {item.cargo_type}
+                      </span>
+                    )}
+                    {item.vehicle_type && (
+                      <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-medium">
+                        🚛 {item.vehicle_type}
+                      </span>
+                    )}
+                  </div>
+
+                  <span className="text-emerald-600 font-semibold group-hover:underline flex items-center gap-0.5 shrink-0">
+                    ดูบัตรคิว <ArrowRight className="w-3 h-3" />
+                  </span>
+                </div>
+
                 {(item.driver_name || item.license_plate) && (
-                  <div className="mt-2.5 pt-2.5 border-t border-slate-50 text-[11px] text-slate-500 flex items-center justify-between">
-                    <span>
-                      คนขับ: <strong className="text-slate-700">{item.driver_name || '-'}</strong> | ทะเบียน: <strong className="text-slate-700">{item.license_plate || '-'}</strong>
-                    </span>
-                    <span className="text-emerald-600 font-semibold group-hover:underline flex items-center gap-0.5">
-                      ดูบัตรคิวดิจิทัล <ArrowRight className="w-3 h-3" />
-                    </span>
+                  <div className="mt-2 text-[11px] text-slate-500">
+                    คนขับ: <strong className="text-slate-700">{item.driver_name || '-'}</strong> | ทะเบียน: <strong className="text-slate-700">{item.license_plate || '-'}</strong>
                   </div>
                 )}
               </Link>

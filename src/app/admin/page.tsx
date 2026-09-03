@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole } from '@/lib/types';
 import QRScannerModal from '@/components/QRScannerModal';
+import { formatThaiDate, formatThaiShortDate } from '@/lib/dateUtils';
 
 interface AuditLog {
   id: number;
@@ -931,7 +932,7 @@ export default function AdminDashboardPage() {
                   <h3 className="font-bold text-slate-900 text-base">
                     {filterDate === 'All' || !filterDate
                       ? 'รายการจองคิวทั้งหมด (ทุกวันที่)'
-                      : `รายการจองคิวประจำวันที่ ${filterDate}`}
+                      : `รายการจองคิวประจำ${formatThaiDate(filterDate)}`}
                   </h3>
                   <p className="text-xs text-slate-500">พบทั้งหมด {bookings.length} รายการ</p>
                 </div>
@@ -971,7 +972,7 @@ export default function AdminDashboardPage() {
                           <td className="py-4 px-4 font-semibold text-slate-700 whitespace-nowrap">
                             <div className="flex items-center gap-1 text-slate-900 font-bold text-xs">
                               <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>{item.requested_date}</span>
+                              <span>{formatThaiShortDate(item.requested_date)}</span>
                             </div>
                             <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
                               <Clock className="w-3 h-3 text-slate-400" />
@@ -1753,16 +1754,31 @@ export default function AdminDashboardPage() {
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="p-3 bg-slate-50 rounded-xl">
-                <span className="text-slate-400 block">วันที่เข้าส่ง</span>
-                <span className="font-bold text-slate-800">{selectedBooking.requested_date}</span>
+                <span className="text-slate-400 block">วันที่เข้าส่ง (DD/MM/YYYY)</span>
+                <span className="font-bold text-slate-800">
+                  {(() => {
+                    const parts = selectedBooking.requested_date.split('-');
+                    return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : selectedBooking.requested_date;
+                  })()}
+                </span>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl">
-                <span className="text-slate-400 block">ช่วงเวลา</span>
+                <span className="text-slate-400 block">ช่วงเวลานัดหมาย</span>
                 <span className="font-bold text-slate-800">{selectedBooking.requested_time}</span>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl col-span-2">
                 <span className="text-slate-400 block">บริษัทเจ้าของสินค้า / ผู้ส่ง</span>
                 <span className="font-bold text-slate-800">{selectedBooking.client_name}</span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl col-span-2">
+                <span className="text-slate-400 block">ประเภทสินค้า</span>
+                <span className={`font-bold inline-block mt-0.5 px-2.5 py-0.5 rounded-lg ${
+                  selectedBooking.cargo_type?.includes('ยาเย็น')
+                    ? 'bg-cyan-100 text-cyan-800 border border-cyan-200'
+                    : 'text-slate-800'
+                }`}>
+                  {selectedBooking.cargo_type || 'ยาและเวชภัณฑ์ทั่วไป'}
+                </span>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl">
                 <span className="text-slate-400 block">บริษัทขนส่ง</span>
@@ -1773,12 +1789,12 @@ export default function AdminDashboardPage() {
                 <span className="font-bold text-slate-800">{selectedBooking.user_phone}</span>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl">
-                <span className="text-slate-400 block">จำนวนลัง / พาเลท</span>
-                <span className="font-bold text-slate-800">{selectedBooking.pallet_count} รายการ</span>
+                <span className="text-slate-400 block">ประเภทรถ</span>
+                <span className="font-bold text-slate-800">{selectedBooking.vehicle_type || 'รถกระบะ 4 ล้อ'}</span>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl">
-                <span className="text-slate-400 block">จำนวนรถ</span>
-                <span className="font-bold text-slate-800">{selectedBooking.vehicle_count} คัน</span>
+                <span className="text-slate-400 block">จำนวนสินค้า / รถ</span>
+                <span className="font-bold text-slate-800">{selectedBooking.pallet_count} ลัง ({selectedBooking.vehicle_count} คัน)</span>
               </div>
               {(selectedBooking.driver_name || selectedBooking.license_plate) && (
                 <div className="p-3 bg-slate-50 rounded-xl col-span-2">

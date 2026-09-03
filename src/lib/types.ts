@@ -11,6 +11,8 @@ export interface Booking {
   requested_time: string; // e.g. "09:30 - 10:30"
   driver_name?: string | null;
   license_plate?: string | null;
+  vehicle_type?: string | null;
+  cargo_type?: string | null;
   status: BookingStatus;
   notes?: string | null;
   created_at: string;

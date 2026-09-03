@@ -13,6 +13,8 @@ export interface Booking {
   requested_time: string;
   driver_name: string | null;
   license_plate: string | null;
+  vehicle_type?: string | null;
+  cargo_type?: string | null;
   notes: string | null;
   status: 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
   admin_reason?: string | null;
@@ -637,6 +639,8 @@ export class DataStore {
       requested_time: data.requested_time,
       driver_name: data.driver_name?.trim() || null,
       license_plate: data.license_plate?.trim() || null,
+      vehicle_type: data.vehicle_type?.trim() || 'รถกระบะ 4 ล้อ',
+      cargo_type: data.cargo_type?.trim() || 'ยาและเวชภัณฑ์ทั่วไป (Room Temp 15-30°C)',
       notes: data.notes?.trim() || null,
       status: 'Pending',
       created_at: nowStr,
