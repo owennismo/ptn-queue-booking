@@ -48,6 +48,7 @@ import {
   Sparkles,
   CheckCheck,
   FileSpreadsheet,
+  QrCode,
 } from 'lucide-react';
 import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole, BookingStatus } from '@/lib/types';
 import QRScannerModal from '@/components/QRScannerModal';
@@ -996,6 +997,18 @@ export default function AdminDashboardPage() {
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span>ประวัติความปลอดภัย (Audit Logs)</span>
           </button>
+
+          {/* Direct Link to High-Res Poster / Standee Page */}
+          <a
+            href="/poster"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap bg-emerald-600/30 hover:bg-emerald-600 border border-emerald-500/40 text-emerald-100 hover:text-white text-xs ml-auto shadow-sm"
+            title="เปิดหน้าโปสเตอร์ QR Code (Standee) สำหรับพิมพ์ติดหน้างานหรือดาวน์โหลดรูปภาพ"
+          >
+            <QrCode className="w-4 h-4 text-emerald-300" />
+            <span>พิมพ์โปสเตอร์ QR Code (Standee)</span>
+          </a>
         </div>
       </header>
 
