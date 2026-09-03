@@ -40,6 +40,7 @@ import {
   KeyRound,
   Shield,
   Camera,
+  Minus,
 } from 'lucide-react';
 import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole } from '@/lib/types';
 import QRScannerModal from '@/components/QRScannerModal';
@@ -438,8 +439,13 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Slot capacity change
+  // Slot capacity change with optimistic UI update
   const handleSlotCapacityChange = async (id: number, max_capacity: number, is_active: boolean) => {
+    // Optimistic UI update
+    setSlots((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, max_capacity, is_active: is_active ? 1 : 0 } : s))
+    );
+
     try {
       const res = await authFetch('/api/admin/settings', {
         method: 'POST',
@@ -452,10 +458,10 @@ export default function AdminDashboardPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      showToast('บันทึกการตั้งค่ารอบเวลาสำเร็จ');
-      fetchSettings();
+      showToast('บันทึกการตั้งค่ารอบเวลาสำเร็จ (มีผลทันทีทุกวัน)');
     } catch (err: any) {
-      showToast(err.message || 'เกิดข้อผิดพลาด', 'error');
+      showToast(err.message || 'เกิดข้อผิดพลาดในการบันทึก', 'error');
+      fetchSettings();
     }
   };
 
@@ -1036,20 +1042,25 @@ export default function AdminDashboardPage() {
                   onClick={() => {
                     const val = prompt('กรุณาระบุจำนวนความจุที่ต้องการตั้งค่าให้กับทุกรอบเวลา (เช่น 4):', '4');
                     if (val && !isNaN(parseInt(val, 10)) && parseInt(val, 10) > 0) {
+                      const newCap = parseInt(val, 10);
+                      // Optimistic UI update
+                      setSlots((prev) => prev.map((s) => ({ ...s, max_capacity: newCap })));
                       authFetch('/api/admin/settings', {
                         method: 'POST',
                         body: JSON.stringify({
                           action: 'batch_update_capacity',
-                          max_capacity: parseInt(val, 10),
+                          max_capacity: newCap,
                         }),
                       })
                         .then((res) => res.json())
                         .then((data) => {
                           if (data.error) throw new Error(data.error);
-                          showToast(data.message || 'บันทึกความจุทุกรอบเวลาสำเร็จ');
-                          fetchSettings();
+                          showToast(data.message || 'บันทึกความจุทุกรอบเวลาสำเร็จ (มีผลทันทีทุกวัน)');
                         })
-                        .catch((err) => showToast(err.message || 'เกิดข้อผิดพลาด', 'error'));
+                        .catch((err) => {
+                          showToast(err.message || 'เกิดข้อผิดพลาด', 'error');
+                          fetchSettings();
+                        });
                     }
                   }}
                   className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
@@ -1082,7 +1093,7 @@ export default function AdminDashboardPage() {
                       .then((res) => res.json())
                       .then((data) => {
                         if (data.error) throw new Error(data.error);
-                        showToast(data.message || 'เพิ่มรอบเวลาสำเร็จ');
+                        showToast(data.message || 'เพิ่มรอบเวลาสำเร็จ (มีผลทันทีทุกวัน)');
                         fetchSettings();
                       })
                       .catch((err) => showToast(err.message || 'เกิดข้อผิดพลาด', 'error'));
@@ -1128,6 +1139,7 @@ export default function AdminDashboardPage() {
                           type="button"
                           onClick={() => {
                             if (confirm(`ต้องการลบรอบเวลา "${slot.slot_name}" ใช่หรือไม่?`)) {
+                              setSlots((prev) => prev.filter((s) => s.id !== slot.id));
                               authFetch('/api/admin/settings', {
                                 method: 'POST',
                                 body: JSON.stringify({
@@ -1138,10 +1150,13 @@ export default function AdminDashboardPage() {
                                 .then((res) => res.json())
                                 .then((data) => {
                                   if (data.error) throw new Error(data.error);
-                                  showToast('ลบรอบเวลาเรียบร้อยแล้ว');
+                                  showToast('ลบรอบเวลาเรียบร้อยแล้ว (มีผลทันทีทุกวัน)');
                                   fetchSettings();
                                 })
-                                .catch((err) => showToast(err.message || 'เกิดข้อผิดพลาด', 'error'));
+                                .catch((err) => {
+                                  showToast(err.message || 'เกิดข้อผิดพลาด', 'error');
+                                  fetchSettings();
+                                });
                             }
                           }}
                           className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition"
@@ -1158,16 +1173,39 @@ export default function AdminDashboardPage() {
                       <span>ความจุสูงสุดต่อวัน</span>
                       <span className="text-emerald-700 font-bold">{slot.max_capacity} คิว/รอบ</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={slot.max_capacity <= 1}
+                        onClick={() => handleSlotCapacityChange(slot.id, Math.max(1, slot.max_capacity - 1), slot.is_active === 1)}
+                        className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center transition disabled:opacity-40 shrink-0"
+                        title="ลดความจุลง 1"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+
                       <input
                         type="number"
                         min="1"
                         max="50"
                         value={slot.max_capacity}
-                        onChange={(e) => handleSlotCapacityChange(slot.id, parseInt(e.target.value, 10) || 1, slot.is_active === 1)}
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-center text-slate-900 focus:ring-2 focus:ring-emerald-500 text-sm"
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          if (!isNaN(val) && val >= 1) {
+                            handleSlotCapacityChange(slot.id, val, slot.is_active === 1);
+                          }
+                        }}
+                        className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-xl font-bold text-center text-slate-900 focus:ring-2 focus:ring-emerald-500 text-sm"
                       />
-                      <span className="text-xs text-slate-500 font-medium shrink-0">คิว</span>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSlotCapacityChange(slot.id, slot.max_capacity + 1, slot.is_active === 1)}
+                        className="w-8 h-8 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold flex items-center justify-center transition shrink-0"
+                        title="เพิ่มความจุขึ้น 1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 </div>

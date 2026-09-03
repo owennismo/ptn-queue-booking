@@ -1,4 +1,7 @@
 name = "ptn-queue-booking"
-compatibility_date = "2024-09-01"
-compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = ".vercel/output/static"
+pages_build_output_dir = "out"
+compatibility_date = "2026-09-02"
+
+[[kv_namespaces]]
+binding = "PTN_KV"
+id = "4439ff2e2f7047ffbf7beb2142e084f4"

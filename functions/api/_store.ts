@@ -1,5 +1,6 @@
-// Shared Universal Store for Cloudflare Pages Functions
-// Supports Cloudflare D1 database when bound, with a seamless in-memory fallback.
+// Shared Universal Persistent Store for Cloudflare Pages Functions
+// Supports Cloudflare KV (PTN_KV) for 100% persistent storage across all Edge data centers,
+// with D1 and in-memory fallbacks.
 
 export interface Booking {
   booking_id: string;
@@ -78,73 +79,79 @@ function getRoleName(role: StaffRole): string {
   }
 }
 
-// Global persistent state for Edge instance
+const DEFAULT_SLOTS: TimeSlot[] = [
+  { id: 1, slot_name: '08:30 - 09:30', start_time: '08:30', end_time: '09:30', max_capacity: 3, is_active: 1 },
+  { id: 2, slot_name: '09:30 - 10:30', start_time: '09:30', end_time: '10:30', max_capacity: 4, is_active: 1 },
+  { id: 3, slot_name: '10:30 - 11:30', start_time: '10:30', end_time: '11:30', max_capacity: 4, is_active: 1 },
+  { id: 4, slot_name: '11:30 - 12:30', start_time: '11:30', end_time: '12:30', max_capacity: 2, is_active: 1 },
+  { id: 5, slot_name: '13:00 - 14:00', start_time: '13:00', end_time: '14:00', max_capacity: 4, is_active: 1 },
+  { id: 6, slot_name: '14:00 - 15:00', start_time: '14:00', end_time: '15:00', max_capacity: 4, is_active: 1 },
+  { id: 7, slot_name: '15:00 - 16:00', start_time: '15:00', end_time: '16:00', max_capacity: 3, is_active: 1 },
+  { id: 8, slot_name: '16:00 - 17:00', start_time: '16:00', end_time: '17:00', max_capacity: 2, is_active: 1 },
+];
+
+const DEFAULT_STAFF: StaffUser[] = [
+  {
+    id: 'staff_1',
+    username: 'admin',
+    full_name: 'ผู้ดูแลระบบสูงสุด (Super Admin)',
+    pin: 'otello',
+    role: 'super_admin',
+    role_name: 'ผู้ดูแลระบบสูงสุด (Super Admin)',
+    is_active: 1,
+    created_at: '2026-09-02 08:00:00',
+  },
+  {
+    id: 'staff_2',
+    username: 'wh01',
+    full_name: 'นายสมชาย คลังสินค้า',
+    pin: '1234',
+    role: 'warehouse_officer',
+    role_name: 'เจ้าหน้าที่คลังสินค้า (Warehouse Officer)',
+    is_active: 1,
+    created_at: '2026-09-02 08:30:00',
+  },
+  {
+    id: 'staff_3',
+    username: 'sec01',
+    full_name: 'เจ้าหน้าที่ รปภ. ประตูหน้า',
+    pin: '5678',
+    role: 'security_gate',
+    role_name: 'รปภ. จุดตรวจหน้าประตู (Security Gate)',
+    is_active: 1,
+    created_at: '2026-09-02 09:00:00',
+  },
+];
+
+const DEFAULT_BOOKINGS: Booking[] = [
+  {
+    booking_id: 'PTN-DEMO-001',
+    user_phone: '081-234-5678',
+    carrier_name: 'Kerry Express',
+    client_name: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
+    pallet_count: 5,
+    vehicle_count: 1,
+    requested_date: '2026-09-03',
+    requested_time: '09:30 - 10:30',
+    driver_name: 'สมชาย ใจดี',
+    license_plate: '1กข-9999 กทม.',
+    notes: 'สินค้าควบคุมอุณหภูมิ 2-8 องศา',
+    status: 'Pending',
+    created_at: '2026-09-02 12:00:00',
+  },
+];
+
+// Global in-memory cache for instant responses
 const globalStore = (globalThis as any).__PTN_STORE__ || {
-  bookings: [
-    {
-      booking_id: 'PTN-DEMO-001',
-      user_phone: '081-234-5678',
-      carrier_name: 'Kerry Express',
-      client_name: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
-      pallet_count: 5,
-      vehicle_count: 1,
-      requested_date: '2026-09-03',
-      requested_time: '09:30 - 10:30',
-      driver_name: 'สมชาย ใจดี',
-      license_plate: '1กข-9999 กทม.',
-      notes: 'สินค้าควบคุมอุณหภูมิ 2-8 องศา',
-      status: 'Pending',
-      created_at: '2026-09-02 12:00:00',
-    },
-  ] as Booking[],
-  timeSlots: [
-    { id: 1, slot_name: '08:30 - 09:30', start_time: '08:30', end_time: '09:30', max_capacity: 3, is_active: 1 },
-    { id: 2, slot_name: '09:30 - 10:30', start_time: '09:30', end_time: '10:30', max_capacity: 4, is_active: 1 },
-    { id: 3, slot_name: '10:30 - 11:30', start_time: '10:30', end_time: '11:30', max_capacity: 4, is_active: 1 },
-    { id: 4, slot_name: '11:30 - 12:30', start_time: '11:30', end_time: '12:30', max_capacity: 2, is_active: 1 },
-    { id: 5, slot_name: '13:00 - 14:00', start_time: '13:00', end_time: '14:00', max_capacity: 4, is_active: 1 },
-    { id: 6, slot_name: '14:00 - 15:00', start_time: '14:00', end_time: '15:00', max_capacity: 4, is_active: 1 },
-    { id: 7, slot_name: '15:00 - 16:00', start_time: '15:00', end_time: '16:00', max_capacity: 3, is_active: 1 },
-    { id: 8, slot_name: '16:00 - 17:00', start_time: '16:00', end_time: '17:00', max_capacity: 2, is_active: 1 },
-  ] as TimeSlot[],
+  bookings: [...DEFAULT_BOOKINGS] as Booking[],
+  timeSlots: [...DEFAULT_SLOTS] as TimeSlot[],
   blockedDates: [] as BlockedDate[],
-  staffUsers: [
-    {
-      id: 'staff_1',
-      username: 'admin',
-      full_name: 'ผู้ดูแลระบบสูงสุด (Super Admin)',
-      pin: 'otello',
-      role: 'super_admin',
-      role_name: 'ผู้ดูแลระบบสูงสุด (Super Admin)',
-      is_active: 1,
-      created_at: '2026-09-02 08:00:00',
-    },
-    {
-      id: 'staff_2',
-      username: 'wh01',
-      full_name: 'นายสมชาย คลังสินค้า',
-      pin: '1234',
-      role: 'warehouse_officer',
-      role_name: 'เจ้าหน้าที่คลังสินค้า (Warehouse Officer)',
-      is_active: 1,
-      created_at: '2026-09-02 08:30:00',
-    },
-    {
-      id: 'staff_3',
-      username: 'sec01',
-      full_name: 'เจ้าหน้าที่ รปภ. ประตูหน้า',
-      pin: '5678',
-      role: 'security_gate',
-      role_name: 'รปภ. จุดตรวจหน้าประตู (Security Gate)',
-      is_active: 1,
-      created_at: '2026-09-02 09:00:00',
-    },
-  ] as StaffUser[],
+  staffUsers: [...DEFAULT_STAFF] as StaffUser[],
   auditLogs: [
     {
       id: 1,
       action: 'LOGIN_SUCCESS',
-      details: 'ระบบเริ่มต้นการทำงานและโหลดข้อมูลบุคลากรเริ่มต้น',
+      details: 'ระบบเริ่มต้นการทำงาน (System Initialized with Persistent Storage)',
       operator: 'System',
       ip_address: '127.0.0.1',
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
@@ -165,25 +172,214 @@ export class DataStore {
     this.env = env;
   }
 
+  private get kv() {
+    return this.env?.PTN_KV;
+  }
+
   private get d1() {
     return this.env?.DB;
   }
 
-  // --- STAFF USER MANAGEMENT ---
+  // --- KV Helper Methods ---
+  private async getKV<T>(key: string, defaultValue: T): Promise<T> {
+    if (!this.kv) return defaultValue;
+    try {
+      const data = await this.kv.get(key, 'json');
+      if (data !== null && data !== undefined) {
+        return data as T;
+      }
+    } catch (e) {
+      console.error(`KV get error for key ${key}:`, e);
+    }
+    return defaultValue;
+  }
+
+  private async putKV<T>(key: string, value: T): Promise<void> {
+    if (!this.kv) return;
+    try {
+      await this.kv.put(key, JSON.stringify(value));
+    } catch (e) {
+      console.error(`KV put error for key ${key}:`, e);
+    }
+  }
+
+  // --- TIME SLOTS PERSISTENCE ---
+  async getTimeSlots(): Promise<TimeSlot[]> {
+    if (this.kv) {
+      const kvSlots = await this.getKV<TimeSlot[]>('time_slots', globalStore.timeSlots);
+      if (kvSlots && kvSlots.length > 0) {
+        globalStore.timeSlots = kvSlots;
+        return kvSlots;
+      }
+    }
+    return globalStore.timeSlots;
+  }
+
+  async updateSlot(id: number, maxCapacity: number, isActive: boolean, operator = 'Admin', ip = '127.0.0.1') {
+    const slots = await this.getTimeSlots();
+    const slot = slots.find((s: TimeSlot) => s.id === id);
+    if (slot) {
+      slot.max_capacity = maxCapacity;
+      slot.is_active = isActive ? 1 : 0;
+
+      // Update in-memory & KV
+      globalStore.timeSlots = slots;
+      await this.putKV('time_slots', slots);
+
+      await this.addAuditLog(
+        'UPDATE_SLOT',
+        `ปรับแต่งรอบเวลา ${slot.slot_name}: ความจุ ${maxCapacity} คิว/วัน, สถานะ: ${isActive ? 'เปิดรับ' : 'ปิด'}`,
+        operator,
+        ip
+      );
+    }
+    return true;
+  }
+
+  async addSlot(data: { slot_name: string; start_time: string; end_time: string; max_capacity: number }, operator = 'Admin', ip = '127.0.0.1') {
+    const slots = await this.getTimeSlots();
+    const newId = Date.now();
+    const newSlot: TimeSlot = {
+      id: newId,
+      slot_name: data.slot_name.trim(),
+      start_time: data.start_time.trim(),
+      end_time: data.end_time.trim(),
+      max_capacity: data.max_capacity || 3,
+      is_active: 1,
+    };
+
+    slots.push(newSlot);
+    slots.sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+    globalStore.timeSlots = slots;
+    await this.putKV('time_slots', slots);
+
+    await this.addAuditLog(
+      'UPDATE_SLOT',
+      `เพิ่มรอบเวลาใหม่: ${newSlot.slot_name} (ความจุ ${newSlot.max_capacity} คิว/วัน)`,
+      operator,
+      ip
+    );
+
+    return newSlot;
+  }
+
+  async deleteSlot(id: number, operator = 'Admin', ip = '127.0.0.1') {
+    let slots = await this.getTimeSlots();
+    const targetSlot = slots.find((s: TimeSlot) => s.id === id);
+    slots = slots.filter((s: TimeSlot) => s.id !== id);
+
+    globalStore.timeSlots = slots;
+    await this.putKV('time_slots', slots);
+
+    if (targetSlot) {
+      await this.addAuditLog(
+        'UPDATE_SLOT',
+        `ลบรอบเวลา: ${targetSlot.slot_name}`,
+        operator,
+        ip
+      );
+    }
+
+    return true;
+  }
+
+  async batchUpdateSlots(maxCapacity: number, operator = 'Admin', ip = '127.0.0.1') {
+    const slots = await this.getTimeSlots();
+    for (const slot of slots) {
+      slot.max_capacity = maxCapacity;
+    }
+
+    globalStore.timeSlots = slots;
+    await this.putKV('time_slots', slots);
+
+    await this.addAuditLog(
+      'UPDATE_SLOT',
+      `ปรับความจุทุกรอบเวลาเป็น ${maxCapacity} คิว/รอบ (มีผลทันทีทุกวัน)`,
+      operator,
+      ip
+    );
+
+    return true;
+  }
+
+  // --- BLOCKED DATES PERSISTENCE ---
+  async getBlockedDates(): Promise<BlockedDate[]> {
+    if (this.kv) {
+      const kvDates = await this.getKV<BlockedDate[]>('blocked_dates', globalStore.blockedDates);
+      globalStore.blockedDates = kvDates || [];
+      return globalStore.blockedDates;
+    }
+    return globalStore.blockedDates;
+  }
+
+  async addBlockedDate(date: string, reason: string, operator = 'Admin', ip = '127.0.0.1') {
+    const blockedDates = await this.getBlockedDates();
+    const existing = blockedDates.find((b: BlockedDate) => b.blocked_date === date);
+    if (existing) {
+      existing.reason = reason;
+    } else {
+      blockedDates.push({
+        id: Date.now(),
+        blocked_date: date,
+        reason,
+        created_at: new Date().toISOString(),
+      });
+    }
+
+    globalStore.blockedDates = blockedDates;
+    await this.putKV('blocked_dates', blockedDates);
+
+    await this.addAuditLog(
+      'BLOCK_DATE',
+      `ปิดรับจองคิววันที่ ${date} (เหตุผล: ${reason})`,
+      operator,
+      ip
+    );
+
+    return true;
+  }
+
+  async removeBlockedDate(target: string | number, operator = 'Admin', ip = '127.0.0.1') {
+    let blockedDates = await this.getBlockedDates();
+    blockedDates = blockedDates.filter(
+      (b: BlockedDate) => b.id !== target && b.blocked_date !== target
+    );
+
+    globalStore.blockedDates = blockedDates;
+    await this.putKV('blocked_dates', blockedDates);
+
+    await this.addAuditLog(
+      'UNBLOCK_DATE',
+      `เปิดรับจองคิวตามปกติสำหรับ ${target}`,
+      operator,
+      ip
+    );
+
+    return true;
+  }
+
+  // --- STAFF USER MANAGEMENT PERSISTENCE ---
   async getAllStaff(): Promise<StaffUser[]> {
-    return globalStore.staffUsers.map((s: StaffUser) => ({
+    let staffList = globalStore.staffUsers;
+    if (this.kv) {
+      staffList = await this.getKV<StaffUser[]>('staff_users', globalStore.staffUsers);
+      globalStore.staffUsers = staffList;
+    }
+
+    return staffList.map((s: StaffUser) => ({
       ...s,
       pin: '••••', // Mask PIN on list
     }));
   }
 
-  async getStaffById(id: string): Promise<StaffUser | null> {
-    const user = globalStore.staffUsers.find((s: StaffUser) => s.id === id);
-    return user || null;
-  }
-
   async authenticateStaff(usernameOrPin: string, pinInput?: string): Promise<StaffUser | null> {
-    const staffList: StaffUser[] = globalStore.staffUsers;
+    let staffList: StaffUser[] = globalStore.staffUsers;
+    if (this.kv) {
+      staffList = await this.getKV<StaffUser[]>('staff_users', globalStore.staffUsers);
+      globalStore.staffUsers = staffList;
+    }
+
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
     // If both username and pin provided
@@ -195,25 +391,26 @@ export class DataStore {
       );
       if (user) {
         user.last_login = nowStr;
+        await this.putKV('staff_users', staffList);
         return user;
       }
       return null;
     }
 
-    // If only PIN provided (legacy or quick pin)
+    // If only PIN provided
     const pin = (pinInput || usernameOrPin).trim();
-    // 1. Check direct staff PIN match
     const matched = staffList.find((s) => s.pin === pin && s.is_active === 1);
     if (matched) {
       matched.last_login = nowStr;
+      await this.putKV('staff_users', staffList);
       return matched;
     }
 
-    // 2. Check master system PIN (otello)
     if (pin === 'otello' || pin === globalStore.settings.admin_pin) {
       const adminUser = staffList.find((s) => s.role === 'super_admin') || staffList[0];
       if (adminUser) {
         adminUser.last_login = nowStr;
+        await this.putKV('staff_users', staffList);
         return adminUser;
       }
     }
@@ -222,8 +419,13 @@ export class DataStore {
   }
 
   async createStaff(data: { username: string; full_name: string; pin: string; role: StaffRole }, operator = 'Admin', ip = '127.0.0.1'): Promise<StaffUser> {
+    let staffList: StaffUser[] = globalStore.staffUsers;
+    if (this.kv) {
+      staffList = await this.getKV<StaffUser[]>('staff_users', globalStore.staffUsers);
+    }
+
     const cleanUsername = data.username.trim().toLowerCase();
-    const existing = globalStore.staffUsers.find((s: StaffUser) => s.username.toLowerCase() === cleanUsername);
+    const existing = staffList.find((s: StaffUser) => s.username.toLowerCase() === cleanUsername);
     if (existing) {
       throw new Error(`ชื่อผู้ใช้ (Username) "${data.username}" มีอยู่ในระบบแล้ว`);
     }
@@ -239,7 +441,10 @@ export class DataStore {
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
     };
 
-    globalStore.staffUsers.push(newStaff);
+    staffList.push(newStaff);
+    globalStore.staffUsers = staffList;
+    await this.putKV('staff_users', staffList);
+
     await this.addAuditLog(
       'ADD_STAFF',
       `เพิ่มเจ้าหน้าที่ใหม่: ${newStaff.full_name} (@${newStaff.username}) บทบาท: ${newStaff.role_name}`,
@@ -256,7 +461,12 @@ export class DataStore {
     operator = 'Admin',
     ip = '127.0.0.1'
   ): Promise<StaffUser> {
-    const staff = globalStore.staffUsers.find((s: StaffUser) => s.id === id);
+    let staffList: StaffUser[] = globalStore.staffUsers;
+    if (this.kv) {
+      staffList = await this.getKV<StaffUser[]>('staff_users', globalStore.staffUsers);
+    }
+
+    const staff = staffList.find((s: StaffUser) => s.id === id);
     if (!staff) {
       throw new Error('ไม่พบข้อมูลเจ้าหน้าที่');
     }
@@ -271,6 +481,9 @@ export class DataStore {
       staff.pin = data.pin.trim();
     }
 
+    globalStore.staffUsers = staffList;
+    await this.putKV('staff_users', staffList);
+
     await this.addAuditLog(
       'UPDATE_STAFF',
       `แก้ไขข้อมูลเจ้าหน้าที่: ${staff.full_name} (@${staff.username}) สถานะ: ${staff.is_active ? 'เปิดใช้งาน' : 'ระงับการใช้งาน'}`,
@@ -282,7 +495,12 @@ export class DataStore {
   }
 
   async deleteStaff(id: string, operator = 'Admin', ip = '127.0.0.1'): Promise<boolean> {
-    const staff = globalStore.staffUsers.find((s: StaffUser) => s.id === id);
+    let staffList: StaffUser[] = globalStore.staffUsers;
+    if (this.kv) {
+      staffList = await this.getKV<StaffUser[]>('staff_users', globalStore.staffUsers);
+    }
+
+    const staff = staffList.find((s: StaffUser) => s.id === id);
     if (!staff) {
       throw new Error('ไม่พบข้อมูลเจ้าหน้าที่');
     }
@@ -290,7 +508,10 @@ export class DataStore {
       throw new Error('ไม่สามารถลบบัญชีผู้ดูแลระบบหลัก (admin) ได้');
     }
 
-    globalStore.staffUsers = globalStore.staffUsers.filter((s: StaffUser) => s.id !== id);
+    staffList = staffList.filter((s: StaffUser) => s.id !== id);
+    globalStore.staffUsers = staffList;
+    await this.putKV('staff_users', staffList);
+
     await this.addAuditLog(
       'DELETE_STAFF',
       `ลบบัญชีเจ้าหน้าที่: ${staff.full_name} (@${staff.username})`,
@@ -302,12 +523,20 @@ export class DataStore {
   }
 
   async resetStaffPin(id: string, newPin: string, operator = 'Admin', ip = '127.0.0.1'): Promise<boolean> {
-    const staff = globalStore.staffUsers.find((s: StaffUser) => s.id === id);
+    let staffList: StaffUser[] = globalStore.staffUsers;
+    if (this.kv) {
+      staffList = await this.getKV<StaffUser[]>('staff_users', globalStore.staffUsers);
+    }
+
+    const staff = staffList.find((s: StaffUser) => s.id === id);
     if (!staff) {
       throw new Error('ไม่พบข้อมูลเจ้าหน้าที่');
     }
 
     staff.pin = newPin.trim();
+    globalStore.staffUsers = staffList;
+    await this.putKV('staff_users', staffList);
+
     await this.addAuditLog(
       'RESET_PIN',
       `รีเซ็ตรหัส PIN ใหม่สำหรับเจ้าหน้าที่: ${staff.full_name} (@${staff.username})`,
@@ -320,49 +549,23 @@ export class DataStore {
 
   // --- AVAILABILITY ---
   async getAvailability(date: string) {
+    const slots = await this.getTimeSlots();
+    const blockedDates = await this.getBlockedDates();
+    const bookings = await this.getAllBookings();
+
     let isBlocked = false;
     let blockReason: string | null = null;
-    let slots = [...globalStore.timeSlots];
+
+    const blocked = blockedDates.find((b: BlockedDate) => b.blocked_date === date);
+    if (blocked) {
+      isBlocked = true;
+      blockReason = blocked.reason;
+    }
+
     const countMap = new Map<string, number>();
-
-    if (this.d1) {
-      try {
-        const blocked = await this.d1.prepare('SELECT * FROM blocked_dates WHERE blocked_date = ?').bind(date).first();
-        if (blocked) {
-          isBlocked = true;
-          blockReason = blocked.reason;
-        }
-
-        const dbSlots = await this.d1.prepare('SELECT * FROM time_slots WHERE is_active = 1 ORDER BY start_time ASC').all();
-        if (dbSlots?.results?.length) {
-          slots = dbSlots.results as any;
-        }
-
-        const counts = await this.d1.prepare(`
-          SELECT requested_time, COUNT(*) as count 
-          FROM bookings 
-          WHERE requested_date = ? AND status IN ('Pending', 'Approved')
-          GROUP BY requested_time
-        `).bind(date).all();
-
-        if (counts?.results) {
-          for (const c of counts.results as any[]) {
-            countMap.set(c.requested_time, c.count);
-          }
-        }
-      } catch (e) {
-        console.error('D1 availability query error:', e);
-      }
-    } else {
-      const blocked = globalStore.blockedDates.find((b: BlockedDate) => b.blocked_date === date);
-      if (blocked) {
-        isBlocked = true;
-        blockReason = blocked.reason;
-      }
-      for (const b of globalStore.bookings) {
-        if (b.requested_date === date && (b.status === 'Pending' || b.status === 'Approved')) {
-          countMap.set(b.requested_time, (countMap.get(b.requested_time) || 0) + 1);
-        }
+    for (const b of bookings) {
+      if (b.requested_date === date && (b.status === 'Pending' || b.status === 'Approved')) {
+        countMap.set(b.requested_time, (countMap.get(b.requested_time) || 0) + 1);
       }
     }
 
@@ -392,15 +595,28 @@ export class DataStore {
     };
   }
 
-  // --- BOOKINGS ---
+  // --- BOOKINGS PERSISTENCE ---
+  async getAllBookings(): Promise<Booking[]> {
+    if (this.kv) {
+      const kvBookings = await this.getKV<Booking[]>('bookings', globalStore.bookings);
+      globalStore.bookings = kvBookings || [];
+      return globalStore.bookings;
+    }
+    return globalStore.bookings;
+  }
+
   async createBooking(data: any): Promise<Booking> {
-    // Check if date or slot is inactive
-    const isDateBlocked = globalStore.blockedDates.some((b: BlockedDate) => b.blocked_date === data.requested_date);
+    const blockedDates = await this.getBlockedDates();
+    const slots = await this.getTimeSlots();
+
+    // Check if date is blocked
+    const isDateBlocked = blockedDates.some((b: BlockedDate) => b.blocked_date === data.requested_date);
     if (isDateBlocked) {
       throw new Error(`วันที่ ${data.requested_date} ปิดรับจองคิวส่งของ`);
     }
 
-    const slotObj = globalStore.timeSlots.find((s: TimeSlot) => s.slot_name === data.requested_time);
+    // Check if slot is active
+    const slotObj = slots.find((s: TimeSlot) => s.slot_name === data.requested_time);
     if (slotObj && slotObj.is_active === 0) {
       throw new Error(`รอบเวลา ${data.requested_time} ปิดรับจองแล้ว กรุณาเลือกรอบเวลาอื่น`);
     }
@@ -426,56 +642,19 @@ export class DataStore {
       created_at: nowStr,
     };
 
-    if (this.d1) {
-      try {
-        await this.d1.prepare(`
-          INSERT INTO bookings (
-            booking_id, user_phone, carrier_name, client_name,
-            pallet_count, vehicle_count, requested_date, requested_time,
-            driver_name, license_plate, notes, status, created_at
-          ) VALUES (
-            ?, ?, ?, ?,
-            ?, ?, ?, ?,
-            ?, ?, ?, 'Pending', ?
-          )
-        `).bind(
-          booking.booking_id,
-          booking.user_phone,
-          booking.carrier_name,
-          booking.client_name,
-          booking.pallet_count,
-          booking.vehicle_count,
-          booking.requested_date,
-          booking.requested_time,
-          booking.driver_name,
-          booking.license_plate,
-          booking.notes,
-          booking.created_at
-        ).run();
-      } catch (e) {
-        console.error('D1 insert error:', e);
-      }
-    }
+    const bookings = await this.getAllBookings();
+    bookings.unshift(booking);
+    globalStore.bookings = bookings;
+    await this.putKV('bookings', bookings);
 
-    // Always keep in memory store as fallback
-    globalStore.bookings.unshift(booking);
     return booking;
   }
 
   async getBookingById(id: string): Promise<Booking | null> {
     const cleanId = id.trim().toUpperCase();
-
-    if (this.d1) {
-      try {
-        const item = await this.d1.prepare('SELECT * FROM bookings WHERE booking_id = ?').bind(cleanId).first();
-        if (item) return item as Booking;
-      } catch (e) {
-        console.error('D1 getBooking error:', e);
-      }
-    }
-
-    const memItem = globalStore.bookings.find((b: Booking) => b.booking_id.toUpperCase() === cleanId);
-    return memItem || null;
+    const bookings = await this.getAllBookings();
+    const item = bookings.find((b: Booking) => b.booking_id.toUpperCase() === cleanId);
+    return item || null;
   }
 
   async searchBookings(phone?: string, id?: string): Promise<Booking[]> {
@@ -486,18 +665,8 @@ export class DataStore {
 
     if (phone) {
       const cleanPhone = phone.trim().replace(/[- ]/g, '');
-      if (this.d1) {
-        try {
-          const res = await this.d1.prepare(`
-            SELECT * FROM bookings 
-            WHERE REPLACE(REPLACE(user_phone, '-', ''), ' ', '') LIKE ?
-            ORDER BY created_at DESC
-          `).bind(`%${cleanPhone}%`).all();
-          if (res?.results) return res.results as Booking[];
-        } catch (e) {}
-      }
-
-      return globalStore.bookings.filter((b: Booking) =>
+      const bookings = await this.getAllBookings();
+      return bookings.filter((b: Booking) =>
         b.user_phone.replace(/[- ]/g, '').includes(cleanPhone)
       );
     }
@@ -506,30 +675,9 @@ export class DataStore {
   }
 
   async getAdminBookings(date?: string | null, status?: string | null, search?: string | null): Promise<Booking[]> {
-    if (this.d1) {
-      try {
-        let query = 'SELECT * FROM bookings WHERE 1=1';
-        const params: any[] = [];
-        if (date) {
-          query += ' AND requested_date = ?';
-          params.push(date);
-        }
-        if (status && status !== 'All') {
-          query += ' AND status = ?';
-          params.push(status);
-        }
-        if (search) {
-          query += ' AND (booking_id LIKE ? OR carrier_name LIKE ? OR client_name LIKE ? OR user_phone LIKE ? OR driver_name LIKE ? OR license_plate LIKE ?)';
-          const s = `%${search.trim()}%`;
-          params.push(s, s, s, s, s, s);
-        }
-        query += ' ORDER BY requested_date DESC, requested_time ASC, created_at DESC';
-        const res = await this.d1.prepare(query).bind(...params).all();
-        if (res?.results) return res.results as Booking[];
-      } catch (e) {}
-    }
+    const bookings = await this.getAllBookings();
+    let results = [...bookings];
 
-    let results = [...globalStore.bookings];
     if (date) {
       results = results.filter((b: Booking) => b.requested_date === date);
     }
@@ -553,23 +701,17 @@ export class DataStore {
   async updateBookingStatus(id: string, status: string, reason?: string | null, actionBy = 'Admin', ip = '127.0.0.1'): Promise<Booking | null> {
     const cleanId = id.trim().toUpperCase();
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const bookings = await this.getAllBookings();
 
-    if (this.d1) {
-      try {
-        await this.d1.prepare(`
-          UPDATE bookings 
-          SET status = ?, admin_reason = ?, admin_action_date = ?, admin_action_by = ?
-          WHERE booking_id = ?
-        `).bind(status, reason || null, nowStr, actionBy, cleanId).run();
-      } catch (e) {}
-    }
+    const item = bookings.find((b: Booking) => b.booking_id.toUpperCase() === cleanId);
+    if (item) {
+      item.status = status as any;
+      item.admin_reason = reason || null;
+      item.admin_action_date = nowStr;
+      item.admin_action_by = actionBy;
 
-    const memItem = globalStore.bookings.find((b: Booking) => b.booking_id.toUpperCase() === cleanId);
-    if (memItem) {
-      memItem.status = status as any;
-      memItem.admin_reason = reason || null;
-      memItem.admin_action_date = nowStr;
-      memItem.admin_action_by = actionBy;
+      globalStore.bookings = bookings;
+      await this.putKV('bookings', bookings);
 
       // Add audit log
       let logAction: AuditLog['action'] = 'APPROVE_QUEUE';
@@ -583,191 +725,27 @@ export class DataStore {
         ip
       );
 
-      return memItem;
+      return item;
     }
     return null;
   }
 
   // --- SETTINGS ---
   async getSettings() {
-    let slots = [...globalStore.timeSlots];
-    let blockedDates = [...globalStore.blockedDates];
+    const slots = await this.getTimeSlots();
+    const blockedDates = await this.getBlockedDates();
     let settings = { ...globalStore.settings };
-
-    if (this.d1) {
-      try {
-        const slotsRes = await this.d1.prepare('SELECT * FROM time_slots ORDER BY start_time ASC').all();
-        if (slotsRes?.results?.length) slots = slotsRes.results as any;
-
-        const bRes = await this.d1.prepare('SELECT * FROM blocked_dates ORDER BY blocked_date ASC').all();
-        if (bRes?.results) blockedDates = bRes.results as any;
-
-        const sRes = await this.d1.prepare('SELECT * FROM system_settings').all();
-        if (sRes?.results) {
-          for (const s of sRes.results as any[]) {
-            settings[s.key] = s.value;
-          }
-        }
-      } catch (e) {}
-    }
 
     return { slots, blockedDates, settings };
   }
 
-  async updateSlot(id: number, maxCapacity: number, isActive: boolean, operator = 'Admin', ip = '127.0.0.1') {
-    if (this.d1) {
-      try {
-        await this.d1.prepare('UPDATE time_slots SET max_capacity = ?, is_active = ? WHERE id = ?')
-          .bind(maxCapacity, isActive ? 1 : 0, id).run();
-      } catch (e) {}
-    }
-
-    const slot = globalStore.timeSlots.find((s: TimeSlot) => s.id === id);
-    if (slot) {
-      slot.max_capacity = maxCapacity;
-      slot.is_active = isActive ? 1 : 0;
-      await this.addAuditLog(
-        'UPDATE_SLOT',
-        `ปรับแต่งรอบเวลา ${slot.slot_name}: ความจุ ${maxCapacity} คิว/วัน, สถานะ: ${isActive ? 'เปิดรับ' : 'ปิด'}`,
-        operator,
-        ip
-      );
-    }
-    return true;
-  }
-
-  async addSlot(data: { slot_name: string; start_time: string; end_time: string; max_capacity: number }, operator = 'Admin', ip = '127.0.0.1') {
-    const newId = Date.now();
-    const newSlot: TimeSlot = {
-      id: newId,
-      slot_name: data.slot_name.trim(),
-      start_time: data.start_time.trim(),
-      end_time: data.end_time.trim(),
-      max_capacity: data.max_capacity || 3,
-      is_active: 1,
-    };
-
-    if (this.d1) {
-      try {
-        await this.d1.prepare('INSERT INTO time_slots (slot_name, start_time, end_time, max_capacity, is_active) VALUES (?, ?, ?, ?, 1)')
-          .bind(newSlot.slot_name, newSlot.start_time, newSlot.end_time, newSlot.max_capacity).run();
-      } catch (e) {}
-    }
-
-    globalStore.timeSlots.push(newSlot);
-    // Sort slots by start_time
-    globalStore.timeSlots.sort((a: TimeSlot, b: TimeSlot) => a.start_time.localeCompare(b.start_time));
-
-    await this.addAuditLog(
-      'UPDATE_SLOT',
-      `เพิ่มรอบเวลาใหม่: ${newSlot.slot_name} (ความจุ ${newSlot.max_capacity} คิว/วัน)`,
-      operator,
-      ip
-    );
-
-    return newSlot;
-  }
-
-  async deleteSlot(id: number, operator = 'Admin', ip = '127.0.0.1') {
-    if (this.d1) {
-      try {
-        await this.d1.prepare('DELETE FROM time_slots WHERE id = ?').bind(id).run();
-      } catch (e) {}
-    }
-
-    const targetSlot = globalStore.timeSlots.find((s: TimeSlot) => s.id === id);
-    globalStore.timeSlots = globalStore.timeSlots.filter((s: TimeSlot) => s.id !== id);
-
-    if (targetSlot) {
-      await this.addAuditLog(
-        'UPDATE_SLOT',
-        `ลบรอบเวลา: ${targetSlot.slot_name}`,
-        operator,
-        ip
-      );
-    }
-
-    return true;
-  }
-
-  async batchUpdateSlots(maxCapacity: number, operator = 'Admin', ip = '127.0.0.1') {
-    if (this.d1) {
-      try {
-        await this.d1.prepare('UPDATE time_slots SET max_capacity = ?').bind(maxCapacity).run();
-      } catch (e) {}
-    }
-
-    for (const slot of globalStore.timeSlots) {
-      slot.max_capacity = maxCapacity;
-    }
-
-    await this.addAuditLog(
-      'UPDATE_SLOT',
-      `ปรับความจุทุกรอบเวลาเป็น ${maxCapacity} คิว/รอบ (มีผลทันทีทุกวัน)`,
-      operator,
-      ip
-    );
-
-    return true;
-  }
-
-  async addBlockedDate(date: string, reason: string, operator = 'Admin', ip = '127.0.0.1') {
-    if (this.d1) {
-      try {
-        await this.d1.prepare('INSERT OR REPLACE INTO blocked_dates (blocked_date, reason) VALUES (?, ?)')
-          .bind(date, reason).run();
-      } catch (e) {}
-    }
-
-    const existing = globalStore.blockedDates.find((b: BlockedDate) => b.blocked_date === date);
-    if (existing) {
-      existing.reason = reason;
-    } else {
-      globalStore.blockedDates.push({
-        id: Date.now(),
-        blocked_date: date,
-        reason,
-        created_at: new Date().toISOString(),
-      });
-    }
-
-    await this.addAuditLog(
-      'BLOCK_DATE',
-      `ปิดรับจองคิววันที่ ${date} (เหตุผล: ${reason})`,
-      operator,
-      ip
-    );
-
-    return true;
-  }
-
-  async removeBlockedDate(target: string | number, operator = 'Admin', ip = '127.0.0.1') {
-    if (this.d1) {
-      try {
-        if (typeof target === 'number') {
-          await this.d1.prepare('DELETE FROM blocked_dates WHERE id = ?').bind(target).run();
-        } else {
-          await this.d1.prepare('DELETE FROM blocked_dates WHERE blocked_date = ?').bind(target).run();
-        }
-      } catch (e) {}
-    }
-
-    globalStore.blockedDates = globalStore.blockedDates.filter(
-      (b: BlockedDate) => b.id !== target && b.blocked_date !== target
-    );
-
-    await this.addAuditLog(
-      'UNBLOCK_DATE',
-      `เปิดรับจองคิวตามปกติสำหรับ ${target}`,
-      operator,
-      ip
-    );
-
-    return true;
-  }
-
-  // --- AUDIT LOGS ---
+  // --- AUDIT LOGS PERSISTENCE ---
   async addAuditLog(action: AuditLog['action'], details: string, operator = 'Admin', ip = '127.0.0.1') {
+    let logs = globalStore.auditLogs;
+    if (this.kv) {
+      logs = await this.getKV<AuditLog[]>('audit_logs', globalStore.auditLogs);
+    }
+
     const log: AuditLog = {
       id: Date.now(),
       action,
@@ -776,13 +754,21 @@ export class DataStore {
       ip_address: ip,
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
     };
-    globalStore.auditLogs.unshift(log);
-    if (globalStore.auditLogs.length > 200) {
-      globalStore.auditLogs.pop();
+    logs.unshift(log);
+    if (logs.length > 200) {
+      logs.pop();
     }
+
+    globalStore.auditLogs = logs;
+    await this.putKV('audit_logs', logs);
   }
 
   async getAuditLogs(limit = 50): Promise<AuditLog[]> {
+    if (this.kv) {
+      const logs = await this.getKV<AuditLog[]>('audit_logs', globalStore.auditLogs);
+      globalStore.auditLogs = logs;
+      return logs.slice(0, limit);
+    }
     return globalStore.auditLogs.slice(0, limit);
   }
 
@@ -796,19 +782,16 @@ export class DataStore {
       return { isLocked: false, remainingLockoutSeconds: 0, remainingAttempts: 5 };
     }
 
-    // Check if locked
     if (record.lockedUntil && record.lockedUntil > now) {
       const remainingSeconds = Math.ceil((record.lockedUntil - now) / 1000);
       return { isLocked: true, remainingLockoutSeconds: remainingSeconds, remainingAttempts: 0 };
     }
 
-    // If lock expired, reset
     if (record.lockedUntil && record.lockedUntil <= now) {
       attemptsMap.delete(identifier);
       return { isLocked: false, remainingLockoutSeconds: 0, remainingAttempts: 5 };
     }
 
-    // Window expiration (15 minutes of inactivity clears failed count)
     if (now - record.lastAttempt > 15 * 60 * 1000) {
       attemptsMap.delete(identifier);
       return { isLocked: false, remainingLockoutSeconds: 0, remainingAttempts: 5 };
@@ -831,7 +814,6 @@ export class DataStore {
     }
 
     if (record.attempts >= 5) {
-      // Lock for 15 minutes
       record.lockedUntil = now + 15 * 60 * 1000;
       attemptsMap.set(identifier, record);
       this.addAuditLog('LOGIN_FAILED', `กรอกรหัสผ่านผิดครบ 5 ครั้ง (ชื่อ: ${attemptedUser}) — ระบบสั่งระงับชั่วคราว 15 นาที`, attemptedUser, ip);
