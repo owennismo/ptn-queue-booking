@@ -24,6 +24,7 @@ import {
   MapPin,
   ThermometerSnowflake,
   ShieldCheck,
+  MessageCircle,
 } from 'lucide-react';
 import { Booking } from '@/lib/types';
 import { toPng } from 'html-to-image';
@@ -551,17 +552,74 @@ ${url}`;
   const isColdChain = booking.cargo_type?.includes('ยาเย็น') || booking.cargo_type?.includes('Cold Chain');
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto space-y-6">
-        {/* Top Actions Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-2 no-print">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-emerald-700 transition"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>จองคิวใหม่</span>
+    <div className="min-h-screen bg-slate-50">
+      {/* 🌟 TOP GLOBAL TRUST & DIRECT CONTACT HEADER */}
+      <header className="bg-white/95 backdrop-blur border-b border-slate-200/80 sticky top-0 z-40 shadow-xs no-print">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+          {/* Company Brand */}
+          <Link href="/" className="flex items-center gap-3 self-start sm:self-auto group">
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white flex items-center justify-center font-black text-base shadow-md shadow-emerald-900/20 group-hover:scale-105 transition">
+              P
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-slate-900 text-sm tracking-tight">
+                  PTN PHARMA CENTER
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  พัฒนาเภสัช
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-500 font-medium block">
+                ระบบนัดหมายจองคิวส่งสินค้าคลังยาและเวชภัณฑ์
+              </span>
+            </div>
           </Link>
+
+          {/* Contact Badges (Phone & LINE) */}
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-start sm:justify-end flex-wrap">
+            <a
+              href="tel:0993787463"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-xs font-bold transition shadow-2xs group"
+              title="โทรติดต่อแผนกรับสินค้าโดยตรง"
+            >
+              <div className="w-5 h-5 rounded-lg bg-emerald-600 text-white flex items-center justify-center group-hover:scale-110 transition shadow-xs">
+                <Phone className="w-3 h-3" />
+              </div>
+              <span>
+                แผนกรับสินค้า: <strong className="text-emerald-700 font-mono">099-378-7463</strong>
+              </span>
+            </a>
+
+            <a
+              href="https://line.me/ti/p/~ptnexpress"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#06C755]/10 hover:bg-[#06C755]/20 text-[#048737] border border-[#06C755]/30 text-xs font-bold transition shadow-2xs group"
+              title="เพิ่มเพื่อนทาง LINE"
+            >
+              <div className="w-5 h-5 rounded-lg bg-[#06C755] text-white flex items-center justify-center group-hover:scale-110 transition shadow-xs">
+                <MessageCircle className="w-3.5 h-3.5" />
+              </div>
+              <span>
+                LINE ID: <strong className="text-[#036d2c] font-mono">ptnexpress</strong>
+              </span>
+            </a>
+          </div>
+        </div>
+      </header>
+
+      <div className="py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Top Actions Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-2 no-print">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-emerald-700 transition"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>จองคิวใหม่</span>
+            </Link>
 
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -881,5 +939,6 @@ ${url}`;
         </div>
       )}
     </div>
+  </div>
   );
 }
