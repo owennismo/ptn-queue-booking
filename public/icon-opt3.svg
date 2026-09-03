@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="50%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <linearGradient id="capsuleWhite" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#e2e8f0" />
+    </linearGradient>
+    <linearGradient id="capsuleCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+    <filter id="shadow3" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#000000" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="128" fill="url(#bg3)" />
+  <rect x="8" y="8" width="496" height="496" rx="120" fill="none" stroke="#ffffff" stroke-width="3" stroke-opacity="0.25" />
+
+  <!-- Diagonal 3D Capsule Merged with Checkmark -->
+  <g filter="url(#shadow3)" transform="translate(256, 210) rotate(-40)">
+    <!-- Top Half (Medical Cyan) -->
+    <path d="M-55 -110 C-55 -145 55 -145 55 -110 L55 0 L-55 0 Z" fill="url(#capsuleCyan)" />
+    <!-- Bottom Half (Pearl White) -->
+    <path d="M-55 0 L55 0 L55 110 C55 145 -55 145 -55 110 Z" fill="url(#capsuleWhite)" />
+    <!-- Capsule Seam -->
+    <line x1="-55" y1="0" x2="55" y2="0" stroke="#cbd5e1" stroke-width="4" />
+    
+    <!-- White Medical Cross on Cyan side -->
+    <rect x="-8" y="-85" width="16" height="50" rx="6" fill="#ffffff" />
+    <rect x="-25" y="-68" width="50" height="16" rx="6" fill="#ffffff" />
+
+    <!-- Green Pulse check on white side -->
+    <circle cx="0" cy="55" r="24" fill="#10b981" />
+    <path d="M-8 55 L-2 61 L10 49" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  </g>
+
+  <!-- Typography -->
+  <text x="256" y="420" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="44" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="3">PTN PHARMA</text>
+  <text x="256" y="462" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="700" fill="#d1fae5" text-anchor="middle" letter-spacing="1">พัฒนาเภสัช • จองคิว</text>
+</svg>
