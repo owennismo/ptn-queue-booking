@@ -68,6 +68,15 @@ export default function AdminDashboardPage() {
     return `${year}-${month}-${day}`;
   };
 
+  const getTomorrowStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Auth & Token & Role
   const [token, setToken] = useState<string>('');
   const [operatorName, setOperatorName] = useState<string>('เจ้าหน้าที่คลังสินค้า');
@@ -78,10 +87,10 @@ export default function AdminDashboardPage() {
   // Active Tab
   const [activeTab, setActiveTab] = useState<'queues' | 'capacity' | 'blocking' | 'staff' | 'audit'>('queues');
 
-  // Queues state
+  // Queues state (Default to 'All' to show all incoming bookings)
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
-  const [filterDate, setFilterDate] = useState<string>(getTodayStr());
+  const [filterDate, setFilterDate] = useState<string>('All');
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -817,21 +826,51 @@ export default function AdminDashboardPage() {
             {/* Filters & Actions Bar */}
             <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-3">
-                {/* Date Filter */}
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-2xl">
-                  <Calendar className="w-4 h-4 text-slate-500" />
-                  <input
-                    type="date"
-                    value={filterDate}
-                    onChange={(e) => setFilterDate(e.target.value)}
-                    className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none"
-                  />
+                {/* Date Filter Quick Buttons & Picker */}
+                <div className="flex flex-wrap items-center gap-1 bg-slate-50 border border-slate-200 p-1 rounded-2xl">
                   <button
+                    type="button"
+                    onClick={() => setFilterDate('All')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      filterDate === 'All' || !filterDate
+                        ? 'bg-slate-900 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    📅 ทุกวันที่ ({bookings.length})
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setFilterDate(getTodayStr())}
-                    className="text-[10px] font-bold text-emerald-700 hover:underline ml-1"
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      filterDate === getTodayStr()
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
                   >
                     วันนี้
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterDate(getTomorrowStr())}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      filterDate === getTomorrowStr()
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    พรุ่งนี้
+                  </button>
+
+                  <div className="flex items-center gap-1 px-2 border-l border-slate-200">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <input
+                      type="date"
+                      value={filterDate === 'All' ? '' : filterDate}
+                      onChange={(e) => setFilterDate(e.target.value || 'All')}
+                      className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none"
+                    />
+                  </div>
                 </div>
 
                 {/* Status Filter */}
@@ -890,7 +929,9 @@ export default function AdminDashboardPage() {
               <div className="p-5 border-b border-slate-100 flex items-center justify-between">
                 <div>
                   <h3 className="font-bold text-slate-900 text-base">
-                    รายการจองคิวประจำวันที่ {filterDate}
+                    {filterDate === 'All' || !filterDate
+                      ? 'รายการจองคิวทั้งหมด (ทุกวันที่)'
+                      : `รายการจองคิวประจำวันที่ ${filterDate}`}
                   </h3>
                   <p className="text-xs text-slate-500">พบทั้งหมด {bookings.length} รายการ</p>
                 </div>
@@ -904,8 +945,8 @@ export default function AdminDashboardPage() {
               ) : bookings.length === 0 ? (
                 <div className="py-16 text-center text-slate-400 space-y-2">
                   <Calendar className="w-10 h-10 mx-auto text-slate-300" />
-                  <p className="text-sm font-semibold text-slate-600">ไม่พบคิวการจองในวันที่เลือก</p>
-                  <p className="text-xs text-slate-400">สามารถเปลี่ยนวันที่ หรือเลือกดูทุกสถานะได้ที่แถบตัวกรอง</p>
+                  <p className="text-sm font-semibold text-slate-600">ไม่พบคิวการจองในเงื่อนไขที่เลือก</p>
+                  <p className="text-xs text-slate-400">สามารถคลิกปุ่ม &quot;📅 ทุกวันที่&quot; หรือเลือกดูทุกสถานะได้ที่แถบตัวกรอง</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -913,7 +954,7 @@ export default function AdminDashboardPage() {
                     <thead>
                       <tr className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                         <th className="py-3.5 px-4">Booking ID</th>
-                        <th className="py-3.5 px-4">รอบเวลา</th>
+                        <th className="py-3.5 px-4">วันที่ & รอบเวลานัดหมาย</th>
                         <th className="py-3.5 px-4">บริษัทขนส่ง</th>
                         <th className="py-3.5 px-4">เจ้าของสินค้า / ผู้ส่ง</th>
                         <th className="py-3.5 px-4 text-center">ลัง/พาเลท</th>
@@ -928,8 +969,14 @@ export default function AdminDashboardPage() {
                             {item.booking_id}
                           </td>
                           <td className="py-4 px-4 font-semibold text-slate-700 whitespace-nowrap">
-                            <Clock className="w-3.5 h-3.5 inline mr-1 text-emerald-600" />
-                            {item.requested_time}
+                            <div className="flex items-center gap-1 text-slate-900 font-bold text-xs">
+                              <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>{item.requested_date}</span>
+                            </div>
+                            <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
+                              <Clock className="w-3 h-3 text-slate-400" />
+                              <span>{item.requested_time}</span>
+                            </div>
                           </td>
                           <td className="py-4 px-4">
                             <span className="font-bold text-slate-900 block">{item.carrier_name}</span>

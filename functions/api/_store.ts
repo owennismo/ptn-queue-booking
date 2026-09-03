@@ -658,27 +658,28 @@ export class DataStore {
   }
 
   async searchBookings(phone?: string, id?: string): Promise<Booking[]> {
+    const bookings = await this.getAllBookings();
     if (id) {
-      const b = await this.getBookingById(id);
-      return b ? [b] : [];
+      const cleanId = id.trim().toUpperCase();
+      return bookings.filter((b: Booking) => b.booking_id.toUpperCase().includes(cleanId));
     }
 
     if (phone) {
       const cleanPhone = phone.trim().replace(/[- ]/g, '');
-      const bookings = await this.getAllBookings();
       return bookings.filter((b: Booking) =>
         b.user_phone.replace(/[- ]/g, '').includes(cleanPhone)
       );
     }
 
-    return [];
+    // Return all bookings if no search filter provided
+    return bookings;
   }
 
   async getAdminBookings(date?: string | null, status?: string | null, search?: string | null): Promise<Booking[]> {
     const bookings = await this.getAllBookings();
     let results = [...bookings];
 
-    if (date) {
+    if (date && date !== 'All' && date !== 'all') {
       results = results.filter((b: Booking) => b.requested_date === date);
     }
     if (status && status !== 'All') {
