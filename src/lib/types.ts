@@ -1,4 +1,4 @@
-export type BookingStatus = 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
+export type BookingStatus = 'Pending' | 'Approved' | 'CheckedIn' | 'Receiving' | 'Completed' | 'Rejected' | 'Cancelled';
 
 export interface Booking {
   booking_id: string;
@@ -28,6 +28,7 @@ export interface TimeSlot {
   end_time: string;
   max_capacity: number;
   is_active: number;
+  order_index?: number;
   booked_count?: number;
   available_slots?: number;
 }

@@ -16,7 +16,7 @@ export interface Booking {
   vehicle_type?: string | null;
   cargo_type?: string | null;
   notes: string | null;
-  status: 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
+  status: 'Pending' | 'Approved' | 'CheckedIn' | 'Receiving' | 'Completed' | 'Rejected' | 'Cancelled';
   admin_reason?: string | null;
   admin_action_date?: string | null;
   admin_action_by?: string | null;
@@ -30,6 +30,7 @@ export interface TimeSlot {
   end_time: string;
   max_capacity: number;
   is_active: number;
+  order_index?: number;
 }
 
 export interface BlockedDate {
@@ -41,7 +42,7 @@ export interface BlockedDate {
 
 export interface AuditLog {
   id: number;
-  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'UPDATE_SLOT' | 'BLOCK_DATE' | 'UNBLOCK_DATE' | 'ADD_STAFF' | 'UPDATE_STAFF' | 'DELETE_STAFF' | 'RESET_PIN';
+  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'CHECKIN_QUEUE' | 'RECEIVING_QUEUE' | 'COMPLETE_QUEUE' | 'UPDATE_SLOT' | 'REORDER_SLOTS' | 'BLOCK_DATE' | 'UNBLOCK_DATE' | 'ADD_STAFF' | 'UPDATE_STAFF' | 'DELETE_STAFF' | 'RESET_PIN';
   details: string;
   operator: string;
   ip_address: string;
@@ -75,21 +76,21 @@ function getRoleName(role: StaffRole): string {
     case 'warehouse_officer':
       return 'เจ้าหน้าที่คลังสินค้า (Warehouse Officer)';
     case 'security_gate':
-      return 'รปภ. จุดตรวจหน้าประตู (Security Gate)';
+      return 'เจ้าหน้าที่ตรวจสอบคิวส่ง (Inspection Officer)';
     default:
       return 'เจ้าหน้าที่ทั่วไป';
   }
 }
 
 const DEFAULT_SLOTS: TimeSlot[] = [
-  { id: 1, slot_name: '08:30 - 09:30', start_time: '08:30', end_time: '09:30', max_capacity: 3, is_active: 1 },
-  { id: 2, slot_name: '09:30 - 10:30', start_time: '09:30', end_time: '10:30', max_capacity: 4, is_active: 1 },
-  { id: 3, slot_name: '10:30 - 11:30', start_time: '10:30', end_time: '11:30', max_capacity: 4, is_active: 1 },
-  { id: 4, slot_name: '11:30 - 12:30', start_time: '11:30', end_time: '12:30', max_capacity: 2, is_active: 1 },
-  { id: 5, slot_name: '13:00 - 14:00', start_time: '13:00', end_time: '14:00', max_capacity: 4, is_active: 1 },
-  { id: 6, slot_name: '14:00 - 15:00', start_time: '14:00', end_time: '15:00', max_capacity: 4, is_active: 1 },
-  { id: 7, slot_name: '15:00 - 16:00', start_time: '15:00', end_time: '16:00', max_capacity: 3, is_active: 1 },
-  { id: 8, slot_name: '16:00 - 17:00', start_time: '16:00', end_time: '17:00', max_capacity: 2, is_active: 1 },
+  { id: 1, slot_name: '08:30 - 09:30', start_time: '08:30', end_time: '09:30', max_capacity: 3, is_active: 1, order_index: 1 },
+  { id: 2, slot_name: '09:30 - 10:30', start_time: '09:30', end_time: '10:30', max_capacity: 4, is_active: 1, order_index: 2 },
+  { id: 3, slot_name: '10:30 - 11:30', start_time: '10:30', end_time: '11:30', max_capacity: 4, is_active: 1, order_index: 3 },
+  { id: 4, slot_name: '11:30 - 12:30', start_time: '11:30', end_time: '12:30', max_capacity: 2, is_active: 1, order_index: 4 },
+  { id: 5, slot_name: '13:00 - 14:00', start_time: '13:00', end_time: '14:00', max_capacity: 4, is_active: 1, order_index: 5 },
+  { id: 6, slot_name: '14:00 - 15:00', start_time: '14:00', end_time: '15:00', max_capacity: 4, is_active: 1, order_index: 6 },
+  { id: 7, slot_name: '15:00 - 16:00', start_time: '15:00', end_time: '16:00', max_capacity: 3, is_active: 1, order_index: 7 },
+  { id: 8, slot_name: '16:00 - 17:00', start_time: '16:00', end_time: '17:00', max_capacity: 2, is_active: 1, order_index: 8 },
 ];
 
 const DEFAULT_STAFF: StaffUser[] = [
@@ -116,10 +117,10 @@ const DEFAULT_STAFF: StaffUser[] = [
   {
     id: 'staff_3',
     username: 'sec01',
-    full_name: 'เจ้าหน้าที่ รปภ. ประตูหน้า',
+    full_name: 'เจ้าหน้าที่ตรวจสอบคิวส่ง',
     pin: '5678',
     role: 'security_gate',
-    role_name: 'รปภ. จุดตรวจหน้าประตู (Security Gate)',
+    role_name: 'เจ้าหน้าที่ตรวจสอบคิวส่ง (Inspection Officer)',
     is_active: 1,
     created_at: '2026-09-02 09:00:00',
   },
@@ -303,6 +304,46 @@ export class DataStore {
     );
 
     return true;
+  }
+
+  async reorderTimeSlots(orderedSlots: TimeSlot[], operator = 'Admin', ip = '127.0.0.1') {
+    const updated = orderedSlots.map((s, index) => ({
+      ...s,
+      order_index: index + 1,
+    }));
+
+    globalStore.timeSlots = updated;
+    await this.putKV('time_slots', updated);
+
+    await this.addAuditLog(
+      'REORDER_SLOTS',
+      'ปรับเปลี่ยนลำดับการแสดงผลของรอบเวลา (มีผลทันทีทุกวัน)',
+      operator,
+      ip
+    );
+
+    return updated;
+  }
+
+  async autoSortTimeSlots(operator = 'Admin', ip = '127.0.0.1') {
+    let slots = await this.getTimeSlots();
+    slots.sort((a, b) => a.start_time.localeCompare(b.start_time));
+    const updated = slots.map((s, index) => ({
+      ...s,
+      order_index: index + 1,
+    }));
+
+    globalStore.timeSlots = updated;
+    await this.putKV('time_slots', updated);
+
+    await this.addAuditLog(
+      'REORDER_SLOTS',
+      'จัดเรียงลำดับรอบเวลาตามเวลาเริ่มต้นอัตโนมัติ (08:00 -> 17:00)',
+      operator,
+      ip
+    );
+
+    return updated;
   }
 
   // --- BLOCKED DATES PERSISTENCE ---
@@ -733,6 +774,42 @@ export class DataStore {
       return item;
     }
     return null;
+  }
+
+  async cancelBookingByUser(id: string, reason?: string, ip = '127.0.0.1'): Promise<Booking> {
+    const cleanId = id.trim().toUpperCase();
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const bookings = await this.getAllBookings();
+
+    const item = bookings.find((b: Booking) => b.booking_id.toUpperCase() === cleanId);
+    if (!item) {
+      throw new Error('ไม่พบข้อมูลการจองคิวนี้');
+    }
+
+    if (item.status === 'Cancelled') {
+      throw new Error('คิวนี้ถูกยกเลิกไปแล้ว');
+    }
+
+    if (item.status === 'Completed') {
+      throw new Error('คิวนี้ได้รับการรับสินค้าเสร็จสิ้นแล้ว ไม่สามารถยกเลิกได้');
+    }
+
+    item.status = 'Cancelled';
+    item.admin_reason = `[ผู้จองยกเลิกคิวเอง] ${reason?.trim() || 'ผู้จองขอยกเลิกการนัดหมาย'}`;
+    item.admin_action_date = nowStr;
+    item.admin_action_by = 'ผู้จอง (User)';
+
+    globalStore.bookings = bookings;
+    await this.putKV('bookings', bookings);
+
+    await this.addAuditLog(
+      'CANCEL_QUEUE',
+      `ผู้ส่งสินค้าขอยกเลิกคิว ${cleanId} ด้วยตนเอง${reason ? ` (เหตุผล: ${reason})` : ''}`,
+      'User Self-Service',
+      ip
+    );
+
+    return item;
   }
 
   // --- SETTINGS ---

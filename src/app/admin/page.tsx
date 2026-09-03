@@ -41,8 +41,15 @@ import {
   Shield,
   Camera,
   Minus,
+  Volume2,
+  VolumeX,
+  ArrowUp,
+  ArrowDown,
+  Sparkles,
+  CheckCheck,
+  FileSpreadsheet,
 } from 'lucide-react';
-import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole } from '@/lib/types';
+import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole, BookingStatus } from '@/lib/types';
 import QRScannerModal from '@/components/QRScannerModal';
 import { formatThaiDate, formatThaiShortDate } from '@/lib/dateUtils';
 
@@ -140,6 +147,50 @@ export default function AdminDashboardPage() {
 
   // QR Scanner Modal State
   const [scannerOpen, setScannerOpen] = useState(false);
+
+  // Audio Notification Alert State
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('ptn_sound_enabled') !== 'false';
+    }
+    return true;
+  });
+  const prevPendingCountRef = useRef<number | null>(null);
+
+  const toggleSound = () => {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ptn_sound_enabled', String(next));
+    }
+    showToast(next ? '🔔 เปิดเสียงแจ้งเตือนคิวใหม่แล้ว' : '🔕 ปิดเสียงแจ้งเตือนแล้ว');
+  };
+
+  const playAlertSound = useCallback(() => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc1.type = 'sine';
+      osc2.type = 'triangle';
+      osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc1.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
+      osc2.frequency.setValueAtTime(880, ctx.currentTime);
+      osc2.frequency.setValueAtTime(1174.66, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+      osc1.start();
+      osc2.start();
+      osc1.stop(ctx.currentTime + 0.35);
+      osc2.stop(ctx.currentTime + 0.35);
+    } catch (e) {}
+  }, []);
 
   // Notification Toast message
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -254,15 +305,28 @@ export default function AdminDashboardPage() {
     }
   }, [authFetch, filterDate, filterStatus, searchQuery, token]);
 
-  // 4. Load Forecast
+  // 4. Load Forecast & Check for new pending queues sound alert
   const fetchForecast = useCallback(async () => {
     if (!token && !sessionStorage.getItem('ptn_admin_jwt')) return;
     try {
       const res = await authFetch('/api/admin/forecast');
-      const data = await res.json();
+      const data: DailyForecast = await res.json();
       setForecast(data);
+
+      // Sound notification trigger when new pending queue arrives
+      if (data && typeof data.total_pending_all === 'number') {
+        if (
+          prevPendingCountRef.current !== null &&
+          data.total_pending_all > prevPendingCountRef.current &&
+          soundEnabled
+        ) {
+          playAlertSound();
+          showToast(`🔔 มีคิวใหม่เข้ามา! (รอตรวจสอบ ${data.total_pending_all} คิว)`);
+        }
+        prevPendingCountRef.current = data.total_pending_all;
+      }
     } catch (err) {}
-  }, [authFetch, token]);
+  }, [authFetch, token, soundEnabled]);
 
   // 5. Load Settings
   const fetchSettings = useCallback(async () => {
@@ -521,6 +585,140 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Workflow Quick Action (CheckedIn, Receiving, Completed)
+  const handleWorkflowAction = async (booking: Booking, newStatus: BookingStatus, label: string) => {
+    try {
+      const res = await authFetch(`/api/admin/bookings/${booking.booking_id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: newStatus,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      showToast(`อัปเดตสถานะคิว ${booking.booking_id} เป็น "${label}" สำเร็จ`);
+      fetchBookings();
+      fetchForecast();
+      if (selectedBooking?.booking_id === booking.booking_id) {
+        setSelectedBooking(data.booking);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการอัปเดตสถานะ', 'error');
+    }
+  };
+
+  // Reorder slots (Move Up / Down)
+  const handleMoveSlot = async (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= slots.length) return;
+
+    const newSlots = [...slots];
+    const temp = newSlots[index];
+    newSlots[index] = newSlots[targetIndex];
+    newSlots[targetIndex] = temp;
+
+    // Optimistic UI update
+    setSlots(newSlots);
+
+    try {
+      const res = await authFetch('/api/admin/settings', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'reorder_slots',
+          slots: newSlots,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showToast('บันทึกลำดับรอบเวลาเรียบร้อยแล้ว (มีผลทันทีทุกวัน)');
+      fetchSettings();
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการบันทึกลำดับ', 'error');
+      fetchSettings();
+    }
+  };
+
+  // Auto sort slots chronologically (08:00 -> 17:00)
+  const handleAutoSortSlots = async () => {
+    try {
+      const res = await authFetch('/api/admin/settings', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'auto_sort_slots',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showToast('จัดเรียงรอบเวลาตามเวลาเริ่มต้นเรียบร้อยแล้ว (08:00 -> 17:00)');
+      fetchSettings();
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาด', 'error');
+    }
+  };
+
+  // Export Filtered Bookings to Excel / CSV with UTF-8 BOM
+  const handleExportCSV = () => {
+    if (bookings.length === 0) {
+      showToast('ไม่มีข้อมูลคิวสำหรับส่งออก', 'error');
+      return;
+    }
+    const headers = [
+      'Booking ID',
+      'วันที่เข้าส่ง',
+      'รอบเวลานัดหมาย',
+      'บริษัทขนส่ง',
+      'เบอร์โทรติดต่อ',
+      'บริษัทเจ้าของสินค้า/ผู้ส่ง',
+      'ประเภทสินค้า',
+      'ประเภทรถ',
+      'จำนวนลัง',
+      'จำนวนรถ (คัน)',
+      'ชื่อผู้ส่งสินค้า',
+      'ทะเบียนรถ',
+      'สถานะคิว',
+      'หมายเหตุ',
+      'บันทึกเจ้าหน้าที่',
+      'วันที่สร้างคิว',
+    ];
+    const rows = bookings.map((b) => [
+      b.booking_id,
+      b.requested_date,
+      b.requested_time,
+      b.carrier_name,
+      b.user_phone,
+      b.client_name,
+      b.cargo_type || 'ยาและเวชภัณฑ์ทั่วไป',
+      b.vehicle_type || 'รถกระบะ 4 ล้อ',
+      b.pallet_count,
+      b.vehicle_count,
+      b.driver_name || '-',
+      b.license_plate || '-',
+      b.status,
+      b.notes || '-',
+      b.admin_reason || '-',
+      b.created_at,
+    ]);
+    const csvContent =
+      '\uFEFF' +
+      [
+        headers.join(','),
+        ...rows.map((r) =>
+          r
+            .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+            .join(',')
+        ),
+      ].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `PTN_Queue_Report_${filterDate}_${new Date().toISOString().substring(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('ส่งออกไฟล์ Excel/CSV เรียบร้อยแล้ว');
+  };
+
   // Staff Management Actions
   const handleOpenAddStaff = () => {
     setEditingStaff(null);
@@ -622,6 +820,12 @@ export default function AdminDashboardPage() {
     switch (status) {
       case 'Approved':
         return <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> อนุมัติแล้ว</span>;
+      case 'CheckedIn':
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 text-blue-600" /> ตรวจรับเข้าแล้ว</span>;
+      case 'Receiving':
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 flex items-center gap-1.5"><Package className="w-3.5 h-3.5 text-indigo-600 animate-pulse" /> กำลังลงสินค้า</span>;
+      case 'Completed':
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-teal-100 text-teal-900 flex items-center gap-1.5"><CheckCheck className="w-3.5 h-3.5 text-teal-700" /> เสร็จสิ้นสมบูรณ์</span>;
       case 'Rejected':
         return <span className="px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 flex items-center gap-1.5"><XCircle className="w-3.5 h-3.5 text-rose-600" /> ไม่อนุมัติ</span>;
       case 'Cancelled':
@@ -638,7 +842,7 @@ export default function AdminDashboardPage() {
       case 'warehouse_officer':
         return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">📦 คลังสินค้า</span>;
       case 'security_gate':
-        return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300 flex items-center gap-1">🛡️ รปภ. ประตู</span>;
+        return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300 flex items-center gap-1">🛡️ ตรวจสอบคิวส่ง</span>;
       default:
         return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">เจ้าหน้าที่</span>;
     }
@@ -697,6 +901,20 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
+            {/* Audio Notification Toggle */}
+            <button
+              onClick={toggleSound}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+                soundEnabled
+                  ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
+                  : 'bg-slate-800 border-slate-700 text-slate-400'
+              }`}
+              title="เปิด/ปิดเสียงแจ้งเตือนเมื่อมีคิวใหม่"
+            >
+              {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-400" /> : <VolumeX className="w-3.5 h-3.5" />}
+              <span>{soundEnabled ? 'เสียงเตือน: เปิด' : 'เสียงเตือน: ปิด'}</span>
+            </button>
+
             {/* Operator info with Role Badge */}
             <div className="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-2.5 text-xs">
               <User className="w-3.5 h-3.5 text-emerald-400" />
@@ -782,13 +1000,13 @@ export default function AdminDashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
-        {/* Security role notice if logged as Security */}
+        {/* Inspection Officer Notice */}
         {isSecurityOnly && (
           <div className="bg-blue-50 border border-blue-200 text-blue-900 px-4 py-3 rounded-2xl flex items-center gap-3 text-xs">
             <Shield className="w-5 h-5 text-blue-600 shrink-0" />
             <div>
-              <strong className="block">เข้าสู่ระบบในโหมด รปภ. / จุดตรวจหน้าประตู (View-Only Mode)</strong>
-              สามารถตรวจสอบรายการคิว สแกน QR Code และพิมพ์บัตรคิวได้ (ฟังก์ชันแก้ไขและอนุมัติคิวถูกปิดการใช้งาน)
+              <strong className="block">เข้าสู่ระบบในโหมด: เจ้าหน้าที่ตรวจสอบคิวส่ง (Check-in & Verification Mode)</strong>
+              สามารถตรวจสอบรายการคิว, สแกน QR Code ตรวจรับรถเข้าพื้นที่, และพิมพ์ใบสรุปรายการคิวได้
             </div>
           </div>
         )}
@@ -883,10 +1101,13 @@ export default function AdminDashboardPage() {
                     className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none"
                   >
                     <option value="All">ทุกสถานะ</option>
-                    <option value="Pending">รอตรวจสอบ (Pending)</option>
-                    <option value="Approved">อนุมัติแล้ว (Approved)</option>
-                    <option value="Rejected">ไม่อนุมัติ (Rejected)</option>
-                    <option value="Cancelled">ยกเลิกแล้ว (Cancelled)</option>
+                    <option value="Pending">⏳ รอตรวจสอบ (Pending)</option>
+                    <option value="Approved">✅ อนุมัติแล้ว (Approved)</option>
+                    <option value="CheckedIn">🚗 ตรวจรับเข้าแล้ว (Checked-in)</option>
+                    <option value="Receiving">📦 กำลังลงสินค้า (Receiving)</option>
+                    <option value="Completed">✨ เสร็จสิ้นสมบูรณ์ (Completed)</option>
+                    <option value="Rejected">❌ ไม่อนุมัติ (Rejected)</option>
+                    <option value="Cancelled">🚫 ยกเลิกแล้ว (Cancelled)</option>
                   </select>
                 </div>
               </div>
@@ -907,7 +1128,7 @@ export default function AdminDashboardPage() {
                   <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    placeholder="ค้นหา ID, ขนส่ง..."
+                    placeholder="ค้นหา ID, ขนส่ง, ผู้ส่ง, ทะเบียน..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -925,9 +1146,9 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            {/* Bookings List Table */}
+            {/* Bookings List Table Card */}
             <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="font-bold text-slate-900 text-base">
                     {filterDate === 'All' || !filterDate
@@ -935,6 +1156,29 @@ export default function AdminDashboardPage() {
                       : `รายการจองคิวประจำ${formatThaiDate(filterDate)}`}
                   </h3>
                   <p className="text-xs text-slate-500">พบทั้งหมด {bookings.length} รายการ</p>
+                </div>
+
+                {/* Export & Print Toolbar */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleExportCSV}
+                    className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                    title="ส่งออกรายการที่กรองเป็นไฟล์ Excel / CSV"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Export Excel/CSV</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                    title="พิมพ์ใบสรุปคิว A4"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-slate-600" />
+                    <span>พิมพ์ใบสรุป</span>
+                  </button>
                 </div>
               </div>
 
@@ -994,34 +1238,68 @@ export default function AdminDashboardPage() {
                           </td>
                           <td className="py-4 px-4 text-center">
                             <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                              {/* 1-Click Approve (Hidden for Security Gate) */}
+                              {/* 1. If Pending: 1-Click Approve or Reject */}
                               {!isSecurityOnly && item.status === 'Pending' && (
+                                <>
+                                  <button
+                                    onClick={() => handleApprove(item)}
+                                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
+                                    title="อนุมัติคิวทันที"
+                                  >
+                                    อนุมัติ
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setRejectingBooking(item);
+                                      setRejectReason('');
+                                      setRejectModalOpen(true);
+                                    }}
+                                    className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition"
+                                    title="ปฏิเสธคิวพร้อมระบุเหตุผล"
+                                  >
+                                    ปฏิเสธ
+                                  </button>
+                                </>
+                              )}
+
+                              {/* 2. If Approved: Check-in (for Inspection Officer & Warehouse) */}
+                              {item.status === 'Approved' && (
                                 <button
-                                  onClick={() => handleApprove(item)}
-                                  className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
-                                  title="อนุมัติคิวทันที"
+                                  onClick={() => handleWorkflowAction(item, 'CheckedIn', 'ตรวจรับเข้าแล้ว')}
+                                  className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1"
+                                  title="ตรวจรับรถเข้าพื้นที่คลังสินค้า"
                                 >
-                                  อนุมัติ
+                                  <Truck className="w-3.5 h-3.5" />
+                                  <span>ตรวจรับเข้า</span>
                                 </button>
                               )}
 
-                              {/* Reject with Reason (Hidden for Security Gate) */}
-                              {!isSecurityOnly && item.status === 'Pending' && (
+                              {/* 3. If CheckedIn: Start Receiving (for Warehouse) */}
+                              {!isSecurityOnly && item.status === 'CheckedIn' && (
                                 <button
-                                  onClick={() => {
-                                    setRejectingBooking(item);
-                                    setRejectReason('');
-                                    setRejectModalOpen(true);
-                                  }}
-                                  className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition"
-                                  title="ปฏิเสธคิวพร้อมระบุเหตุผล"
+                                  onClick={() => handleWorkflowAction(item, 'Receiving', 'กำลังลงสินค้า')}
+                                  className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1"
+                                  title="เริ่มตรวจนับและลงสินค้า"
                                 >
-                                  ปฏิเสธ
+                                  <Package className="w-3.5 h-3.5" />
+                                  <span>เริ่มลงของ</span>
+                                </button>
+                              )}
+
+                              {/* 4. If Receiving: Complete Receiving (for Warehouse) */}
+                              {!isSecurityOnly && item.status === 'Receiving' && (
+                                <button
+                                  onClick={() => handleWorkflowAction(item, 'Completed', 'เสร็จสิ้นสมบูรณ์')}
+                                  className="px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1"
+                                  title="ลงสินค้าและตรวจรับเสร็จสมบูรณ์"
+                                >
+                                  <CheckCheck className="w-3.5 h-3.5" />
+                                  <span>เสร็จสิ้น</span>
                                 </button>
                               )}
 
                               {/* Multi-Step Cancel (Hidden for Security Gate) */}
-                              {!isSecurityOnly && item.status === 'Approved' && (
+                              {!isSecurityOnly && (item.status === 'Approved' || item.status === 'CheckedIn' || item.status === 'Receiving') && (
                                 <button
                                   onClick={() => {
                                     setCancellingBooking(item);
@@ -1083,8 +1361,18 @@ export default function AdminDashboardPage() {
                 <p className="text-xs text-slate-500">กำหนดจำนวนรถขนส่งที่สามารถเข้าส่งสินค้าได้พร้อมกันในแต่ละช่วงเวลา</p>
               </div>
 
-              {/* Batch Capacity Tool & Add Slot Button */}
+              {/* Batch Capacity Tool, Auto Sort & Add Slot Button */}
               <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleAutoSortSlots}
+                  className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                  title="จัดเรียงรอบเวลาทั้งหมดตามลำดับเวลาเริ่มต้น (08:00 -> 17:00)"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  <span>จัดเรียงตามเวลาอัตโนมัติ</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -1156,7 +1444,7 @@ export default function AdminDashboardPage() {
 
             {/* Time Slot Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              {slots.map((slot) => (
+              {slots.map((slot, index) => (
                 <div
                   key={slot.id}
                   className={`p-4 rounded-2xl border transition ${
@@ -1172,6 +1460,28 @@ export default function AdminDashboardPage() {
                     </div>
 
                     <div className="flex items-center gap-1.5">
+                      {/* Reorder Stepper */}
+                      <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-lg p-0.5">
+                        <button
+                          type="button"
+                          disabled={index === 0}
+                          onClick={() => handleMoveSlot(index, 'up')}
+                          className="p-1 text-slate-400 hover:text-emerald-700 disabled:opacity-20 disabled:hover:text-slate-400 rounded hover:bg-slate-100 transition"
+                          title="ขยับรอบนี้ขึ้นก่อน"
+                        >
+                          <ArrowUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={index === slots.length - 1}
+                          onClick={() => handleMoveSlot(index, 'down')}
+                          className="p-1 text-slate-400 hover:text-emerald-700 disabled:opacity-20 disabled:hover:text-slate-400 rounded hover:bg-slate-100 transition"
+                          title="ขยับรอบนี้ลงหลัง"
+                        >
+                          <ArrowDown className="w-3 h-3" />
+                        </button>
+                      </div>
+
                       <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 cursor-pointer">
                         <input
                           type="checkbox"
@@ -1542,8 +1852,8 @@ export default function AdminDashboardPage() {
                   onChange={(e) => setStaffFormRole(e.target.value as StaffRole)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
                 >
-                  <option value="warehouse_officer">📦 เจ้าหน้าที่คลังสินค้า (อนุมัติ / ปฏิเสธคิว)</option>
-                  <option value="security_gate">🛡️ รปภ. จุดตรวจหน้าประตู (ตรวจสอบคิวอย่างเดียว)</option>
+                  <option value="warehouse_officer">📦 เจ้าหน้าที่คลังสินค้า (อนุมัติ / ปฏิเสธ / รับสินค้า)</option>
+                  <option value="security_gate">🛡️ เจ้าหน้าที่ตรวจสอบคิวส่ง (ตรวจสอบคิว & เช็คอินรับรถ)</option>
                   <option value="super_admin">👑 Super Admin (ผู้ดูแลระบบสูงสุด)</option>
                 </select>
               </div>

@@ -90,6 +90,29 @@ export async function onRequestPost(context: { request: Request; env: any }) {
       });
     }
 
+    // 4.1 REORDER TIME SLOTS
+    if (action === 'reorder_slots') {
+      const { slots } = body;
+      if (!Array.isArray(slots)) {
+        return new Response(JSON.stringify({ error: 'ข้อมูลรอบเวลาไม่ถูกต้อง' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        });
+      }
+      const updated = await store.reorderTimeSlots(slots, operatorName, clientIp);
+      return new Response(JSON.stringify({ success: true, message: 'บันทึกลำดับการแสดงผลของรอบเวลาเรียบร้อยแล้ว', slots: updated }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      });
+    }
+
+    // 4.2 AUTO SORT TIME SLOTS CHRONOLOGICALLY
+    if (action === 'auto_sort_slots') {
+      const updated = await store.autoSortTimeSlots(operatorName, clientIp);
+      return new Response(JSON.stringify({ success: true, message: 'จัดเรียงรอบเวลาตามเวลาเริ่มต้นเรียบร้อยแล้ว (08:00 -> 17:00)', slots: updated }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      });
+    }
+
     // 5. ADD BLOCKED DATE
     if (action === 'add_blocked_date') {
       const { blocked_date, reason } = body;

@@ -43,6 +43,42 @@ export default function BookingDetailPage({
   const [copied, setCopied] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [downloadingImage, setDownloadingImage] = useState<boolean>(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState<boolean>(false);
+  const [cancelReason, setCancelReason] = useState<string>('');
+  const [cancelling, setCancelling] = useState<boolean>(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  const handleUserCancel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!booking) return;
+
+    setCancelling(true);
+    setCancelError(null);
+
+    try {
+      const res = await fetch(`/api/bookings/${booking.booking_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'cancel',
+          reason: cancelReason || 'ผู้จองขอยกเลิกการนัดหมาย',
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'ไม่สามารถยกเลิกคิวได้');
+      }
+
+      setBooking(data.booking);
+      setCancelModalOpen(false);
+      setCancelReason('');
+    } catch (err: any) {
+      setCancelError(err.message || 'เกิดข้อผิดพลาดในการยกเลิกคิว');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const fetchBooking = async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -287,7 +323,7 @@ ${url}`;
 
           ctx.fillStyle = '#64748b';
           ctx.font = '13px sans-serif';
-          ctx.fillText('แสดง QR Code นี้ให้เจ้าหน้าที่ รปภ. หรือฝ่ายรับสินค้า', 90, 410);
+          ctx.fillText('แสดง QR Code นี้ให้เจ้าหน้าที่ตรวจสอบคิวส่ง หรือฝ่ายรับสินค้า', 90, 410);
           ctx.fillText('เพื่อเช็คอินและเรียกเข้าช่องโหลดสินค้า', 90, 432);
 
           // 5. Grid Details
@@ -443,6 +479,30 @@ ${url}`;
           desc: 'สามารถนำรถและสินค้าเข้าส่งตามวันและเวลาที่ระบุได้',
           headerBg: 'from-emerald-600 to-teal-700',
         };
+      case 'CheckedIn':
+        return {
+          badgeBg: 'bg-blue-50 text-blue-700 border-blue-200',
+          icon: <CheckCircle2 className="w-6 h-6 text-blue-600" />,
+          title: 'ตรวจสอบเข้าพื้นที่แล้ว (Checked-in)',
+          desc: 'เจ้าหน้าที่ตรวจสอบคิวส่งได้สแกนรับรถเข้าพื้นที่แล้ว กรุณารอเรียกเข้าช่องจอดเทียบ',
+          headerBg: 'from-blue-600 to-indigo-700',
+        };
+      case 'Receiving':
+        return {
+          badgeBg: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+          icon: <Truck className="w-6 h-6 text-indigo-600 animate-bounce" />,
+          title: 'กำลังลงสินค้า (Receiving / Unloading)',
+          desc: 'กำลังดำเนินการตรวจนับและถ่ายสินค้าเข้าคลังสินค้า',
+          headerBg: 'from-indigo-600 to-purple-700',
+        };
+      case 'Completed':
+        return {
+          badgeBg: 'bg-teal-50 text-teal-800 border-teal-200',
+          icon: <CheckCircle2 className="w-6 h-6 text-teal-600" />,
+          title: 'รับสินค้าเสร็จสิ้นสมบูรณ์ (Completed)',
+          desc: 'สินค้าได้รับการตรวจรับและลงบันทึกเข้าระบบคลังสินค้าเรียบร้อยแล้ว',
+          headerBg: 'from-teal-700 to-slate-800',
+        };
       case 'Rejected':
         return {
           badgeBg: 'bg-rose-50 text-rose-700 border-rose-200',
@@ -583,7 +643,7 @@ ${url}`;
                 <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Digital Pass QR</span>
                 <h4 className="font-bold text-slate-800 text-base">สแกนตรวจสอบที่คลังสินค้า</h4>
                 <p className="text-xs text-slate-500 max-w-xs">
-                  แสดง QR Code นี้ให้เจ้าหน้าที่ รปภ. หรือฝ่ายรับสินค้าสแกนเมื่อเดินทางมาถึง
+                  แสดง QR Code นี้ให้เจ้าหน้าที่ตรวจสอบคิวส่ง หรือฝ่ายรับสินค้าสแกนเมื่อเดินทางมาถึง
                 </p>
               </div>
               <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-sm shrink-0">
@@ -705,11 +765,80 @@ ${url}`;
               <p className="font-bold flex items-center justify-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" /> คำแนะนำสำหรับผู้ส่งสินค้า:
               </p>
-              <p>กรุณาเดินทางมาถึงก่อนเวลานัดหมาย 10-15 นาที และแสดงบัตรคิวนี้ให้ฝ่ายรับสินค้า</p>
+              <p>กรุณาเดินทางมาถึงก่อนเวลานัดหมาย 10-15 นาที และแสดงบัตรคิวนี้ให้เจ้าหน้าที่ตรวจสอบคิวส่งเมื่อเดินทางมาถึง</p>
             </div>
+
+            {/* Self-Cancel Button (Only available if Pending or Approved) */}
+            {(booking.status === 'Pending' || booking.status === 'Approved') && (
+              <div className="pt-2 border-t border-slate-100 text-center no-print">
+                <button
+                  type="button"
+                  onClick={() => setCancelModalOpen(true)}
+                  className="text-xs text-rose-600 hover:text-rose-700 font-semibold hover:underline inline-flex items-center gap-1.5 py-2 px-3 rounded-xl hover:bg-rose-50 transition"
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  <span>ต้องการยกเลิกการจองคิวนี้</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* User Self-Cancel Modal */}
+      {cancelModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-lg font-bold text-slate-900">ยืนยันการยกเลิกคิว</h3>
+              <p className="text-xs text-slate-500">
+                คุณแน่ใจหรือไม่ว่าต้องการยกเลิกคิว <strong className="font-mono text-slate-800">{booking.booking_id}</strong>?
+              </p>
+            </div>
+
+            <form onSubmit={handleUserCancel} className="space-y-4 pt-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">เหตุผลในการขอยกเลิก (ระบุหรือไม่ก็ได้)</label>
+                <textarea
+                  rows={3}
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="เช่น ติดภารกิจด่วน, ขอเปลี่ยนวันส่งใหม่, รถเกิดเหตุขัดข้อง"
+                  className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                />
+              </div>
+
+              {cancelError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium">
+                  {cancelError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCancelModalOpen(false)}
+                  disabled={cancelling}
+                  className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition"
+                >
+                  ย้อนกลับ
+                </button>
+                <button
+                  type="submit"
+                  disabled={cancelling}
+                  className="py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs transition disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md shadow-rose-200"
+                >
+                  {cancelling ? 'กำลังยกเลิก...' : 'ยืนยันยกเลิกคิว'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
