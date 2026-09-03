@@ -958,7 +958,7 @@ export default function AdminDashboardPage() {
                         <th className="py-3.5 px-4">วันที่ & รอบเวลานัดหมาย</th>
                         <th className="py-3.5 px-4">บริษัทขนส่ง</th>
                         <th className="py-3.5 px-4">เจ้าของสินค้า / ผู้ส่ง</th>
-                        <th className="py-3.5 px-4 text-center">ลัง/พาเลท</th>
+                        <th className="py-3.5 px-4 text-center">จำนวนลัง</th>
                         <th className="py-3.5 px-4">สถานะ</th>
                         <th className="py-3.5 px-4 text-center">การจัดการ</th>
                       </tr>
@@ -1754,12 +1754,9 @@ export default function AdminDashboardPage() {
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="p-3 bg-slate-50 rounded-xl">
-                <span className="text-slate-400 block">วันที่เข้าส่ง (DD/MM/YYYY)</span>
+                <span className="text-slate-400 block">วันที่เข้าส่ง (พ.ศ.)</span>
                 <span className="font-bold text-slate-800">
-                  {(() => {
-                    const parts = selectedBooking.requested_date.split('-');
-                    return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : selectedBooking.requested_date;
-                  })()}
+                  {formatThaiDate(selectedBooking.requested_date)}
                 </span>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl">
@@ -1793,14 +1790,14 @@ export default function AdminDashboardPage() {
                 <span className="font-bold text-slate-800">{selectedBooking.vehicle_type || 'รถกระบะ 4 ล้อ'}</span>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl">
-                <span className="text-slate-400 block">จำนวนสินค้า / รถ</span>
+                <span className="text-slate-400 block">จำนวนลัง / รถ</span>
                 <span className="font-bold text-slate-800">{selectedBooking.pallet_count} ลัง ({selectedBooking.vehicle_count} คัน)</span>
               </div>
               {(selectedBooking.driver_name || selectedBooking.license_plate) && (
                 <div className="p-3 bg-slate-50 rounded-xl col-span-2">
-                  <span className="text-slate-400 block">ข้อมูลคนขับและทะเบียน</span>
+                  <span className="text-slate-400 block">ข้อมูลผู้ส่งสินค้าและทะเบียน</span>
                   <span className="font-bold text-slate-800">
-                    {selectedBooking.driver_name ? `คนขับ: ${selectedBooking.driver_name} ` : ''}
+                    {selectedBooking.driver_name ? `ผู้ส่ง: ${selectedBooking.driver_name} ` : ''}
                     {selectedBooking.license_plate ? `| ทะเบียน: ${selectedBooking.license_plate}` : ''}
                   </span>
                 </div>

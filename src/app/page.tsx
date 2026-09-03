@@ -77,16 +77,6 @@ export default function BookingPage() {
     return formatThaiDate(dateStr);
   };
 
-  // Common Carrier suggestions
-  const carrierSuggestions = [
-    'Kerry Express',
-    'Flash Express',
-    'DHL Supply Chain',
-    'SCG Logistics',
-    'รถร่วมบริการขนส่ง',
-    'ขนส่งประจำบริษัท',
-  ];
-
   // Vehicle Types
   const vehicleTypes = [
     'รถกระบะ 4 ล้อ (ตู้ทึบ/คอก)',
@@ -456,24 +446,11 @@ export default function BookingPage() {
                   <input
                     type="text"
                     required
-                    placeholder="เช่น Kerry Express, Flash, ขนส่งเอกชน"
+                    placeholder="เช่น Kerry Express, Flash Express, ขนส่งเอกชน..."
                     value={carrierName}
                     onChange={(e) => setCarrierName(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-slate-900"
                   />
-                </div>
-                {/* Quick pills */}
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {carrierSuggestions.map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      onClick={() => setCarrierName(item)}
-                      className="text-[11px] bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 px-2 py-0.5 rounded-md transition"
-                    >
-                      + {item}
-                    </button>
-                  ))}
                 </div>
               </div>
 
@@ -521,10 +498,10 @@ export default function BookingPage() {
                 </div>
               </div>
 
-              {/* Pallet Count */}
+              {/* Pallet/Crate Count */}
               <div className="space-y-1.5">
                 <label className="block text-sm font-semibold text-slate-700">
-                  <span className="text-rose-500">*</span> จำนวนลัง / พาเลท
+                  <span className="text-rose-500">*</span> จำนวนลัง
                 </label>
                 <div className="relative flex items-center">
                   <button
@@ -550,6 +527,7 @@ export default function BookingPage() {
                     +
                   </button>
                 </div>
+                <p className="text-[11px] text-slate-400">ระบุจำนวนลังสินค้าทั้งหมด</p>
               </div>
 
               {/* Vehicle Count */}
@@ -581,12 +559,13 @@ export default function BookingPage() {
                     +
                   </button>
                 </div>
+                <p className="text-[11px] text-slate-400">ระบุจำนวนคันรถ</p>
               </div>
 
-              {/* Driver Name (Optional) */}
+              {/* Sender Name (ผู้ส่งสินค้า) */}
               <div className="space-y-1.5">
                 <label className="block text-sm font-semibold text-slate-700">
-                  ชื่อคนขับรถ <span className="text-xs text-slate-400 font-normal">(ระบุหรือไม่ก็ได้)</span>
+                  ชื่อผู้ส่งสินค้า <span className="text-xs text-slate-400 font-normal">(ระบุหรือไม่ก็ได้)</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">

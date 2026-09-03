@@ -348,7 +348,7 @@ export default function TrackPage() {
                     <span className="text-slate-400 block text-[11px]">จำนวนสินค้า</span>
                     <span className="font-bold text-slate-800 flex items-center gap-1 mt-0.5">
                       <Package className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      {item.pallet_count} พาเลท / {item.vehicle_count} คัน
+                      {item.pallet_count} ลัง / {item.vehicle_count} คัน
                     </span>
                   </div>
                 </div>
@@ -379,7 +379,7 @@ export default function TrackPage() {
 
                 {(item.driver_name || item.license_plate) && (
                   <div className="mt-2 text-[11px] text-slate-500">
-                    คนขับ: <strong className="text-slate-700">{item.driver_name || '-'}</strong> | ทะเบียน: <strong className="text-slate-700">{item.license_plate || '-'}</strong>
+                    ผู้ส่งสินค้า: <strong className="text-slate-700">{item.driver_name || '-'}</strong> | ทะเบียน: <strong className="text-slate-700">{item.license_plate || '-'}</strong>
                   </div>
                 )}
               </Link>

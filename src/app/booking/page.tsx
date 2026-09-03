@@ -121,9 +121,9 @@ function BookingContent() {
 📅 วันที่นัดหมาย: ${dateText}
 ⏰ รอบเวลา: ${booking.requested_time}
 🏢 ขนส่ง: ${booking.carrier_name}
-📦 สินค้า: ${booking.cargo_type || 'ยาและเวชภัณฑ์'} (${booking.pallet_count} พาเลท)
+📦 สินค้า: ${booking.cargo_type || 'ยาและเวชภัณฑ์'} (${booking.pallet_count} ลัง)
 🚛 ประเภทรถ: ${booking.vehicle_type || 'รถกระบะ'} (${booking.vehicle_count} คัน)
-${booking.license_plate ? `🚗 ทะเบียนรถ: ${booking.license_plate}\n` : ''}${booking.driver_name ? `👤 คนขับ: ${booking.driver_name}\n` : ''}📊 สถานะ: ${statusText}
+${booking.driver_name ? `👤 ผู้ส่งสินค้า: ${booking.driver_name}\n` : ''}${booking.license_plate ? `🚗 ทะเบียนรถ: ${booking.license_plate}\n` : ''}📊 สถานะ: ${statusText}
 
 🔗 เปิดดูบัตรคิวดิจิทัล:
 ${url}`;
@@ -333,7 +333,7 @@ ${url}`;
           { label: '🏢 บริษัทเจ้าของสินค้า / ผู้ส่ง', val: booking.client_name, full: true },
           { label: '📦 ประเภทสินค้า', val: booking.cargo_type || 'ยาและเวชภัณฑ์ทั่วไป', full: true, highlight: booking.cargo_type?.includes('ยาเย็น') },
           { label: '🚛 ประเภทรถขนส่ง', val: `${booking.vehicle_type || 'รถกระบะ 4 ล้อ'} (${booking.vehicle_count} คัน)` },
-          { label: '📦 จำนวนสินค้า', val: `${booking.pallet_count} ลัง / พาเลท` },
+          { label: '📦 จำนวนสินค้า', val: `${booking.pallet_count} ลัง` },
         ];
 
         let currY = startY;
@@ -371,7 +371,7 @@ ${url}`;
           }
         });
 
-        // Driver & License Plate
+        // Sender & License Plate
         if (booking.driver_name || booking.license_plate) {
           ctx.fillStyle = '#f8fafc';
           ctx.beginPath();
@@ -382,11 +382,11 @@ ${url}`;
 
           ctx.fillStyle = '#64748b';
           ctx.font = '12px sans-serif';
-          ctx.fillText('👤 ข้อมูลคนขับและทะเบียนรถ', 76, currY + 24);
+          ctx.fillText('👤 ข้อมูลผู้ส่งสินค้าและทะเบียนรถ', 76, currY + 24);
 
           ctx.fillStyle = '#0f172a';
           ctx.font = 'bold 14px sans-serif';
-          const info = `คนขับ: ${booking.driver_name || '-'}  |  ทะเบียน: ${booking.license_plate || '-'}`;
+          const info = `ผู้ส่ง: ${booking.driver_name || '-'}  |  ทะเบียน: ${booking.license_plate || '-'}`;
           ctx.fillText(info, 76, currY + 46);
           currY += 70;
         }
@@ -688,23 +688,23 @@ ${url}`;
                 <p className="font-bold text-slate-900 text-base">{booking.vehicle_type || 'รถกระบะ 4 ล้อ'}</p>
               </div>
 
-              {/* Pallet & Vehicle Count */}
+              {/* Crate & Vehicle Count */}
               <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1">
                 <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                  <Package className="w-3.5 h-3.5 text-emerald-600" /> ปริมาณและจำนวนรถ
+                  <Package className="w-3.5 h-3.5 text-emerald-600" /> จำนวนลังและจำนวนรถ
                 </span>
                 <p className="font-bold text-slate-900 text-base">
-                  {booking.pallet_count} พาเลท / {booking.vehicle_count} คัน
+                  {booking.pallet_count} ลัง <span className="text-xs font-normal text-slate-500">({booking.vehicle_count} คัน)</span>
                 </p>
               </div>
 
               {(booking.driver_name || booking.license_plate) && (
                 <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1 sm:col-span-2">
                   <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-emerald-600" /> ข้อมูลคนขับและทะเบียนรถ
+                    <User className="w-3.5 h-3.5 text-emerald-600" /> ข้อมูลผู้ส่งสินค้าและทะเบียนรถ
                   </span>
                   <p className="font-bold text-slate-900 text-sm">
-                    {booking.driver_name ? `คนขับ: ${booking.driver_name}` : ''}
+                    {booking.driver_name ? `ผู้ส่งสินค้า: ${booking.driver_name}` : ''}
                     {booking.driver_name && booking.license_plate ? ' | ' : ''}
                     {booking.license_plate ? `ทะเบียน: ${booking.license_plate}` : ''}
                   </p>
