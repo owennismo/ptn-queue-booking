@@ -619,21 +619,25 @@ export default function AdminDashboardPage() {
     newSlots[index] = newSlots[targetIndex];
     newSlots[targetIndex] = temp;
 
-    // Optimistic UI update
-    setSlots(newSlots);
+    const orderedWithIndex = newSlots.map((s, idx) => ({ ...s, order_index: idx + 1 }));
+
+    // Optimistic UI update immediately
+    setSlots(orderedWithIndex);
 
     try {
       const res = await authFetch('/api/admin/settings', {
         method: 'POST',
         body: JSON.stringify({
           action: 'reorder_slots',
-          slots: newSlots,
+          slots: orderedWithIndex,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       showToast('บันทึกลำดับรอบเวลาเรียบร้อยแล้ว (มีผลทันทีทุกวัน)');
-      fetchSettings();
+      if (data.slots && Array.isArray(data.slots)) {
+        setSlots(data.slots);
+      }
     } catch (err: any) {
       showToast(err.message || 'เกิดข้อผิดพลาดในการบันทึกลำดับ', 'error');
       fetchSettings();
@@ -642,19 +646,29 @@ export default function AdminDashboardPage() {
 
   // Auto sort slots chronologically (08:00 -> 17:00)
   const handleAutoSortSlots = async () => {
+    const sorted = [...slots].sort((a, b) => a.start_time.localeCompare(b.start_time));
+    const sortedWithIndex = sorted.map((s, idx) => ({ ...s, order_index: idx + 1 }));
+
+    // Instant UI update immediately
+    setSlots(sortedWithIndex);
+
     try {
       const res = await authFetch('/api/admin/settings', {
         method: 'POST',
         body: JSON.stringify({
-          action: 'auto_sort_slots',
+          action: 'reorder_slots',
+          slots: sortedWithIndex,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       showToast('จัดเรียงรอบเวลาตามเวลาเริ่มต้นเรียบร้อยแล้ว (08:00 -> 17:00)');
-      fetchSettings();
+      if (data.slots && Array.isArray(data.slots)) {
+        setSlots(data.slots);
+      }
     } catch (err: any) {
       showToast(err.message || 'เกิดข้อผิดพลาด', 'error');
+      fetchSettings();
     }
   };
 

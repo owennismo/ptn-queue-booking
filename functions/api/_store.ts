@@ -210,10 +210,24 @@ export class DataStore {
   async getTimeSlots(): Promise<TimeSlot[]> {
     if (this.kv) {
       const kvSlots = await this.getKV<TimeSlot[]>('time_slots', globalStore.timeSlots);
-      if (kvSlots && kvSlots.length > 0) {
+      if (kvSlots && Array.isArray(kvSlots) && kvSlots.length > 0) {
+        kvSlots.sort((a: TimeSlot, b: TimeSlot) => {
+          if (a.order_index !== undefined && b.order_index !== undefined) {
+            return a.order_index - b.order_index;
+          }
+          return a.start_time.localeCompare(b.start_time);
+        });
         globalStore.timeSlots = kvSlots;
         return kvSlots;
       }
+    }
+    if (globalStore.timeSlots && Array.isArray(globalStore.timeSlots)) {
+      globalStore.timeSlots.sort((a: TimeSlot, b: TimeSlot) => {
+        if (a.order_index !== undefined && b.order_index !== undefined) {
+          return a.order_index - b.order_index;
+        }
+        return a.start_time.localeCompare(b.start_time);
+      });
     }
     return globalStore.timeSlots;
   }
