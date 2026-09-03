@@ -202,6 +202,16 @@ export default function BookingPage() {
         throw new Error(data.error || 'การจองไม่สำเร็จ');
       }
 
+      // Save booking ID to user device for Device/Session lock verification
+      try {
+        const myBookings: string[] = JSON.parse(localStorage.getItem('ptn_my_bookings') || '[]');
+        if (!myBookings.includes(data.booking.booking_id)) {
+          myBookings.push(data.booking.booking_id);
+          localStorage.setItem('ptn_my_bookings', JSON.stringify(myBookings));
+        }
+        sessionStorage.setItem('ptn_booking_id', data.booking.booking_id);
+      } catch (e) {}
+
       // Trigger Confetti Effect
       try {
         confetti({

@@ -43,6 +43,23 @@ function BookingContent() {
   const [cancelReason, setCancelReason] = useState<string>('');
   const [cancelling, setCancelling] = useState<boolean>(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [isCreatorDevice, setIsCreatorDevice] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && booking?.booking_id) {
+      try {
+        const myBookings: string[] = JSON.parse(localStorage.getItem('ptn_my_bookings') || '[]');
+        const sessionBookingId = sessionStorage.getItem('ptn_booking_id');
+        if (myBookings.includes(booking.booking_id) || sessionBookingId === booking.booking_id) {
+          setIsCreatorDevice(true);
+        } else {
+          setIsCreatorDevice(false);
+        }
+      } catch (e) {
+        setIsCreatorDevice(false);
+      }
+    }
+  }, [booking?.booking_id]);
 
   const handleUserCancel = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -787,19 +804,43 @@ ${url}`;
               <p>กรุณาเดินทางมาถึงก่อนเวลานัดหมาย 10-15 นาที และแสดงบัตรคิวนี้ให้เจ้าหน้าที่ตรวจสอบคิวส่งเมื่อเดินทางมาถึง</p>
             </div>
 
-            {/* Self-Cancel Button (Only available if Pending or Approved) */}
-            {(booking.status === 'Pending' || booking.status === 'Approved') && (
-              <div className="pt-2 border-t border-slate-100 text-center no-print">
-                <button
-                  type="button"
-                  onClick={() => setCancelModalOpen(true)}
-                  className="text-xs text-rose-600 hover:text-rose-700 font-semibold hover:underline inline-flex items-center gap-1.5 py-2 px-3 rounded-xl hover:bg-rose-50 transition"
-                >
-                  <XCircle className="w-3.5 h-3.5" />
-                  <span>ต้องการยกเลิกการจองคิวนี้</span>
-                </button>
+            {/* Notice & Cancellation Section */}
+            <div className="pt-2 border-t border-slate-100 space-y-3 no-print">
+              {/* Official Contact Notice */}
+              <div className="p-3.5 bg-amber-50/90 border border-amber-200/90 rounded-2xl flex items-start gap-3 text-xs text-amber-900">
+                <Phone className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-bold text-amber-950">
+                    📌 หมายเหตุ: หากต้องการยกเลิกหรือแก้ไขรอบเวลาเข้าส่ง
+                  </p>
+                  <p className="text-amber-800 leading-relaxed">
+                    กรุณาติดต่อเจ้าหน้าที่ฝ่ายตรวจรับสินค้า โทร.{' '}
+                    <a
+                      href="tel:0993787463"
+                      className="font-bold underline text-emerald-800 hover:text-emerald-950"
+                    >
+                      099-378-7463
+                    </a>{' '}
+                    ก่อนเวลานัดหมายอย่างน้อย 1 ชั่วโมง
+                  </p>
+                </div>
               </div>
-            )}
+
+              {/* Self-Cancel Button (Displayed ONLY on Creator Device & if Pending or Approved) */}
+              {isCreatorDevice && (booking.status === 'Pending' || booking.status === 'Approved') && (
+                <div className="text-center pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setCancelModalOpen(true)}
+                    className="text-xs text-rose-600 hover:text-rose-700 font-semibold hover:underline inline-flex items-center gap-1.5 py-2 px-3 rounded-xl hover:bg-rose-50 transition"
+                    title="ยกเลิกการจอง (สำหรับเครื่องที่ทำรายการจอง)"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>ขอยกเลิกการจองคิวนี้ (สำหรับเครื่องที่ทำรายการจอง)</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
