@@ -879,7 +879,7 @@ export default function AdminDashboardPage() {
     <div className="min-h-screen bg-slate-100/70 pb-16">
       {/* Toast Notification */}
       {toastMsg && (
-        <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-2xl shadow-xl border text-sm font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-200 ${
+        <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-2xl shadow-xl border text-sm font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-200 no-print ${
           toastMsg.type === 'success' ? 'bg-emerald-800 text-white border-emerald-600' : 'bg-rose-800 text-white border-rose-600'
         }`}>
           {toastMsg.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-emerald-300" /> : <AlertTriangle className="w-5 h-5 text-rose-300" />}
@@ -888,7 +888,7 @@ export default function AdminDashboardPage() {
       )}
 
       {/* Top Header & Security Bar */}
-      <header className="bg-slate-900 text-white sticky top-0 z-30 shadow-md">
+      <header className="bg-slate-900 text-white sticky top-0 z-30 shadow-md no-print">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center font-bold shadow-md shadow-emerald-900/50">
@@ -1002,7 +1002,7 @@ export default function AdminDashboardPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
         {/* Inspection Officer Notice */}
         {isSecurityOnly && (
-          <div className="bg-blue-50 border border-blue-200 text-blue-900 px-4 py-3 rounded-2xl flex items-center gap-3 text-xs">
+          <div className="bg-blue-50 border border-blue-200 text-blue-900 px-4 py-3 rounded-2xl flex items-center gap-3 text-xs no-print">
             <Shield className="w-5 h-5 text-blue-600 shrink-0" />
             <div>
               <strong className="block">เข้าสู่ระบบในโหมด: เจ้าหน้าที่ตรวจสอบคิวส่ง (Check-in & Verification Mode)</strong>
@@ -1013,7 +1013,7 @@ export default function AdminDashboardPage() {
 
         {/* 🌟 1. Tomorrow / Advance Forecast Banner */}
         {forecast && (
-          <div className="bg-gradient-to-r from-emerald-900 to-slate-900 text-white p-5 rounded-3xl border border-emerald-700/50 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="bg-gradient-to-r from-emerald-900 to-slate-900 text-white p-5 rounded-3xl border border-emerald-700/50 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 no-print">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
                 <Bell className="w-6 h-6 animate-bounce" />
@@ -1043,7 +1043,7 @@ export default function AdminDashboardPage() {
         {activeTab === 'queues' && (
           <div className="space-y-6">
             {/* Filters & Actions Bar */}
-            <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+            <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 no-print">
               <div className="flex flex-wrap items-center gap-3">
                 {/* Date Filter Quick Buttons & Picker */}
                 <div className="flex flex-wrap items-center gap-1 bg-slate-50 border border-slate-200 p-1 rounded-2xl">
@@ -1148,7 +1148,22 @@ export default function AdminDashboardPage() {
 
             {/* Bookings List Table Card */}
             <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              {/* 🖨️ Official Print-Only Header */}
+              <div className="hidden print:block p-6 border-b border-slate-300 text-center space-y-1.5">
+                <h2 className="text-xl font-extrabold text-slate-900">
+                  บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)
+                </h2>
+                <h3 className="text-base font-bold text-slate-800">
+                  ใบสรุปรายงานคิวส่งสินค้าเข้าคลัง (Daily Receiving Queue Sheet)
+                </h3>
+                <p className="text-xs text-slate-600">
+                  ข้อมูลประจำวันที่: <strong className="text-slate-900">{filterDate === 'All' || !filterDate ? 'ทุกวันที่ในระบบ' : formatThaiDate(filterDate)}</strong>
+                  {' '}| สถานะ: <strong className="text-slate-900">{filterStatus === 'All' ? 'ทุกสถานะ' : filterStatus}</strong>
+                  {' '}| จำนวนรวม: <strong className="text-slate-900">{bookings.length} รายการ</strong>
+                </p>
+              </div>
+
+              <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
                 <div>
                   <h3 className="font-bold text-slate-900 text-base">
                     {filterDate === 'All' || !filterDate
@@ -1159,7 +1174,7 @@ export default function AdminDashboardPage() {
                 </div>
 
                 {/* Export & Print Toolbar */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 no-print">
                   <button
                     type="button"
                     onClick={handleExportCSV}
@@ -1204,7 +1219,7 @@ export default function AdminDashboardPage() {
                         <th className="py-3.5 px-4">เจ้าของสินค้า / ผู้ส่ง</th>
                         <th className="py-3.5 px-4 text-center">จำนวนลัง</th>
                         <th className="py-3.5 px-4">สถานะ</th>
-                        <th className="py-3.5 px-4 text-center">การจัดการ</th>
+                        <th className="py-3.5 px-4 text-center no-print">การจัดการ</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1236,7 +1251,7 @@ export default function AdminDashboardPage() {
                           <td className="py-4 px-4 whitespace-nowrap">
                             {getStatusBadge(item.status)}
                           </td>
-                          <td className="py-4 px-4 text-center">
+                          <td className="py-4 px-4 text-center no-print">
                             <div className="flex items-center justify-center gap-1.5 flex-wrap">
                               {/* 1. If Pending: 1-Click Approve or Reject */}
                               {!isSecurityOnly && item.status === 'Pending' && (

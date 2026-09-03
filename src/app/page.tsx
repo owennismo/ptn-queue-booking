@@ -238,7 +238,7 @@ export default function BookingPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* 🌟 TOP GLOBAL TRUST & DIRECT CONTACT HEADER */}
-      <header className="bg-white/95 backdrop-blur border-b border-slate-200/80 sticky top-0 z-40 shadow-xs">
+      <header className="bg-white/95 backdrop-blur border-b border-slate-200/80 sticky top-0 z-40 shadow-xs no-print">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
           {/* Company Brand */}
           <div className="flex items-center gap-3 self-start sm:self-auto">

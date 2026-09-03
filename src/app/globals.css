@@ -32,11 +32,15 @@ body {
   background: #94a3b8;
 }
 
-/* Print Styling for Digital Ticket */
+/* Print Styling for Reports and Digital Tickets */
 @media print {
   body {
     background: #ffffff !important;
+    color: #000000 !important;
   }
+  header,
+  nav,
+  footer,
   .no-print {
     display: none !important;
   }
@@ -45,10 +49,11 @@ body {
   }
   .ticket-card {
     box-shadow: none !important;
-    border: 2px solid #000 !important;
+    border: 2px solid #0f172a !important;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
     padding: 20px !important;
+    page-break-inside: avoid;
   }
 }
