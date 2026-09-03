@@ -32,28 +32,113 @@ body {
   background: #94a3b8;
 }
 
-/* Print Styling for Reports and Digital Tickets */
+/* Print Styling for A4 Documents (Reports & Digital Tickets) */
+@page {
+  size: A4 portrait;
+  margin: 10mm;
+}
+
 @media print {
-  body {
-    background: #ffffff !important;
-    color: #000000 !important;
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box !important;
+    text-shadow: none !important;
   }
+
+  html,
+  body {
+    width: 100% !important;
+    min-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+    line-height: 1.35 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   header,
   nav,
   footer,
   .no-print {
     display: none !important;
   }
+
   .print-only {
     display: block !important;
   }
+
+  /* Reset layout containers for A4 page width */
+  .min-h-screen {
+    min-height: auto !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .max-w-7xl,
+  .max-w-4xl,
+  .max-w-3xl,
+  .max-w-2xl {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Digital Ticket Card: fits within 1 A4 page cleanly */
   .ticket-card {
     box-shadow: none !important;
-    border: 2px solid #0f172a !important;
+    border: 1.5px solid #0f172a !important;
+    border-radius: 12px !important;
     width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 20px !important;
-    page-break-inside: avoid;
+    max-width: 180mm !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .ticket-card > div:first-child {
+    padding: 16px 20px !important;
+  }
+
+  .ticket-card > div:last-child {
+    padding: 16px 20px !important;
+  }
+
+  /* A4 Table and Daily Queue Sheet Report */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    border: 1px solid #94a3b8 !important;
+    padding: 6px 8px !important;
+    font-size: 8.5pt !important;
+    font-weight: bold !important;
+  }
+
+  td {
+    border: 1px solid #cbd5e1 !important;
+    padding: 5px 8px !important;
+    font-size: 8.5pt !important;
+    vertical-align: middle !important;
   }
 }
