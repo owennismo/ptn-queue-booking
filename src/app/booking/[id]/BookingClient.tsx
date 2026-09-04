@@ -57,6 +57,7 @@ export default function BookingDetailPage({
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isCreatorDevice, setIsCreatorDevice] = useState<boolean>(false);
   const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
+  const [imageModalTitle, setImageModalTitle] = useState<string>('รูปภาพเอกสารแนบ');
   const prevStatusRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -887,21 +888,27 @@ ${url}`;
               {booking.photo_url && (
                 <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-150 space-y-2 sm:col-span-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                      <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-xs sm:text-sm font-bold text-emerald-900 flex items-center gap-1.5">
+                      <ImageIcon className="w-4 h-4 text-emerald-600" />
                       รูปถ่ายใบส่งของ / เอกสารที่แนบมา (Delivery Note / Invoice)
                     </span>
                     <button
                       type="button"
-                      onClick={() => setImageModalUrl(booking.photo_url!)}
-                      className="text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs transition"
+                      onClick={() => {
+                        setImageModalUrl(booking.photo_url!);
+                        setImageModalTitle(`ใบส่งสินค้า/เอกสารแนบ - ${booking.booking_id}`);
+                      }}
+                      className="text-xs sm:text-sm font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 shadow-2xs transition"
                     >
-                      <Eye className="w-3 h-3" /> ขยายดูรูปเต็ม
+                      <Eye className="w-3.5 h-3.5" /> ขยายดูรูปเต็ม
                     </button>
                   </div>
                   <div
-                    onClick={() => setImageModalUrl(booking.photo_url!)}
-                    className="relative w-full max-w-xs h-40 rounded-xl overflow-hidden border border-emerald-200 bg-slate-900 cursor-pointer group shadow-sm hover:ring-2 hover:ring-emerald-500 transition"
+                    onClick={() => {
+                      setImageModalUrl(booking.photo_url!);
+                      setImageModalTitle(`ใบส่งสินค้า/เอกสารแนบ - ${booking.booking_id}`);
+                    }}
+                    className="relative w-full max-w-sm h-48 rounded-2xl overflow-hidden border border-emerald-200 bg-slate-900 cursor-pointer group shadow-sm hover:ring-2 hover:ring-emerald-500 transition"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -909,7 +916,7 @@ ${url}`;
                       alt="Delivery Note Document"
                       className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
                     />
-                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold gap-1 transition">
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs sm:text-sm font-bold gap-1.5 transition">
                       <Eye className="w-4 h-4" /> คลิกเพื่อดูขนาดเต็ม
                     </div>
                   </div>
@@ -920,21 +927,27 @@ ${url}`;
               {booking.receiving_photo_url && (
                 <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-150 space-y-2 sm:col-span-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
-                      <Camera className="w-3.5 h-3.5 text-indigo-600" />
+                    <span className="text-xs sm:text-sm font-bold text-indigo-900 flex items-center gap-1.5">
+                      <Camera className="w-4 h-4 text-indigo-600" />
                       รูปถ่ายตอนตรวจรับสินค้าหน้างาน (Receiving Inspection Photo)
                     </span>
                     <button
                       type="button"
-                      onClick={() => setImageModalUrl(booking.receiving_photo_url!)}
-                      className="text-xs font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-indigo-200 shadow-2xs transition"
+                      onClick={() => {
+                        setImageModalUrl(booking.receiving_photo_url!);
+                        setImageModalTitle(`รูปถ่ายตรวจรับสินค้า - ${booking.booking_id}`);
+                      }}
+                      className="text-xs sm:text-sm font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-indigo-200 shadow-2xs transition"
                     >
-                      <Eye className="w-3 h-3" /> ขยายดูรูปเต็ม
+                      <Eye className="w-3.5 h-3.5" /> ขยายดูรูปเต็ม
                     </button>
                   </div>
                   <div
-                    onClick={() => setImageModalUrl(booking.receiving_photo_url!)}
-                    className="relative w-full max-w-xs h-40 rounded-xl overflow-hidden border border-indigo-200 bg-slate-900 cursor-pointer group shadow-sm hover:ring-2 hover:ring-indigo-500 transition"
+                    onClick={() => {
+                      setImageModalUrl(booking.receiving_photo_url!);
+                      setImageModalTitle(`รูปถ่ายตรวจรับสินค้า - ${booking.booking_id}`);
+                    }}
+                    className="relative w-full max-w-sm h-48 rounded-2xl overflow-hidden border border-indigo-200 bg-slate-900 cursor-pointer group shadow-sm hover:ring-2 hover:ring-indigo-500 transition"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -942,7 +955,7 @@ ${url}`;
                       alt="Receiving Inspection"
                       className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
                     />
-                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold gap-1 transition">
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs sm:text-sm font-bold gap-1.5 transition">
                       <Eye className="w-4 h-4" /> คลิกเพื่อดูขนาดเต็ม
                     </div>
                   </div>
@@ -1050,6 +1063,52 @@ ${url}`;
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🖼️ Fullscreen Photo Lightbox Modal */}
+      {imageModalUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setImageModalUrl(null)}
+        >
+          <div className="absolute top-4 right-4 flex items-center gap-3 z-10">
+            {imageModalTitle && (
+              <span className="text-xs sm:text-sm text-white/90 bg-black/50 px-3.5 py-1.5 rounded-full border border-white/20 hidden sm:inline-block font-semibold">
+                {imageModalTitle}
+              </span>
+            )}
+            <a
+              href={imageModalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              download
+              onClick={(e) => e.stopPropagation()}
+              className="px-3.5 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-sm"
+            >
+              <Download className="w-4 h-4" />
+              <span>ดาวน์โหลด</span>
+            </a>
+            <button
+              type="button"
+              onClick={() => setImageModalUrl(null)}
+              className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition"
+              title="ปิดรูปภาพ"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div
+            className="max-w-4xl max-h-[85vh] w-full h-full flex items-center justify-center p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imageModalUrl}
+              alt={imageModalTitle || 'รูปภาพขยาย'}
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-white/10"
+            />
           </div>
         </div>
       )}

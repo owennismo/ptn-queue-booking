@@ -26,6 +26,8 @@ import {
   Camera,
   Trash2,
   Eye,
+  X,
+  Download,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { formatThaiDate, formatThaiShortDate, formatPhoneMask } from '@/lib/dateUtils';
@@ -80,6 +82,7 @@ export default function BookingPage() {
   const [photoStats, setPhotoStats] = useState<{ originalSize: number; compressedSize: number } | null>(null);
   const [compressingPhoto, setCompressingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -846,13 +849,19 @@ export default function BookingPage() {
                   <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-300 bg-slate-900 shrink-0">
+                        <div
+                          onClick={() => setPhotoModalOpen(true)}
+                          className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-300 bg-slate-900 shrink-0 cursor-pointer group hover:ring-2 hover:ring-emerald-500 transition shadow-sm"
+                        >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={photoPreview}
                             alt="Attached Document"
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover group-hover:scale-105 transition"
                           />
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition">
+                            <Eye className="w-4 h-4" />
+                          </div>
                         </div>
                         <div className="space-y-0.5">
                           <p className="text-sm font-bold text-slate-900 truncate max-w-xs">
@@ -875,19 +884,16 @@ export default function BookingPage() {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => {
-                            const w = window.open('');
-                            w?.document.write(`<img src="${photoPreview}" style="max-width:100%; height:auto;" />`);
-                          }}
-                          className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition"
+                          onClick={() => setPhotoModalOpen(true)}
+                          className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition shadow-2xs"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-4 h-4 text-emerald-600" />
                           <span>ดูรูปเต็ม</span>
                         </button>
                         <button
                           type="button"
                           onClick={handleRemovePhoto}
-                          className="px-3.5 py-2 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition"
+                          className="px-3.5 py-2 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition"
                         >
                           <Trash2 className="w-4 h-4" />
                           <span>ลบรูป</span>
@@ -944,6 +950,50 @@ export default function BookingPage() {
           </div>
         </form>
       </div>
+
+      {/* 🖼️ Fullscreen Photo Lightbox Modal */}
+      {photoModalOpen && photoPreview && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setPhotoModalOpen(false)}
+        >
+          <div className="absolute top-4 right-4 flex items-center gap-3 z-10">
+            <span className="text-xs sm:text-sm text-white/90 bg-black/50 px-3.5 py-1.5 rounded-full border border-white/20 hidden sm:inline-block font-semibold">
+              {photoFile?.name || 'รูปถ่ายใบส่งของ / เอกสารแนบ'}
+            </span>
+            <a
+              href={photoPreview}
+              target="_blank"
+              rel="noopener noreferrer"
+              download={photoFile?.name || 'document-photo.jpg'}
+              onClick={(e) => e.stopPropagation()}
+              className="px-3.5 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-sm"
+            >
+              <Download className="w-4 h-4" />
+              <span>ดาวน์โหลด</span>
+            </a>
+            <button
+              type="button"
+              onClick={() => setPhotoModalOpen(false)}
+              className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition"
+              title="ปิดรูปภาพ"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div
+            className="max-w-4xl max-h-[85vh] w-full h-full flex items-center justify-center p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={photoPreview}
+              alt="รูปภาพเอกสารแนบ"
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-white/10"
+            />
+          </div>
+        </div>
+      )}
     </div>
   </div>
 );
