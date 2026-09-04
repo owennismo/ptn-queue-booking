@@ -18,6 +18,7 @@ interface ThaiDatePickerProps {
   minDate?: string; // YYYY-MM-DD
   maxDate?: string; // YYYY-MM-DD
   disabledDates?: string[];
+  disableSundays?: boolean;
   placeholder?: string;
   required?: boolean;
   className?: string;
@@ -51,6 +52,7 @@ export default function ThaiDatePicker({
   minDate,
   maxDate,
   disabledDates = [],
+  disableSundays = true,
   placeholder = 'เลือกวันที่ (วัน/เดือน/พ.ศ.)',
   required = false,
   className = '',
@@ -145,6 +147,8 @@ export default function ThaiDatePicker({
     if (minDate && dateStr < minDate) return true;
     if (maxDate && dateStr > maxDate) return true;
     if (disabledDates.includes(dateStr)) return true;
+    const dayOfWeek = new Date(viewYear, viewMonth, day).getDay();
+    if (disableSundays && dayOfWeek === 0) return true;
     return false;
   };
 
@@ -212,20 +216,29 @@ export default function ThaiDatePicker({
         <div className="absolute top-full left-0 mt-2 z-50 w-full sm:w-80 bg-white rounded-3xl border border-slate-200 shadow-2xl p-4 space-y-3 animate-in fade-in zoom-in-95 duration-150">
           {/* Quick Shortcuts */}
           <div className="flex items-center gap-1.5 pb-2 border-b border-slate-100">
-            <button
-              type="button"
-              onClick={() => handleQuickSelect(todayStr)}
-              className="flex-1 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-lg transition text-center"
-            >
-              วันนี้ ({formatThaiNumericDate(todayStr)})
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickSelect(tomorrowStr)}
-              className="flex-1 py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-lg transition text-center"
-            >
-              พรุ่งนี้ ({formatThaiNumericDate(tomorrowStr)})
-            </button>
+            {(!disableSundays || today.getDay() !== 0) && (!minDate || todayStr >= minDate) && !disabledDates.includes(todayStr) && (
+              <button
+                type="button"
+                onClick={() => handleQuickSelect(todayStr)}
+                className="flex-1 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-lg transition text-center"
+              >
+                วันนี้ ({formatThaiNumericDate(todayStr)})
+              </button>
+            )}
+            {(!disableSundays || tomorrow.getDay() !== 0) && (!minDate || tomorrowStr >= minDate) && !disabledDates.includes(tomorrowStr) && (
+              <button
+                type="button"
+                onClick={() => handleQuickSelect(tomorrowStr)}
+                className="flex-1 py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-lg transition text-center"
+              >
+                พรุ่งนี้ ({formatThaiNumericDate(tomorrowStr)})
+              </button>
+            )}
+            {disableSundays && (today.getDay() === 0 || tomorrow.getDay() === 0) && (
+              <span className="text-[10px] text-rose-600 font-bold px-2 py-1 bg-rose-50 rounded-lg flex items-center gap-1">
+                🚫 วันอาทิตย์ปิดทำการ
+              </span>
+            )}
           </div>
 
           {/* Month & Buddhist Year Header */}
@@ -263,7 +276,7 @@ export default function ThaiDatePicker({
             {THAI_DAYS_SHORT.map((dayName, idx) => (
               <div
                 key={dayName}
-                className={`py-1 ${idx === 0 ? 'text-rose-500' : 'text-slate-500'}`}
+                className={`py-1 ${idx === 0 ? 'text-rose-500 font-extrabold' : 'text-slate-500'}`}
               >
                 {dayName}
               </div>
@@ -298,13 +311,15 @@ export default function ThaiDatePicker({
                       ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200 scale-105'
                       : isToday
                       ? 'bg-emerald-100 text-emerald-900 border border-emerald-300 font-extrabold'
+                      : disabled && isSunday
+                      ? 'text-rose-300 bg-rose-50/40 cursor-not-allowed line-through opacity-60'
                       : disabled
                       ? 'text-slate-300 cursor-not-allowed opacity-40'
                       : isSunday
                       ? 'text-rose-600 hover:bg-rose-50'
                       : 'text-slate-700 hover:bg-slate-100'
                   }`}
-                  title={isSunday ? 'วันอาทิตย์ (คลังปิดทำการ)' : dateStr}
+                  title={isSunday && disabled ? 'วันอาทิตย์ (คลังสินค้าปิดทำการ - งดรับจองคิว)' : isSunday ? 'วันอาทิตย์' : dateStr}
                 >
                   {dayNum}
                 </button>
@@ -317,8 +332,8 @@ export default function ThaiDatePicker({
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block" /> วันที่เลือก
             </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" /> อาทิตย์ (หยุด)
+            <span className="flex items-center gap-1 font-bold text-rose-600">
+              <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" /> วันอาทิตย์ (ปิดทำการ)
             </span>
           </div>
         </div>

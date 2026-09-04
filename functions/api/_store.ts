@@ -723,6 +723,18 @@ export class DataStore {
     let isBlocked = false;
     let blockReason: string | null = null;
 
+    // Check if date is Sunday (Default Blocked)
+    if (date) {
+      const parts = date.split('-');
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        if (d.getDay() === 0) {
+          isBlocked = true;
+          blockReason = 'คลังสินค้าปิดทำการทุกวันอาทิตย์ (งดรับจองคิว)';
+        }
+      }
+    }
+
     const blocked = blockedDates.find((b: BlockedDate) => b.blocked_date === date);
     if (blocked) {
       isBlocked = true;
@@ -775,6 +787,17 @@ export class DataStore {
   async createBooking(data: any): Promise<Booking> {
     const blockedDates = await this.getBlockedDates();
     const slots = await this.getTimeSlots();
+
+    // Check if date is Sunday (Default Blocked)
+    if (data.requested_date) {
+      const parts = data.requested_date.split('-');
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        if (d.getDay() === 0) {
+          throw new Error('คลังสินค้าปิดทำการทุกวันอาทิตย์ ไม่อนุญาตให้จองคิวในวันอาทิตย์');
+        }
+      }
+    }
 
     // Check if date is blocked
     const isDateBlocked = blockedDates.some((b: BlockedDate) => b.blocked_date === data.requested_date);

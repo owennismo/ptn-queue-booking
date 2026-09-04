@@ -1951,21 +1951,41 @@ export default function AdminDashboardPage() {
 
         {/* 🌟 TAB 3: BLOCK DATES */}
         {!isSecurityOnly && activeTab === 'blocking' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Form to add blocked date */}
-            <form onSubmit={handleAddBlockedDate} className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-4 md:col-span-1">
-              <h3 className="font-bold text-slate-900 text-base">ปิดรับจองคิวชั่วคราว</h3>
-              <p className="text-xs text-slate-500">กำหนดวันหยุดทำการ หรือวันที่คลังสินค้าปิดปรับปรุง</p>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">เลือกวันที่ต้องการปิด (พ.ศ.)</label>
-                <ThaiDatePicker
-                  value={newBlockedDate}
-                  onChange={(date) => setNewBlockedDate(date)}
-                  placeholder="เลือกวันที่ต้องการปิด (พ.ศ.)"
-                  required
-                />
+          <div className="space-y-4">
+            {/* Default Sunday Blocking Banner */}
+            <div className="p-4 bg-rose-50/90 border border-rose-200 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-rose-950 text-xs shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
+                  อา.
+                </div>
+                <div>
+                  <strong className="block font-bold text-sm text-rose-900">คลังสินค้าปิดทำการทุกวันอาทิตย์ (Default Closed)</strong>
+                  <span className="text-rose-700 text-xs">
+                    ระบบตั้งค่าปิดรับการจองคิวทุกวันอาทิตย์เป็นค่าเริ่มต้นอัตโนมัติ ผู้จองจะไม่สามารถเลือกวันอาทิตย์ในปฏิทินได้
+                  </span>
+                </div>
               </div>
+              <span className="px-3 py-1.5 bg-rose-100 text-rose-800 rounded-full font-bold text-xs shrink-0 border border-rose-200">
+                🔒 ปิดรับจองอัตโนมัติทุกสัปดาห์
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Form to add blocked date */}
+              <form onSubmit={handleAddBlockedDate} className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-4 md:col-span-1">
+                <h3 className="font-bold text-slate-900 text-base">ปิดรับจองคิวชั่วคราว (วันหยุดพิเศษ)</h3>
+                <p className="text-xs text-slate-500">กำหนดวันหยุดนักขัตฤกษ์ หรือวันที่คลังสินค้าปิดตรวจนับสต็อก</p>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">เลือกวันที่ต้องการปิด (พ.ศ.)</label>
+                  <ThaiDatePicker
+                    value={newBlockedDate}
+                    onChange={(date) => setNewBlockedDate(date)}
+                    disableSundays={false}
+                    placeholder="เลือกวันที่ต้องการปิด (พ.ศ.)"
+                    required
+                  />
+                </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700">เหตุผลที่ปิดรับจอง</label>
@@ -2014,7 +2034,8 @@ export default function AdminDashboardPage() {
               )}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
         {/* 🌟 TAB 4: STAFF MANAGEMENT (Super Admin Only) */}
         {isSuperAdmin && activeTab === 'staff' && (

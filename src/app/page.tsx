@@ -201,6 +201,15 @@ export default function BookingPage() {
       setErrorMessage('กรุณาเลือกวันที่ต้องการเข้าส่งของ');
       return;
     }
+    // Check if Sunday (Default Blocked)
+    const parts = requestedDate.split('-');
+    if (parts.length === 3) {
+      const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      if (d.getDay() === 0) {
+        setErrorMessage('คลังสินค้าปิดทำการทุกวันอาทิตย์ กรุณาเลือกวันจันทร์ - เสาร์');
+        return;
+      }
+    }
     if (isBlocked) {
       setErrorMessage(`วันที่เลือกปิดรับจอง: ${blockReason}`);
       return;
