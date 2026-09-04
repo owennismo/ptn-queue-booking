@@ -58,7 +58,7 @@ import {
 import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole, BookingStatus } from '@/lib/types';
 import QRScannerModal from '@/components/QRScannerModal';
 import ThaiDatePicker from '@/components/ThaiDatePicker';
-import { formatThaiDate, formatThaiShortDate } from '@/lib/dateUtils';
+import { formatThaiDate, formatThaiShortDate, formatThaiNumericDate, formatThaiDateTime } from '@/lib/dateUtils';
 import { sendQueueNotification, getNotificationPermission, requestNotificationPermission } from '@/lib/pushNotifications';
 import { compressImage, formatFileSize } from '@/lib/imageCompressor';
 
@@ -984,7 +984,7 @@ export default function AdminDashboardPage() {
     ];
     const rows = bookings.map((b) => [
       b.booking_id,
-      b.requested_date,
+      formatThaiNumericDate(b.requested_date),
       b.requested_time,
       b.carrier_name,
       b.user_phone,
@@ -1008,7 +1008,7 @@ export default function AdminDashboardPage() {
       b.status,
       b.notes || '-',
       b.admin_reason || '-',
-      b.created_at,
+      formatThaiDateTime(b.created_at),
     ]);
     const csvContent =
       '\uFEFF' +
@@ -1429,13 +1429,12 @@ export default function AdminDashboardPage() {
                     พรุ่งนี้
                   </button>
 
-                  <div className="flex items-center gap-1 px-2 border-l border-slate-200">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <input
-                      type="date"
+                  <div className="w-36 sm:w-44 border-l border-slate-200 pl-1">
+                    <ThaiDatePicker
                       value={filterDate === 'All' ? '' : filterDate}
-                      onChange={(e) => setFilterDate(e.target.value || 'All')}
-                      className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none"
+                      onChange={(date) => setFilterDate(date || 'All')}
+                      disableSundays={false}
+                      placeholder="ระบุวัน (พ.ศ.)"
                     />
                   </div>
                 </div>
@@ -2073,7 +2072,7 @@ export default function AdminDashboardPage() {
                   {blockedDates.map((item) => (
                     <div key={item.blocked_date} className="py-3 flex items-center justify-between gap-4">
                       <div>
-                        <span className="font-bold text-slate-900 text-sm block">{item.blocked_date}</span>
+                        <span className="font-bold text-slate-900 text-sm block">{formatThaiNumericDate(item.blocked_date)}</span>
                         <span className="text-xs text-rose-600">{item.reason}</span>
                       </div>
                       <button
@@ -2159,7 +2158,7 @@ export default function AdminDashboardPage() {
                           )}
                         </td>
                         <td className="py-3.5 px-4 text-slate-500 font-mono text-xs whitespace-nowrap">
-                          {staff.last_login || 'ยังไม่เคยเข้าใช้'}
+                          {staff.last_login ? formatThaiDateTime(staff.last_login) : 'ยังไม่เคยเข้าใช้'}
                         </td>
                         <td className="py-3.5 px-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">
@@ -2234,7 +2233,7 @@ export default function AdminDashboardPage() {
                   <tbody className="divide-y divide-slate-100">
                     {auditLogs.map((log) => (
                       <tr key={log.id} className="hover:bg-slate-50/70 transition">
-                        <td className="py-3 px-3 font-mono text-slate-500 whitespace-nowrap">{log.created_at}</td>
+                        <td className="py-3 px-3 font-mono text-slate-500 whitespace-nowrap">{formatThaiDateTime(log.created_at)}</td>
                         <td className="py-3 px-3 whitespace-nowrap">{getActionBadge(log.action)}</td>
                         <td className="py-3 px-3 font-medium text-slate-800">{log.details}</td>
                         <td className="py-3 px-3 font-semibold text-slate-700 whitespace-nowrap">{log.operator}</td>
@@ -3118,7 +3117,7 @@ export default function AdminDashboardPage() {
                   <span className="font-bold block">บันทึกเหตุผลจากเจ้าหน้าที่:</span>
                   <span>{selectedBooking.admin_reason}</span>
                   {selectedBooking.admin_action_date && (
-                    <span className="text-[10px] text-rose-600 block mt-1">({selectedBooking.admin_action_date} โดย {selectedBooking.admin_action_by})</span>
+                    <span className="text-[10px] text-rose-600 block mt-1">({formatThaiDateTime(selectedBooking.admin_action_date)} โดย {selectedBooking.admin_action_by})</span>
                   )}
                 </div>
               )}

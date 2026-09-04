@@ -69,9 +69,16 @@ export function formatThaiShortDate(dateStr?: string | null): string {
 }
 
 /**
- * Format YYYY-MM-DD to Full Thai Date e.g. "03/09/2569 (วันพฤหัสบดีที่ 3 กันยายน 2569)"
+ * Format YYYY-MM-DD to dd/mm/พ.ศ. e.g. "04/09/2569"
  */
 export function formatThaiDate(dateStr?: string | null): string {
+  return formatThaiNumericDate(dateStr);
+}
+
+/**
+ * Format YYYY-MM-DD to Full Thai Date e.g. "04/09/2569 (วันพฤหัสบดีที่ 4 กันยายน 2569)"
+ */
+export function formatThaiFullDate(dateStr?: string | null): string {
   if (!dateStr) return '-';
   try {
     const parts = dateStr.split(/[-T :]/);

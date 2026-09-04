@@ -33,6 +33,17 @@ export async function onRequestGet(context: { request: Request; env: any }) {
     const tomorrowPending = tomorrowBookings.filter((b) => b.status === 'Pending').length;
     const tomorrowApproved = tomorrowBookings.filter((b) => b.status === 'Approved').length;
 
+    const formatThaiNumeric = (dStr: string) => {
+      try {
+        const [y, m, d] = dStr.split('-');
+        return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${parseInt(y, 10) + 543}`;
+      } catch (e) {
+        return dStr;
+      }
+    };
+
+    const tomorrowThai = formatThaiNumeric(tomorrowStr);
+
     return new Response(
       JSON.stringify({
         today_date: todayStr,
@@ -44,7 +55,7 @@ export async function onRequestGet(context: { request: Request; env: any }) {
         tomorrow_pending: tomorrowPending,
         tomorrow_approved: tomorrowApproved,
         total_pending_all: totalPending,
-        notification_message: `พรุ่งนี้ (${tomorrowStr}) มีคิวที่ต้องรับการจัดการทั้งหมด ${tomorrowTotal} รายการ (อนุมัติแล้ว ${tomorrowApproved} รายการ, รอตรวจสอบ ${tomorrowPending} รายการ)`,
+        notification_message: `พรุ่งนี้ (${tomorrowThai}) มีคิวที่ต้องรับการจัดการทั้งหมด ${tomorrowTotal} รายการ (อนุมัติแล้ว ${tomorrowApproved} รายการ, รอตรวจสอบ ${tomorrowPending} รายการ)`,
       }),
       { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
     );
