@@ -1390,6 +1390,63 @@ export default function AdminDashboardPage() {
         {/* 🌟 TAB 1: QUEUES MANAGEMENT */}
         {activeTab === 'queues' && (
           <div className="space-y-6">
+            {/* Real-Time Operational KPI Metrics */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 no-print">
+              <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+                <div className="flex justify-between items-start">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">คิวในตัวกรองทั้งหมด</span>
+                  <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 font-bold text-2xs">รวม</span>
+                </div>
+                <div className="mt-2.5">
+                  <span className="text-2xl sm:text-3xl font-black text-slate-900 font-mono">{bookings.length}</span>
+                  <span className="text-xs text-slate-400 ml-1">คิว</span>
+                </div>
+                <div className="mt-1 text-2xs text-emerald-600 font-semibold">● ข้อมูล Real-time</div>
+              </div>
+
+              <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+                <div className="flex justify-between items-start">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">รอตรวจสอบ (Pending)</span>
+                  <span className="px-2 py-0.5 rounded-lg bg-amber-100 text-amber-800 font-bold text-2xs">รออนุมัติ</span>
+                </div>
+                <div className="mt-2.5">
+                  <span className="text-2xl sm:text-3xl font-black text-amber-500 font-mono">
+                    {bookings.filter(b => b.status === 'Pending').length}
+                  </span>
+                  <span className="text-xs text-slate-400 ml-1">คิว</span>
+                </div>
+                <div className="mt-1 text-2xs text-amber-600 font-semibold">● รอเจ้าหน้าที่กดรับรอง</div>
+              </div>
+
+              <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+                <div className="flex justify-between items-start">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">กำลังลงสินค้า (Dock)</span>
+                  <span className="px-2 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 font-bold text-2xs">หน้าท่า</span>
+                </div>
+                <div className="mt-2.5">
+                  <span className="text-2xl sm:text-3xl font-black text-indigo-600 font-mono">
+                    {bookings.filter(b => b.status === 'Receiving' || b.status === 'CheckedIn').length}
+                  </span>
+                  <span className="text-xs text-slate-400 ml-1">คิว</span>
+                </div>
+                <div className="mt-1 text-2xs text-indigo-600 font-semibold">● เทียบท่า / ตรวจนับสินค้า</div>
+              </div>
+
+              <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+                <div className="flex justify-between items-start">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">ตรวจรับเสร็จสมบูรณ์</span>
+                  <span className="px-2 py-0.5 rounded-lg bg-teal-100 text-teal-800 font-bold text-2xs">สำเร็จ</span>
+                </div>
+                <div className="mt-2.5">
+                  <span className="text-2xl sm:text-3xl font-black text-teal-600 font-mono">
+                    {bookings.filter(b => b.status === 'Completed').length}
+                  </span>
+                  <span className="text-xs text-slate-400 ml-1">คิว</span>
+                </div>
+                <div className="mt-1 text-2xs text-teal-600 font-semibold">● ปิดงานเข้าคลังเรียบร้อย</div>
+              </div>
+            </div>
+
             {/* Filters & Actions Bar */}
             <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-sm flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 sm:gap-4 no-print">
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
