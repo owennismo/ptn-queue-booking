@@ -56,6 +56,7 @@ import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole, Bo
 import QRScannerModal from '@/components/QRScannerModal';
 import ThaiDatePicker from '@/components/ThaiDatePicker';
 import { formatThaiDate, formatThaiShortDate } from '@/lib/dateUtils';
+import { sendQueueNotification, getNotificationPermission, requestNotificationPermission } from '@/lib/pushNotifications';
 
 interface AuditLog {
   id: number;
@@ -175,7 +176,27 @@ export default function AdminDashboardPage() {
     }
     return true;
   });
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const prevPendingCountRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setNotifPermission(getNotificationPermission());
+  }, []);
+
+  const handleRequestNotifPermission = async () => {
+    const perm = await requestNotificationPermission();
+    setNotifPermission(perm);
+    if (perm === 'granted') {
+      showToast('🔔 เปิดรับการแจ้งเตือนบนเบราว์เซอร์สำเร็จ');
+      sendQueueNotification({
+        title: '🔔 ระบบแจ้งเตือน PTN Admin',
+        body: 'การแจ้งเตือนคิวส่งสินค้าใหม่บนเบราว์เซอร์เปิดใช้งานแล้ว',
+        url: '/admin',
+      });
+    } else if (perm === 'denied') {
+      showToast('⚠️ คุณได้ปิดกั้นการแจ้งเตือนในเบราว์เซอร์ กรุณาปลดล็อกที่ตั้งค่าเบราว์เซอร์', 'error');
+    }
+  };
 
   const toggleSound = () => {
     const next = !soundEnabled;
@@ -325,7 +346,7 @@ export default function AdminDashboardPage() {
     }
   }, [authFetch, filterDate, filterStatus, searchQuery, token]);
 
-  // 4. Load Forecast & Check for new pending queues sound alert
+  // 4. Load Forecast & Check for new pending queues sound alert & Web Push
   const fetchForecast = useCallback(async () => {
     if (!token && !sessionStorage.getItem('ptn_admin_jwt')) return;
     try {
@@ -333,20 +354,27 @@ export default function AdminDashboardPage() {
       const data: DailyForecast = await res.json();
       setForecast(data);
 
-      // Sound notification trigger when new pending queue arrives
+      // Notification trigger when new pending queue arrives
       if (data && typeof data.total_pending_all === 'number') {
         if (
           prevPendingCountRef.current !== null &&
-          data.total_pending_all > prevPendingCountRef.current &&
-          soundEnabled
+          data.total_pending_all > prevPendingCountRef.current
         ) {
-          playAlertSound();
-          showToast(`🔔 มีคิวใหม่เข้ามา! (รอตรวจสอบ ${data.total_pending_all} คิว)`);
+          if (soundEnabled) {
+            playAlertSound();
+          }
+          showToast(`🔔 มีคิวส่งสินค้าใหม่เข้ามา! (รอตรวจสอบ ${data.total_pending_all} คิว)`);
+          sendQueueNotification({
+            title: '🔔 มีคิวส่งสินค้าใหม่เข้ามา!',
+            body: `มีคิวใหม่รอตรวจสอบอนุมัติทั้งหมด ${data.total_pending_all} คิว`,
+            url: '/admin',
+          });
+          fetchBookings();
         }
         prevPendingCountRef.current = data.total_pending_all;
       }
     } catch (err) {}
-  }, [authFetch, token, soundEnabled]);
+  }, [authFetch, token, soundEnabled, fetchBookings, playAlertSound]);
 
   // 5. Load Settings
   const fetchSettings = useCallback(async () => {
@@ -394,6 +422,14 @@ export default function AdminDashboardPage() {
       fetchBookings();
       fetchForecast();
       fetchSettings();
+
+      // ⏱️ Auto-polling every 15s to catch new incoming bookings in real-time
+      const interval = setInterval(() => {
+        fetchForecast();
+        fetchBookings();
+      }, 15000);
+
+      return () => clearInterval(interval);
     }
   }, [token, fetchBookings, fetchForecast, fetchSettings]);
 
@@ -1072,6 +1108,20 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
+            {/* Browser Web Push Notification Toggle */}
+            <button
+              onClick={handleRequestNotifPermission}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+                notifPermission === 'granted'
+                  ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+              }`}
+              title={notifPermission === 'granted' ? 'เปิดการแจ้งเตือนบนเบราว์เซอร์แล้ว (คลิกเพื่อทดสอบ)' : 'คลิกเพื่อเปิดรับการแจ้งเตือนบนเบราว์เซอร์เมื่อมีคิวใหม่'}
+            >
+              <Bell className={`w-3.5 h-3.5 ${notifPermission === 'granted' ? 'text-emerald-400 animate-bounce' : ''}`} />
+              <span>{notifPermission === 'granted' ? 'แจ้งเตือนเบราว์เซอร์: เปิด' : 'เปิดแจ้งเตือนเบราว์เซอร์'}</span>
+            </button>
+
             {/* Audio Notification Toggle */}
             <button
               onClick={toggleSound}
