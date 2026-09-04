@@ -60,13 +60,20 @@ function AdminLoginForm() {
         throw new Error(data.error || 'ชื่อผู้ใช้หรือรหัส PIN ไม่ถูกต้อง');
       }
 
-      // Save cryptographically signed admin JWT token & staff info in sessionStorage
+      // Save cryptographically signed admin JWT token & staff info in sessionStorage and localStorage
       sessionStorage.setItem('ptn_admin_jwt', data.token);
       sessionStorage.setItem('ptn_admin_staff', JSON.stringify(data.staff));
       sessionStorage.setItem('ptn_admin_operator', data.staff?.full_name || 'เจ้าหน้าที่คลังสินค้า');
       sessionStorage.setItem('ptn_admin_role', data.staff?.role || 'warehouse_officer');
       sessionStorage.setItem('ptn_admin_role_name', data.staff?.role_name || 'เจ้าหน้าที่');
       sessionStorage.setItem('ptn_admin_login_time', Date.now().toString());
+
+      localStorage.setItem('ptn_admin_jwt', data.token);
+      localStorage.setItem('ptn_admin_staff', JSON.stringify(data.staff));
+      localStorage.setItem('ptn_admin_operator', data.staff?.full_name || 'เจ้าหน้าที่คลังสินค้า');
+      localStorage.setItem('ptn_admin_role', data.staff?.role || 'warehouse_officer');
+      localStorage.setItem('ptn_admin_role_name', data.staff?.role_name || 'เจ้าหน้าที่');
+      localStorage.setItem('ptn_admin_login_time', Date.now().toString());
 
       router.push('/admin');
     } catch (err: any) {

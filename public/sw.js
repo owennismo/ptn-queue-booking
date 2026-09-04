@@ -1,16 +1,22 @@
-const CACHE_NAME = 'ptn-queue-cache-v2';
+const CACHE_NAME = 'ptn-queue-cache-v3';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
+  '/admin-manifest.json',
   '/icon-192.png',
   '/icon-512.png',
   '/apple-touch-icon.png',
+  '/admin-icon-192.png',
+  '/admin-icon-512.png',
+  '/admin-apple-touch-icon.png',
   '/favicon.png',
+  '/admin-favicon.png',
   '/track',
   '/admin',
+  '/admin/login'
 ];
 
-// 1. Install event: pre-cache critical shell
+// 1. Install event: pre-cache critical shell and force immediate activation
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -20,13 +26,14 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// 2. Activate event: cleanup old caches
+// 2. Activate event: cleanup old caches immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
+            console.log('Clearing old cache:', key);
             return caches.delete(key);
           }
         })
@@ -36,12 +43,12 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// 3. Fetch event: Stale-While-Revalidate for pages & assets, Network-First for API
+// 3. Fetch event: Network-First for Navigation (HTML) & API, Cache-First for static media/fonts
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // For API calls: Network-first
+  // For API calls: Network-first with offline JSON fallback
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(request).catch(() => {
@@ -60,27 +67,47 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For static assets & pages: Cache first with network fallback
+  // For HTML page navigations: Network-First so updates/auth always load fresh
+  const isHtmlNavigation = request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html');
+  if (isHtmlNavigation) {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          // If offline, serve from cache
+          return caches.match(request).then((cachedResponse) => {
+            if (cachedResponse) return cachedResponse;
+            // Fallback to cached home or admin
+            if (url.pathname.startsWith('/admin')) {
+              return caches.match('/admin/login') || caches.match('/admin');
+            }
+            return caches.match('/');
+          });
+        })
+    );
+    return;
+  }
+
+  // For other static assets (images, fonts, scripts): Stale-While-Revalidate
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Fetch in background to update cache
-        fetch(request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse));
-            }
-          })
-          .catch(() => {});
-        return cachedResponse;
-      }
+      const fetchPromise = fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+          }
+          return networkResponse;
+        })
+        .catch(() => {});
 
-      return fetch(request).catch(() => {
-        // If offline and requesting an HTML page, return cached home
-        if (request.headers.get('accept')?.includes('text/html')) {
-          return caches.match('/');
-        }
-      });
+      return cachedResponse || fetchPromise;
     })
   );
 });
@@ -135,4 +162,3 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
-

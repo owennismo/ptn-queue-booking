@@ -261,6 +261,13 @@ export default function AdminDashboardPage() {
     sessionStorage.removeItem('ptn_admin_role');
     sessionStorage.removeItem('ptn_admin_role_name');
     sessionStorage.removeItem('ptn_admin_login_time');
+
+    localStorage.removeItem('ptn_admin_jwt');
+    localStorage.removeItem('ptn_admin_staff');
+    localStorage.removeItem('ptn_admin_operator');
+    localStorage.removeItem('ptn_admin_role');
+    localStorage.removeItem('ptn_admin_role_name');
+    localStorage.removeItem('ptn_admin_login_time');
     localStorage.removeItem('ptn_admin_token');
     
     if (reason === 'idle') {
@@ -272,10 +279,10 @@ export default function AdminDashboardPage() {
 
   // 1. Initial Authentication Check
   useEffect(() => {
-    const savedToken = sessionStorage.getItem('ptn_admin_jwt') || localStorage.getItem('ptn_admin_token');
-    const savedOperator = sessionStorage.getItem('ptn_admin_operator') || 'เจ้าหน้าที่คลังสินค้า';
-    const savedRole = (sessionStorage.getItem('ptn_admin_role') as StaffRole) || 'warehouse_officer';
-    const savedRoleName = sessionStorage.getItem('ptn_admin_role_name') || 'เจ้าหน้าที่';
+    const savedToken = sessionStorage.getItem('ptn_admin_jwt') || localStorage.getItem('ptn_admin_jwt');
+    const savedOperator = sessionStorage.getItem('ptn_admin_operator') || localStorage.getItem('ptn_admin_operator') || 'เจ้าหน้าที่คลังสินค้า';
+    const savedRole = ((sessionStorage.getItem('ptn_admin_role') || localStorage.getItem('ptn_admin_role')) as StaffRole) || 'warehouse_officer';
+    const savedRoleName = sessionStorage.getItem('ptn_admin_role_name') || localStorage.getItem('ptn_admin_role_name') || 'เจ้าหน้าที่';
 
     if (!savedToken) {
       router.push('/admin/login');
