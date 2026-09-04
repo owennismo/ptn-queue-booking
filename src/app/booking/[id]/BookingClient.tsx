@@ -133,7 +133,7 @@ export default function BookingDetailPage({
           body = `คิว ${fetchedBooking.booking_id} (${formatThaiShortDate(fetchedBooking.requested_date)} ${fetchedBooking.requested_time}) ได้รับการอนุมัติแล้ว พร้อมเข้าส่งสินค้าได้`;
         } else if (newSt === 'CheckedIn') {
           title = '🚗 รถขนส่งเช็คอินเข้าพื้นที่แล้ว!';
-          body = `คิว ${fetchedBooking.booking_id} ได้รับการตรวจรับเข้าพื้นที่คลังสินค้าแล้ว กรุณารอเรียกเข้าช่องจอดเทียบ`;
+          body = `คิว ${fetchedBooking.booking_id} ได้รับการตรวจสอบเข้าพื้นที่คลังสินค้าแล้ว กรุณารอเรียกเข้าช่องจอดเทียบ`;
         } else if (newSt === 'Receiving') {
           title = '📦 เริ่มการตรวจนับและลงสินค้า!';
           body = `คิว ${fetchedBooking.booking_id} กำลังดำเนินการลงสินค้าที่คลัง`;

@@ -1101,7 +1101,7 @@ export default function AdminDashboardPage() {
       case 'Approved':
         return <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> อนุมัติแล้ว</span>;
       case 'CheckedIn':
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 text-blue-600" /> ตรวจรับเข้าแล้ว</span>;
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 text-blue-600" /> เข้าพื้นที่แล้ว</span>;
       case 'Receiving':
         return <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 flex items-center gap-1.5"><Package className="w-3.5 h-3.5 text-indigo-600 animate-pulse" /> กำลังลงสินค้า</span>;
       case 'Completed':
@@ -1311,8 +1311,8 @@ export default function AdminDashboardPage() {
           <div className="bg-blue-50 border border-blue-200 text-blue-900 px-4 py-3 rounded-2xl flex items-center gap-3 text-xs no-print">
             <Shield className="w-5 h-5 text-blue-600 shrink-0" />
             <div>
-              <strong className="block">เข้าสู่ระบบในโหมด: เจ้าหน้าที่ตรวจสอบคิวส่ง (Check-in & Verification Mode)</strong>
-              สามารถตรวจสอบรายการคิว, สแกน QR Code ตรวจรับรถเข้าพื้นที่, และพิมพ์ใบสรุปรายการคิวได้
+              <strong className="block">เข้าสู่ระบบในโหมด: เจ้าหน้าที่ตรวจสอบคิวส่ง (Verification Mode)</strong>
+              สามารถตรวจสอบรายการคิว, สแกน QR Code ตรวจสอบรถเข้าพื้นที่, และพิมพ์ใบสรุปรายการคิวได้
             </div>
           </div>
         )}
@@ -1409,7 +1409,6 @@ export default function AdminDashboardPage() {
                     <option value="All">ทุกสถานะ</option>
                     <option value="Pending">⏳ รอตรวจสอบ (Pending)</option>
                     <option value="Approved">✅ อนุมัติแล้ว (Approved)</option>
-                    <option value="CheckedIn">🚗 ตรวจรับเข้าแล้ว (Checked-in)</option>
                     <option value="Receiving">📦 กำลังลงสินค้า (Receiving)</option>
                     <option value="Completed">✨ เสร็จสิ้นสมบูรณ์ (Completed)</option>
                     <option value="Partial">⚠️ เฉพาะสินค้ามาไม่ครบ (Partial Delivery)</option>
@@ -1629,36 +1628,34 @@ export default function AdminDashboardPage() {
                                 </>
                               )}
 
-                              {/* 2. If Approved: Check-in (for Inspection Officer & Warehouse) */}
-                              {item.status === 'Approved' && (
-                                <button
-                                  onClick={() => handleWorkflowAction(item, 'CheckedIn', 'ตรวจรับเข้าแล้ว')}
-                                  className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1"
-                                  title="ตรวจรับรถเข้าพื้นที่คลังสินค้า"
-                                >
-                                  <Truck className="w-3.5 h-3.5" />
-                                  <span>ตรวจรับเข้า</span>
-                                </button>
+                              {/* 2. If Approved or CheckedIn: Start Receiving or Complete Receiving (for Warehouse) */}
+                              {!isSecurityOnly && (item.status === 'Approved' || item.status === 'CheckedIn') && (
+                                <>
+                                  <button
+                                    onClick={() => handleWorkflowAction(item, 'Receiving', 'กำลังลงสินค้า')}
+                                    className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1"
+                                    title="เริ่มตรวจนับและลงสินค้า"
+                                  >
+                                    <Package className="w-3.5 h-3.5" />
+                                    <span>เริ่มลงของ</span>
+                                  </button>
+                                  <button
+                                    onClick={() => openCompleteModal(item)}
+                                    className="px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1"
+                                    title="ตรวจนับสินค้าและบันทึกปิดงานเสร็จสิ้น"
+                                  >
+                                    <CheckCheck className="w-3.5 h-3.5" />
+                                    <span>ตรวจรับเสร็จสิ้น</span>
+                                  </button>
+                                </>
                               )}
 
-                              {/* 3. If CheckedIn: Start Receiving (for Warehouse) */}
-                              {!isSecurityOnly && item.status === 'CheckedIn' && (
-                                <button
-                                  onClick={() => handleWorkflowAction(item, 'Receiving', 'กำลังลงสินค้า')}
-                                  className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1"
-                                  title="เริ่มตรวจนับและลงสินค้า"
-                                >
-                                  <Package className="w-3.5 h-3.5" />
-                                  <span>เริ่มลงของ</span>
-                                </button>
-                              )}
-
-                              {/* 4. If Receiving: Complete Receiving with Inspection (for Warehouse) */}
+                              {/* 3. If Receiving: Complete Receiving with Inspection (for Warehouse) */}
                               {!isSecurityOnly && item.status === 'Receiving' && (
                                 <button
                                   onClick={() => openCompleteModal(item)}
                                   className="px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1"
-                                  title="ตรวจนับสินค้าและบันทึกเสร็จสิ้น"
+                                  title="ตรวจนับสินค้าและบันทึกปิดงานเสร็จสิ้น"
                                 >
                                   <CheckCheck className="w-3.5 h-3.5" />
                                   <span>ตรวจรับเสร็จสิ้น</span>
@@ -2486,13 +2483,6 @@ export default function AdminDashboardPage() {
                     dot: 'bg-emerald-500',
                   },
                   {
-                    status: 'CheckedIn' as BookingStatus,
-                    label: 'ตรวจรับเข้าแล้ว (Checked In)',
-                    desc: 'รถขนส่งเข้าพื้นที่คลังแล้ว',
-                    color: 'border-blue-300 bg-blue-50/60 text-blue-900',
-                    dot: 'bg-blue-500',
-                  },
-                  {
                     status: 'Receiving' as BookingStatus,
                     label: 'กำลังลงสินค้า (Receiving)',
                     desc: 'กำลังตรวจนับและจัดเก็บสินค้า',
@@ -2597,7 +2587,7 @@ export default function AdminDashboardPage() {
               <textarea
                 rows={2}
                 required={targetStatus === 'Rejected'}
-                placeholder="เช่น เปลี่ยนจากปฏิเสธเป็นอนุมัติเนื่องจากยืนยันเอกสารครบถ้วน, ปรับสถานะเป็นตรวจรับเข้า..."
+                placeholder="เช่น เปลี่ยนจากปฏิเสธเป็นอนุมัติเนื่องจากยืนยันเอกสารครบถ้วน, ปรับสถานะเป็นกำลังลงสินค้า..."
                 value={statusChangeReason}
                 onChange={(e) => setStatusChangeReason(e.target.value)}
                 className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none"
