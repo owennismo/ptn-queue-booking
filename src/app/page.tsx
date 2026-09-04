@@ -21,10 +21,16 @@ import {
   MessageCircle,
   MessageSquare,
   Headphones,
+  Image as ImageIcon,
+  Upload,
+  Camera,
+  Trash2,
+  Eye,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { formatThaiDate, formatThaiShortDate, formatPhoneMask } from '@/lib/dateUtils';
 import ThaiDatePicker from '@/components/ThaiDatePicker';
+import { compressImage, formatFileSize } from '@/lib/imageCompressor';
 
 interface Slot {
   id: number;
@@ -68,8 +74,46 @@ export default function BookingPage() {
   const [licensePlate, setLicensePlate] = useState('');
   const [notes, setNotes] = useState('');
 
+  // Photo Attachment State
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoStats, setPhotoStats] = useState<{ originalSize: number; compressedSize: number } | null>(null);
+  const [compressingPhoto, setCompressingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Photo file selection and auto-compression handler
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setCompressingPhoto(true);
+    setPhotoError(null);
+
+    try {
+      const result = await compressImage(file, 1600, 0.82);
+      setPhotoFile(result.file);
+      setPhotoPreview(result.dataUrl);
+      setPhotoStats({
+        originalSize: result.originalSize,
+        compressedSize: result.compressedSize,
+      });
+    } catch (err: any) {
+      console.error('Image compression error:', err);
+      setPhotoError(err.message || 'ไม่สามารถบีบอัดรูปภาพได้');
+    } finally {
+      setCompressingPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setPhotoStats(null);
+    setPhotoError(null);
+  };
 
   // Phone Input Masking (08X-XXX-XXXX / 0XX-XXX-XXXX)
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,6 +225,30 @@ export default function BookingPage() {
     setSubmitting(true);
 
     try {
+      let uploadedPhotoUrl: string | null = null;
+
+      // 1. If user attached a photo, upload it to Cloudflare R2 via /api/upload
+      if (photoPreview) {
+        try {
+          const uploadRes = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              dataUrl: photoPreview,
+              filename: photoFile?.name || 'delivery-doc.webp',
+              booking_id: 'new',
+            }),
+          });
+          const uploadData = await uploadRes.json();
+          if (uploadRes.ok && uploadData.url) {
+            uploadedPhotoUrl = uploadData.url;
+          }
+        } catch (uploadErr) {
+          console.warn('Photo upload warning, proceeding with booking:', uploadErr);
+        }
+      }
+
+      // 2. Create Booking
       const res = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -197,6 +265,7 @@ export default function BookingPage() {
           driver_name: driverName,
           license_plate: licensePlate,
           notes: notes,
+          photo_url: uploadedPhotoUrl,
         }),
       });
 
@@ -708,6 +777,123 @@ export default function BookingPage() {
                   onChange={(e) => setNotes(e.target.value)}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-slate-900"
                 />
+              </div>
+
+              {/* 📷 Photo Attachment Section (Delivery Note / Invoice / Cargo Photo) */}
+              <div className="space-y-2 sm:col-span-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-semibold text-slate-800 flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-emerald-600" />
+                    <span>แนบรูปถ่ายใบส่งของ / เอกสาร หรือรูปสินค้า</span>
+                    <span className="text-xs text-slate-400 font-normal">(ไม่บังคับ)</span>
+                  </label>
+                </div>
+                <p className="text-xs text-slate-500">
+                  รองรับรูปถ่ายจากกล้องมือถือ ระบบจะย่อขนาดรูปให้อัตโนมัติ เพื่อการโหลดที่รวดเร็ว
+                </p>
+
+                {photoError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-medium">
+                    {photoError}
+                  </div>
+                )}
+
+                {!photoPreview ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Option A: Open Camera on Mobile */}
+                    <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-emerald-50/40 hover:bg-emerald-50 rounded-2xl cursor-pointer transition text-center group">
+                      <div className="w-10 h-10 bg-emerald-100 group-hover:scale-110 text-emerald-700 rounded-full flex items-center justify-center mb-1.5 transition">
+                        <Camera className="w-5 h-5" />
+                      </div>
+                      <span className="text-xs font-bold text-emerald-900">ถ่ายรูปจากกล้องมือถือ</span>
+                      <span className="text-[11px] text-emerald-700/70">กดถ่ายใบส่งของ หรือสภาพสินค้า</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handlePhotoChange}
+                        disabled={compressingPhoto}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {/* Option B: Choose from Photo Gallery / File */}
+                    <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 hover:border-slate-400 bg-slate-50/70 hover:bg-slate-100 rounded-2xl cursor-pointer transition text-center group">
+                      <div className="w-10 h-10 bg-slate-200 group-hover:scale-110 text-slate-700 rounded-full flex items-center justify-center mb-1.5 transition">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-800">เลือกรูปจากคลังภาพ / ไฟล์</span>
+                      <span className="text-[11px] text-slate-500">รองรับไฟล์ JPG, PNG, WEBP</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoChange}
+                        disabled={compressingPhoto}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-300 bg-slate-900 shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={photoPreview}
+                            alt="Attached Document"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-bold text-slate-900 truncate max-w-xs">
+                            {photoFile?.name || 'เอกสารที่แนบ'}
+                          </p>
+                          {photoStats && (
+                            <p className="text-[11px] text-emerald-700 font-medium">
+                              ย่อขนาดเรียบร้อย: {formatFileSize(photoStats.compressedSize)}{' '}
+                              <span className="text-slate-400">
+                                (จากเดิม {formatFileSize(photoStats.originalSize)})
+                              </span>
+                            </p>
+                          )}
+                          <span className="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md">
+                            พร้อมอัปโหลด
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const w = window.open('');
+                            w?.document.write(`<img src="${photoPreview}" style="max-width:100%; height:auto;" />`);
+                          }}
+                          className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 transition"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>ดูรูปเต็ม</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleRemovePhoto}
+                          className="px-3 py-1.5 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-semibold flex items-center gap-1 transition"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>ลบรูป</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {compressingPhoto && (
+                  <div className="flex items-center gap-2 text-xs text-emerald-700 font-medium p-2">
+                    <div className="w-3.5 h-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                    <span>กำลังย่อขนาดรูปภาพความละเอียดสูง...</span>
+                  </div>
+                )}
               </div>
             </div>
           </section>

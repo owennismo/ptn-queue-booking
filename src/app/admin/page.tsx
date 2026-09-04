@@ -51,12 +51,16 @@ import {
   FileSpreadsheet,
   QrCode,
   PackageCheck,
+  Image as ImageIcon,
+  Maximize2,
+  UploadCloud,
 } from 'lucide-react';
 import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole, BookingStatus } from '@/lib/types';
 import QRScannerModal from '@/components/QRScannerModal';
 import ThaiDatePicker from '@/components/ThaiDatePicker';
 import { formatThaiDate, formatThaiShortDate } from '@/lib/dateUtils';
 import { sendQueueNotification, getNotificationPermission, requestNotificationPermission } from '@/lib/pushNotifications';
+import { compressImage, formatFileSize } from '@/lib/imageCompressor';
 
 interface AuditLog {
   id: number;
@@ -165,6 +169,15 @@ export default function AdminDashboardPage() {
   const [actualPalletInput, setActualPalletInput] = useState<number | string>('');
   const [receivingNotesInput, setReceivingNotesInput] = useState('');
   const [completeSubmitting, setCompleteSubmitting] = useState(false);
+  const [receivingPhotoFile, setReceivingPhotoFile] = useState<File | null>(null);
+  const [receivingPhotoPreview, setReceivingPhotoPreview] = useState<string | null>(null);
+  const [receivingPhotoSavedUrl, setReceivingPhotoSavedUrl] = useState<string | null>(null);
+  const [receivingPhotoStats, setReceivingPhotoStats] = useState<{ originalSize: number; compressedSize: number } | null>(null);
+  const [compressingReceivingPhoto, setCompressingReceivingPhoto] = useState(false);
+
+  // Photo Lightbox State
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [lightboxTitle, setLightboxTitle] = useState<string | null>(null);
 
   // QR Scanner Modal State
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -629,11 +642,43 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Photo handler for receiving inspection photo
+  const handleReceivingPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setCompressingReceivingPhoto(true);
+      const compressed = await compressImage(file, 1600, 0.82);
+      setReceivingPhotoFile(compressed.file);
+      setReceivingPhotoPreview(compressed.dataUrl);
+      setReceivingPhotoStats({
+        originalSize: compressed.originalSize,
+        compressedSize: compressed.compressedSize,
+      });
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการประมวลผลรูปภาพ', 'error');
+    } finally {
+      setCompressingReceivingPhoto(false);
+    }
+  };
+
+  const removeReceivingPhoto = () => {
+    setReceivingPhotoFile(null);
+    setReceivingPhotoPreview(null);
+    setReceivingPhotoSavedUrl(null);
+    setReceivingPhotoStats(null);
+  };
+
   // Open Complete Receiving & Inspect Goods Modal
   const openCompleteModal = (booking: Booking) => {
     setCompletingBooking(booking);
     setActualPalletInput(booking.actual_pallet_count !== undefined && booking.actual_pallet_count !== null ? booking.actual_pallet_count : booking.pallet_count);
     setReceivingNotesInput(booking.receiving_notes || '');
+    setReceivingPhotoFile(null);
+    setReceivingPhotoPreview(booking.receiving_photo_url || null);
+    setReceivingPhotoSavedUrl(booking.receiving_photo_url || null);
+    setReceivingPhotoStats(null);
     setCompleteModalOpen(true);
   };
 
@@ -655,6 +700,32 @@ export default function AdminDashboardPage() {
 
     setCompleteSubmitting(true);
     try {
+      let finalReceivingPhotoUrl = receivingPhotoSavedUrl;
+
+      // Upload receiving photo to R2 if selected
+      if (receivingPhotoFile) {
+        try {
+          const uploadFormData = new FormData();
+          uploadFormData.append('file', receivingPhotoFile);
+          uploadFormData.append('booking_id', completingBooking.booking_id);
+          uploadFormData.append('type', 'receiving');
+
+          const uploadRes = await fetch('/api/upload', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: uploadFormData,
+          });
+          const uploadData = await uploadRes.json();
+          if (uploadRes.ok && uploadData.url) {
+            finalReceivingPhotoUrl = uploadData.url;
+          }
+        } catch (uploadErr) {
+          console.error('Failed to upload receiving photo:', uploadErr);
+        }
+      }
+
       const isPartial = actual < completingBooking.pallet_count;
       const isOver = actual > completingBooking.pallet_count;
       const resultLabel = isPartial
@@ -669,6 +740,7 @@ export default function AdminDashboardPage() {
           status: 'Completed',
           actual_pallet_count: actual,
           receiving_notes: receivingNotesInput.trim() || null,
+          receiving_photo_url: finalReceivingPhotoUrl || null,
           admin_reason: `ตรวจรับเสร็จสิ้น: ${resultLabel} โดย ${operatorName}`,
         }),
       });
@@ -680,6 +752,7 @@ export default function AdminDashboardPage() {
       setCompletingBooking(null);
       setActualPalletInput('');
       setReceivingNotesInput('');
+      removeReceivingPhoto();
       fetchBookings();
       fetchForecast();
       if (selectedBooking?.booking_id === completingBooking.booking_id) {
@@ -1460,7 +1533,28 @@ export default function AdminDashboardPage() {
                       {bookings.map((item) => (
                         <tr key={item.booking_id} className="hover:bg-slate-50/70 transition">
                           <td className="py-4 px-4 font-mono font-bold text-slate-900">
-                            {item.booking_id}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span>{item.booking_id}</span>
+                              {(item.photo_url || item.receiving_photo_url) && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const img = item.receiving_photo_url || item.photo_url;
+                                    const title = item.receiving_photo_url ? `รูปตรวจรับสินค้า - ${item.booking_id}` : `ใบส่งของ - ${item.booking_id}`;
+                                    if (img) {
+                                      setLightboxImage(img);
+                                      setLightboxTitle(title);
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-800 text-[10px] font-sans font-semibold transition"
+                                  title="คลิกเพื่อดูรูปภาพแนบ"
+                                >
+                                  <ImageIcon className="w-3 h-3 text-teal-600" />
+                                  <span>รูปแนบ</span>
+                                </button>
+                              )}
+                            </div>
                           </td>
                           <td className="py-4 px-4 font-semibold text-slate-700 whitespace-nowrap">
                             <div className="flex items-center gap-1 text-slate-900 font-bold text-xs">
@@ -2672,6 +2766,80 @@ export default function AdminDashboardPage() {
               />
             </div>
 
+            {/* Warehouse Receiving Photo Attachment */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Camera className="w-3.5 h-3.5 text-teal-600" />
+                  ถ่ายรูปสินค้าหน้างาน / เอกสารตรวจรับ (ถ้ามี)
+                </span>
+                <span className="text-[10px] text-teal-600 font-normal">บีบอัดอัตโนมัติ (R2 Storage)</span>
+              </label>
+
+              {receivingPhotoPreview ? (
+                <div className="relative p-2.5 bg-teal-50/60 border border-teal-200 rounded-xl flex items-center gap-3">
+                  <img
+                    src={receivingPhotoPreview}
+                    alt="Receiving Photo Preview"
+                    onClick={() => {
+                      setLightboxImage(receivingPhotoPreview);
+                      setLightboxTitle('รูปตรวจรับสินค้าหน้างาน');
+                    }}
+                    className="w-16 h-16 object-cover rounded-lg border border-teal-300 shrink-0 cursor-pointer hover:opacity-90 transition"
+                  />
+                  <div className="flex-1 min-w-0 text-xs">
+                    <p className="font-bold text-slate-800 truncate">รูปตรวจรับสินค้าพร้อมบันทึก</p>
+                    {receivingPhotoStats && (
+                      <p className="text-[11px] text-teal-700 mt-0.5">
+                        ลดขนาด: {formatFileSize(receivingPhotoStats.originalSize)} ➔{' '}
+                        <strong className="font-bold">{formatFileSize(receivingPhotoStats.compressedSize)}</strong>
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={removeReceivingPhoto}
+                      className="mt-1 text-[11px] text-rose-600 hover:text-rose-800 font-bold flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" /> ลบรูปถ่ายนี้
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-slate-300 hover:border-teal-500 rounded-xl bg-slate-50 hover:bg-teal-50/50 cursor-pointer transition text-center group">
+                    <Camera className="w-5 h-5 text-slate-400 group-hover:text-teal-600 mb-1" />
+                    <span className="text-xs font-bold text-slate-700 group-hover:text-teal-700">ถ่ายรูปทันที</span>
+                    <span className="text-[10px] text-slate-400">เปิดกล้องมือถือ</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleReceivingPhotoChange}
+                      disabled={compressingReceivingPhoto}
+                      className="hidden"
+                    />
+                  </label>
+                  <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-slate-300 hover:border-teal-500 rounded-xl bg-slate-50 hover:bg-teal-50/50 cursor-pointer transition text-center group">
+                    <ImageIcon className="w-5 h-5 text-slate-400 group-hover:text-teal-600 mb-1" />
+                    <span className="text-xs font-bold text-slate-700 group-hover:text-teal-700">เลือกจากคลังภาพ</span>
+                    <span className="text-[10px] text-slate-400">JPG, PNG, WEBP</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleReceivingPhotoChange}
+                      disabled={compressingReceivingPhoto}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
+              {compressingReceivingPhoto && (
+                <p className="text-[11px] text-teal-600 animate-pulse flex items-center gap-1">
+                  <RefreshCw className="w-3 h-3 animate-spin" /> กำลังประมวลผลและบีบอัดรูปภาพ...
+                </p>
+              )}
+            </div>
+
             {/* Inspector info */}
             <div className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-xl flex items-center justify-between">
               <span>ผู้ตรวจรับสินค้า: <strong className="text-slate-800">{operatorName}</strong></span>
@@ -2755,6 +2923,67 @@ export default function AdminDashboardPage() {
                 <span className="text-slate-400 block">จำนวนลังที่จอง / รถ</span>
                 <span className="font-bold text-slate-800">{selectedBooking.pallet_count} ลัง ({selectedBooking.vehicle_count} คัน)</span>
               </div>
+
+              {/* Attached Photos (Delivery Note & Warehouse Inspection) */}
+              {(selectedBooking.photo_url || selectedBooking.receiving_photo_url) && (
+                <div className="p-3 bg-slate-50 rounded-xl col-span-2 space-y-2 border border-slate-200/80">
+                  <span className="text-slate-500 font-bold block text-xs flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-teal-600" />
+                    รูปภาพและเอกสารแนบประกอบคิว
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    {selectedBooking.photo_url && (
+                      <div className="bg-white p-2 rounded-xl border border-slate-200 flex flex-col gap-1.5">
+                        <span className="text-[10px] font-bold text-slate-600 truncate">
+                          📄 ใบส่งสินค้า (Delivery Note / ผู้จอง)
+                        </span>
+                        <div 
+                          onClick={() => {
+                            setLightboxImage(selectedBooking.photo_url || null);
+                            setLightboxTitle(`ใบส่งของ/เอกสารแนบ - ${selectedBooking.booking_id}`);
+                          }}
+                          className="relative aspect-video rounded-lg overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer group hover:opacity-95 transition"
+                        >
+                          <img 
+                            src={selectedBooking.photo_url} 
+                            alt="ใบส่งของ"
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                          />
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1">
+                            <Maximize2 className="w-4 h-4" />
+                            <span>ดูภาพขยาย</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedBooking.receiving_photo_url && (
+                      <div className="bg-white p-2 rounded-xl border border-slate-200 flex flex-col gap-1.5">
+                        <span className="text-[10px] font-bold text-teal-700 truncate">
+                          🔍 รูปตรวจรับสินค้าหน้างาน (คลังสินค้า)
+                        </span>
+                        <div 
+                          onClick={() => {
+                            setLightboxImage(selectedBooking.receiving_photo_url || null);
+                            setLightboxTitle(`รูปถ่ายตรวจรับสินค้า - ${selectedBooking.booking_id}`);
+                          }}
+                          className="relative aspect-video rounded-lg overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer group hover:opacity-95 transition"
+                        >
+                          <img 
+                            src={selectedBooking.receiving_photo_url} 
+                            alt="รูปตรวจรับสินค้า"
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                          />
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1">
+                            <Maximize2 className="w-4 h-4" />
+                            <span>ดูภาพขยาย</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Actual Received pallet count & inspection results */}
               {selectedBooking.actual_pallet_count !== undefined && selectedBooking.actual_pallet_count !== null && (
@@ -2850,6 +3079,49 @@ export default function AdminDashboardPage() {
                 ปิดหน้าต่าง
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🖼️ Fullscreen Photo Lightbox Modal */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-60 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div className="absolute top-4 right-4 flex items-center gap-3 z-10">
+            {lightboxTitle && (
+              <span className="text-xs text-white/80 bg-black/40 px-3 py-1.5 rounded-full border border-white/20 hidden sm:inline-block">
+                {lightboxTitle}
+              </span>
+            )}
+            <a
+              href={lightboxImage}
+              target="_blank"
+              rel="noopener noreferrer"
+              download
+              onClick={(e) => e.stopPropagation()}
+              className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+            >
+              <Download className="w-4 h-4" />
+              <span>ดาวน์โหลด</span>
+            </a>
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div
+            className="max-w-4xl max-h-[85vh] w-full h-full flex items-center justify-center p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={lightboxImage}
+              alt={lightboxTitle || 'รูปภาพขยาย'}
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-white/10"
+            />
           </div>
         </div>
       )}

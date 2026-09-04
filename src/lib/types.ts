@@ -23,6 +23,8 @@ export interface Booking {
   receiving_notes?: string | null;
   received_by?: string | null;
   receiving_completed_at?: string | null;
+  photo_url?: string | null;
+  receiving_photo_url?: string | null;
 }
 
 export interface TimeSlot {

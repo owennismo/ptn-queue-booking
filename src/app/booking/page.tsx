@@ -26,6 +26,10 @@ import {
   ThermometerSnowflake,
   ShieldCheck,
   MessageCircle,
+  Image as ImageIcon,
+  Camera,
+  Eye,
+  X,
 } from 'lucide-react';
 import { Booking } from '@/lib/types';
 import { toPng } from 'html-to-image';
@@ -47,6 +51,7 @@ function BookingContent() {
   const [cancelling, setCancelling] = useState<boolean>(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isCreatorDevice, setIsCreatorDevice] = useState<boolean>(false);
+  const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
   const prevStatusRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -895,6 +900,72 @@ ${url}`;
                 <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1 sm:col-span-2">
                   <span className="text-xs text-slate-500 font-medium">หมายเหตุเพิ่มเติม</span>
                   <p className="text-xs text-slate-700">{booking.notes}</p>
+                </div>
+              )}
+
+              {/* 📷 Attached Delivery Note / Document Photo */}
+              {booking.photo_url && (
+                <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-150 space-y-2 sm:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
+                      รูปถ่ายใบส่งของ / เอกสารที่แนบมา (Delivery Note / Invoice)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setImageModalUrl(booking.photo_url!)}
+                      className="text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs transition"
+                    >
+                      <Eye className="w-3 h-3" /> ขยายดูรูปเต็ม
+                    </button>
+                  </div>
+                  <div
+                    onClick={() => setImageModalUrl(booking.photo_url!)}
+                    className="relative w-full max-w-xs h-40 rounded-xl overflow-hidden border border-emerald-200 bg-slate-900 cursor-pointer group shadow-sm hover:ring-2 hover:ring-emerald-500 transition"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={booking.photo_url}
+                      alt="Delivery Note Document"
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                    />
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold gap-1 transition">
+                      <Eye className="w-4 h-4" /> คลิกเพื่อดูขนาดเต็ม
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 📸 Receiving Inspection Photo (Taken by Warehouse Staff) */}
+              {booking.receiving_photo_url && (
+                <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-150 space-y-2 sm:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
+                      <Camera className="w-3.5 h-3.5 text-indigo-600" />
+                      รูปถ่ายตอนตรวจรับสินค้าหน้างาน (Receiving Inspection Photo)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setImageModalUrl(booking.receiving_photo_url!)}
+                      className="text-xs font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-indigo-200 shadow-2xs transition"
+                    >
+                      <Eye className="w-3 h-3" /> ขยายดูรูปเต็ม
+                    </button>
+                  </div>
+                  <div
+                    onClick={() => setImageModalUrl(booking.receiving_photo_url!)}
+                    className="relative w-full max-w-xs h-40 rounded-xl overflow-hidden border border-indigo-200 bg-slate-900 cursor-pointer group shadow-sm hover:ring-2 hover:ring-indigo-500 transition"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={booking.receiving_photo_url}
+                      alt="Receiving Inspection"
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                    />
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold gap-1 transition">
+                      <Eye className="w-4 h-4" /> คลิกเพื่อดูขนาดเต็ม
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

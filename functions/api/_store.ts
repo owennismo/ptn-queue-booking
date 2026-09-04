@@ -16,6 +16,8 @@ export interface Booking {
   vehicle_type?: string | null;
   cargo_type?: string | null;
   notes: string | null;
+  photo_url?: string | null;
+  receiving_photo_url?: string | null;
   status: 'Pending' | 'Approved' | 'CheckedIn' | 'Receiving' | 'Completed' | 'Rejected' | 'Cancelled';
   admin_reason?: string | null;
   admin_action_date?: string | null;
@@ -185,6 +187,110 @@ export class DataStore {
 
   private get d1() {
     return this.env?.DB;
+  }
+
+  private get r2() {
+    return this.env?.PTN_PHOTOS || this.env?.PHOTOS_BUCKET || this.env?.R2_BUCKET;
+  }
+
+  // --- PHOTO & R2 OBJECT STORAGE METHODS ---
+  async savePhoto(
+    key: string,
+    buffer: ArrayBuffer,
+    mimeType: string,
+    metadata?: Record<string, any>
+  ): Promise<{ url: string; key: string }> {
+    const uploadedAt = metadata?.uploadedAt || new Date().toISOString();
+
+    if (this.r2) {
+      try {
+        await this.r2.put(key, buffer, {
+          httpMetadata: {
+            contentType: mimeType,
+            cacheControl: 'public, max-age=31536000, immutable',
+          },
+          customMetadata: {
+            uploadedAt,
+            originalName: metadata?.originalName || 'photo',
+            bookingId: metadata?.bookingId || '',
+          },
+        });
+      } catch (e) {
+        console.error('R2 put error:', e);
+      }
+    }
+
+    // Store in fallback photo map
+    if (!globalStore.photos) {
+      globalStore.photos = new Map<string, { buffer: ArrayBuffer; mimeType: string; uploadedAt: string }>();
+    }
+    globalStore.photos.set(key, { buffer, mimeType, uploadedAt });
+
+    // Periodic check to clean up items older than 180 days (180 * 24 * 60 * 60 * 1000 ms)
+    this.cleanupExpiredPhotos().catch(() => {});
+
+    return {
+      url: `/api/photos/${key}`,
+      key,
+    };
+  }
+
+  async getPhoto(key: string): Promise<{ buffer: ArrayBuffer; mimeType: string; etag?: string } | null> {
+    if (this.r2) {
+      try {
+        const object = await this.r2.get(key);
+        if (object) {
+          const buffer = await object.arrayBuffer();
+          const mimeType = object.httpMetadata?.contentType || 'image/webp';
+          return { buffer, mimeType, etag: object.httpEtag };
+        }
+      } catch (e) {
+        console.error('R2 get error:', e);
+      }
+    }
+
+    // Fallback store
+    if (globalStore.photos && globalStore.photos.has(key)) {
+      const item = globalStore.photos.get(key)!;
+      return { buffer: item.buffer, mimeType: item.mimeType };
+    }
+
+    return null;
+  }
+
+  async cleanupExpiredPhotos(): Promise<number> {
+    const MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000; // 180 days
+    const now = Date.now();
+    let deletedCount = 0;
+
+    // 1. Cleanup in memory fallback
+    if (globalStore.photos) {
+      for (const [k, v] of globalStore.photos.entries()) {
+        const itemTime = new Date(v.uploadedAt).getTime();
+        if (now - itemTime > MAX_AGE_MS) {
+          globalStore.photos.delete(k);
+          deletedCount++;
+        }
+      }
+    }
+
+    // 2. Cleanup R2 list if supported
+    if (this.r2 && typeof this.r2.list === 'function') {
+      try {
+        const list = await this.r2.list({ prefix: 'photos/', limit: 100 });
+        for (const obj of list.objects) {
+          const uploadedTime = new Date(obj.uploaded).getTime();
+          if (now - uploadedTime > MAX_AGE_MS) {
+            await this.r2.delete(obj.key);
+            deletedCount++;
+          }
+        }
+      } catch (e) {
+        console.error('R2 cleanup error:', e);
+      }
+    }
+
+    return deletedCount;
   }
 
   // --- KV Helper Methods ---
@@ -701,6 +807,8 @@ export class DataStore {
       vehicle_type: data.vehicle_type?.trim() || 'รถกระบะ 4 ล้อ',
       cargo_type: data.cargo_type?.trim() || 'ยาและเวชภัณฑ์ทั่วไป (Room Temp 15-30°C)',
       notes: data.notes?.trim() || null,
+      photo_url: data.photo_url || null,
+      receiving_photo_url: null,
       status: 'Pending',
       created_at: nowStr,
     };
@@ -786,6 +894,8 @@ export class DataStore {
       actual_pallet_count?: number | null;
       receiving_notes?: string | null;
       received_by?: string | null;
+      receiving_photo_url?: string | null;
+      photo_url?: string | null;
     }
   ): Promise<Booking | null> {
     const cleanId = id.trim().toUpperCase();
@@ -808,6 +918,12 @@ export class DataStore {
         }
         if (extra.received_by !== undefined) {
           item.received_by = extra.received_by;
+        }
+        if (extra.receiving_photo_url !== undefined) {
+          item.receiving_photo_url = extra.receiving_photo_url;
+        }
+        if (extra.photo_url !== undefined) {
+          item.photo_url = extra.photo_url;
         }
         if (status === 'Completed' || status === 'Receiving') {
           item.receiving_completed_at = nowStr;
