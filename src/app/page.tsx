@@ -131,7 +131,7 @@ export default function BookingPage() {
       }
     } else if (stepNum === 3) {
       if (palletCount < 1) {
-        setErrorMessage('จำนวนลังหรือพาเลทต้องอย่างน้อย 1');
+        setErrorMessage('จำนวนลังต้องอย่างน้อย 1 ลัง');
         return false;
       }
     }
@@ -886,7 +886,7 @@ export default function BookingPage() {
                 {/* Pallet/Crate Count with Stepper */}
                 <div className="space-y-1.5 bg-slate-50 p-4 rounded-2xl border border-slate-200">
                   <label className="block text-base font-semibold text-slate-800">
-                    <span className="text-rose-500">*</span> จำนวนลังหรือพาเลท
+                    <span className="text-rose-500">*</span> จำนวนลัง
                   </label>
                   <div className="relative flex items-center pt-2">
                     <button
@@ -912,7 +912,7 @@ export default function BookingPage() {
                       +
                     </button>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">กดปุ่ม + หรือ - เพื่อปรับจำนวนลัง/พาเลท</p>
+                  <p className="text-xs text-slate-500 mt-1">กดปุ่ม + หรือ - เพื่อปรับจำนวนลัง</p>
                 </div>
 
                 {/* Vehicle Count with Stepper */}
@@ -1152,7 +1152,7 @@ export default function BookingPage() {
                   </div>
                   <div className="flex justify-between border-b border-white/10 pb-2">
                     <span className="text-slate-400">จำนวนสินค้า:</span>
-                    <strong className="text-emerald-300 font-extrabold">{palletCount} ลัง/พาเลท ({vehicleCount} คัน)</strong>
+                    <strong className="text-emerald-300 font-extrabold">{palletCount} ลัง ({vehicleCount} คัน)</strong>
                   </div>
                   <div className="flex justify-between border-b border-white/10 pb-2">
                     <span className="text-slate-400">ประเภทสินค้า:</span>

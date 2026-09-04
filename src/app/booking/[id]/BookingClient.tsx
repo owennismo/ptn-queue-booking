@@ -51,6 +51,7 @@ export default function BookingDetailPage({
   const [copied, setCopied] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [downloadingImage, setDownloadingImage] = useState<boolean>(false);
+  const [lineCopiedToast, setLineCopiedToast] = useState<boolean>(false);
   const [cancelModalOpen, setCancelModalOpen] = useState<boolean>(false);
   const [cancelReason, setCancelReason] = useState<string>('');
   const [cancelling, setCancelling] = useState<boolean>(false);
@@ -191,7 +192,7 @@ export default function BookingDetailPage({
     }
   };
 
-  // 📲 Share to LINE Handler
+  // 📲 Share to LINE Handler (Cross-Platform: Mobile LINE app + Desktop LINE Web Share & Clipboard copy)
   const handleShareLine = () => {
     if (!booking) return;
     const url = typeof window !== 'undefined' ? window.location.href : `https://ptn-queue-booking.pages.dev/booking/${booking.booking_id}`;
@@ -210,8 +211,24 @@ ${booking.driver_name ? `👤 ผู้ส่งสินค้า: ${booking.dr
 🔗 เปิดดูบัตรคิวดิจิทัล:
 ${url}`;
 
-    const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
-    window.open(lineUrl, '_blank');
+    const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    if (isMobile) {
+      const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
+      window.open(lineUrl, '_blank');
+    } else {
+      // Desktop / PC:
+      // 1. Copy formatted ticket text to clipboard so user can easily paste (Ctrl+V) directly into LINE PC
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        navigator.clipboard.writeText(text).catch(() => {});
+      }
+      setLineCopiedToast(true);
+      setTimeout(() => setLineCopiedToast(false), 5000);
+
+      // 2. Open official LINE Web Share dialog
+      const desktopShareUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+      window.open(desktopShareUrl, 'line_share_dialog', 'width=600,height=650,menubar=no,location=no,status=no,resizable=yes');
+    }
   };
 
   // 🗺️ Open Google Maps Directions Handler
@@ -745,10 +762,18 @@ ${url}`;
               <button
                 type="button"
                 onClick={handleShareLine}
-                className="flex items-center justify-center gap-2 px-4 py-3.5 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-2xl font-bold text-sm sm:text-base shadow-md shadow-green-200 transition active:scale-[0.98]"
+                className={`flex items-center justify-center gap-2 px-4 py-3.5 text-white rounded-2xl font-bold text-sm sm:text-base shadow-md transition active:scale-[0.98] ${
+                  lineCopiedToast
+                    ? 'bg-emerald-700 shadow-emerald-200'
+                    : 'bg-[#06C755] hover:bg-[#05b34c] shadow-green-200'
+                }`}
               >
-                <Share2 className="w-5 h-5" />
-                <span>แชร์เข้า LINE</span>
+                {lineCopiedToast ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-200 animate-bounce" />
+                ) : (
+                  <Share2 className="w-5 h-5" />
+                )}
+                <span>{lineCopiedToast ? 'คัดลอกข้อความแล้ว!' : 'แชร์เข้า LINE'}</span>
               </button>
 
               {/* 3. Google Maps GPS Navigation */}
@@ -761,6 +786,19 @@ ${url}`;
                 <span>แผนที่ GPS นำทาง</span>
               </button>
             </div>
+
+            {/* Desktop LINE Share Toast / Helper */}
+            {lineCopiedToast && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-2xl text-emerald-900 text-xs sm:text-sm font-semibold flex items-center gap-2.5 animate-in fade-in slide-in-from-top-1 shadow-sm">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <div>
+                  <p className="font-bold text-emerald-900">คัดลอกข้อความบัตรคิวลงคลิปบอร์ดแล้ว!</p>
+                  <p className="text-emerald-700 font-normal text-xs mt-0.5">
+                    คุณสามารถกดวาง (Ctrl+V) ส่งในแอป LINE PC ได้ทันที หรือส่งผ่านหน้าต่าง LINE Web ที่เปิดขึ้นมาได้เลย
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* QR Code Pass Box */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-100">
