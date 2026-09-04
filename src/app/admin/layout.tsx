@@ -38,17 +38,8 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <head>
-        <link rel="manifest" href="/admin-manifest.json" />
-        <link rel="apple-touch-icon" href="/admin-apple-touch-icon.png" />
-        <link rel="icon" href="/admin-favicon.png" />
-        <meta name="theme-color" content="#0f172a" />
-        <meta name="apple-mobile-web-app-title" content="PTN Admin" />
-      </head>
-      <div className="admin-portal-wrapper min-h-screen bg-slate-900 text-slate-100">
-        {children}
-      </div>
-    </>
+    <div className="admin-portal-wrapper min-h-screen bg-slate-900 text-slate-100">
+      {children}
+    </div>
   );
 }
