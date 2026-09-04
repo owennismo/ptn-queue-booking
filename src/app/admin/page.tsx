@@ -147,6 +147,13 @@ export default function AdminDashboardPage() {
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
+  // Edit Queue Status & Approval Modal State
+  const [editStatusModalOpen, setEditStatusModalOpen] = useState(false);
+  const [editingStatusBooking, setEditingStatusBooking] = useState<Booking | null>(null);
+  const [targetStatus, setTargetStatus] = useState<BookingStatus>('Approved');
+  const [statusChangeReason, setStatusChangeReason] = useState('');
+  const [statusSubmitting, setStatusSubmitting] = useState(false);
+
   // QR Scanner Modal State
   const [scannerOpen, setScannerOpen] = useState(false);
 
@@ -512,6 +519,52 @@ export default function AdminDashboardPage() {
       setCancelError(err.message || 'เกิดข้อผิดพลาดในการยกเลิกคิว');
     } finally {
       setCancelSubmitting(false);
+    }
+  };
+
+  // Open Edit Queue Status Modal
+  const openEditStatusModal = (booking: Booking) => {
+    setEditingStatusBooking(booking);
+    setTargetStatus(booking.status);
+    setStatusChangeReason('');
+    setEditStatusModalOpen(true);
+  };
+
+  // Handle Edit Queue Status Form Submit
+  const handleEditStatusSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStatusBooking) return;
+
+    if (targetStatus === 'Rejected' && !statusChangeReason.trim()) {
+      showToast('กรณีปฏิเสธคิว (Rejected) จำเป็นต้องระบุเหตุผล', 'error');
+      return;
+    }
+
+    setStatusSubmitting(true);
+    try {
+      const res = await authFetch(`/api/admin/bookings/${editingStatusBooking.booking_id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: targetStatus,
+          admin_reason: statusChangeReason.trim() || `ปรับเปลี่ยนสถานะเป็น ${targetStatus} โดย ${operatorName}`,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      showToast(`แก้ไขสถานะคิว ${editingStatusBooking.booking_id} เป็น "${targetStatus}" เรียบร้อยแล้ว`);
+      setEditStatusModalOpen(false);
+      setEditingStatusBooking(null);
+      setStatusChangeReason('');
+      fetchBookings();
+      fetchForecast();
+      if (selectedBooking?.booking_id === editingStatusBooking.booking_id) {
+        setSelectedBooking(data.booking);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการแก้ไขสถานะคิว', 'error');
+    } finally {
+      setStatusSubmitting(false);
     }
   };
 
@@ -1341,6 +1394,19 @@ export default function AdminDashboardPage() {
                                 </button>
                               )}
 
+                              {/* 5. Master Edit / Override Status (for Super Admin & Warehouse Officer) */}
+                              {!isSecurityOnly && (
+                                <button
+                                  type="button"
+                                  onClick={() => openEditStatusModal(item)}
+                                  className="px-2 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold text-xs rounded-xl transition flex items-center gap-1 shadow-xs"
+                                  title="แก้ไขหรือเปลี่ยนสถานะการอนุมัติคิวนี้"
+                                >
+                                  <Edit className="w-3.5 h-3.5 text-amber-700" />
+                                  <span>แก้ไขสถานะ</span>
+                                </button>
+                              )}
+
                               {/* Multi-Step Cancel (Hidden for Security Gate) */}
                               {!isSecurityOnly && (item.status === 'Approved' || item.status === 'CheckedIn' || item.status === 'Receiving') && (
                                 <button
@@ -2090,6 +2156,173 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
+      {/* 🛠️ EDIT / OVERRIDE QUEUE STATUS MODAL */}
+      {editStatusModalOpen && editingStatusBooking && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <form
+            onSubmit={handleEditStatusSubmit}
+            className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 border border-slate-200 max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2 text-slate-900">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                  <Edit className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">แก้ไขสถานะ / การอนุมัติคิว</h3>
+                  <span className="text-[11px] font-mono text-slate-500">{editingStatusBooking.booking_id}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditStatusModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Current Booking Summary Card */}
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-800 text-sm">{editingStatusBooking.carrier_name}</span>
+                <div>{getStatusBadge(editingStatusBooking.status)}</div>
+              </div>
+              <div className="text-slate-600 text-[11px]">
+                ผู้ส่ง: <strong>{editingStatusBooking.client_name}</strong> | วันที่: <strong>{formatThaiShortDate(editingStatusBooking.requested_date)}</strong> ({editingStatusBooking.requested_time})
+              </div>
+            </div>
+
+            {/* Choose Target Status */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-700 block">
+                เลือกสถานะใหม่ที่ต้องการเปลี่ยน <span className="text-rose-500">*</span>
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  {
+                    status: 'Pending' as BookingStatus,
+                    label: 'รอการอนุมัติ (Pending)',
+                    desc: 'รอการตรวจสอบจากเจ้าหน้าที่',
+                    color: 'border-amber-300 bg-amber-50/60 text-amber-900',
+                    dot: 'bg-amber-500',
+                  },
+                  {
+                    status: 'Approved' as BookingStatus,
+                    label: 'อนุมัติแล้ว (Approved)',
+                    desc: 'ยืนยันคิวแล้ว พร้อมเข้าส่งสินค้า',
+                    color: 'border-emerald-300 bg-emerald-50/60 text-emerald-900',
+                    dot: 'bg-emerald-500',
+                  },
+                  {
+                    status: 'CheckedIn' as BookingStatus,
+                    label: 'ตรวจรับเข้าแล้ว (Checked In)',
+                    desc: 'รถขนส่งเข้าพื้นที่คลังแล้ว',
+                    color: 'border-blue-300 bg-blue-50/60 text-blue-900',
+                    dot: 'bg-blue-500',
+                  },
+                  {
+                    status: 'Receiving' as BookingStatus,
+                    label: 'กำลังลงสินค้า (Receiving)',
+                    desc: 'กำลังตรวจนับและจัดเก็บสินค้า',
+                    color: 'border-indigo-300 bg-indigo-50/60 text-indigo-900',
+                    dot: 'bg-indigo-500',
+                  },
+                  {
+                    status: 'Completed' as BookingStatus,
+                    label: 'เสร็จสิ้นสมบูรณ์ (Completed)',
+                    desc: 'ตรวจรับครบถ้วนและปิดงาน',
+                    color: 'border-teal-300 bg-teal-50/60 text-teal-900',
+                    dot: 'bg-teal-500',
+                  },
+                  {
+                    status: 'Rejected' as BookingStatus,
+                    label: 'ปฏิเสธคิว (Rejected)',
+                    desc: 'ไม่อนุมัติให้เข้าส่ง (ต้องระบุเหตุผล)',
+                    color: 'border-rose-300 bg-rose-50/60 text-rose-900',
+                    dot: 'bg-rose-500',
+                  },
+                  {
+                    status: 'Cancelled' as BookingStatus,
+                    label: 'ยกเลิกคิว (Cancelled)',
+                    desc: 'ยกเลิกการนัดหมาย',
+                    color: 'border-slate-300 bg-slate-100 text-slate-700',
+                    dot: 'bg-slate-500',
+                  },
+                ].map((item) => (
+                  <label
+                    key={item.status}
+                    className={`p-3 rounded-2xl border-2 transition cursor-pointer flex items-start gap-2.5 ${
+                      targetStatus === item.status
+                        ? `${item.color} ring-2 ring-emerald-500 shadow-xs font-bold`
+                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="target_status"
+                      value={item.status}
+                      checked={targetStatus === item.status}
+                      onChange={() => setTargetStatus(item.status)}
+                      className="mt-1 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${item.dot}`} />
+                        <span className="text-xs font-bold leading-tight block">{item.label}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 block mt-0.5">{item.desc}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Reason / Admin Notes */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                <span>
+                  เหตุผล / บันทึกการแก้ไขสถานะ {targetStatus === 'Rejected' && <span className="text-rose-500">* (จำเป็น)</span>}
+                </span>
+                <span className="text-[10px] text-slate-400 font-normal">บันทึกใน Audit Log</span>
+              </label>
+              <textarea
+                rows={2}
+                required={targetStatus === 'Rejected'}
+                placeholder="เช่น เปลี่ยนจากปฏิเสธเป็นอนุมัติเนื่องจากยืนยันเอกสารครบถ้วน, ปรับสถานะเป็นตรวจรับเข้า..."
+                value={statusChangeReason}
+                onChange={(e) => setStatusChangeReason(e.target.value)}
+                className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none"
+              />
+            </div>
+
+            {/* Operator info */}
+            <div className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-xl flex items-center justify-between">
+              <span>ผู้แก้ไข: <strong className="text-slate-800">{operatorName}</strong></span>
+              <span>บันทึกการแก้ไขอัตโนมัติ</span>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setEditStatusModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="submit"
+                disabled={statusSubmitting}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 shadow-sm"
+              >
+                {statusSubmitting ? 'กำลังบันทึก...' : '💾 บันทึกสถานะใหม่'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* 📄 BOOKING DETAIL DRAWER / MODAL */}
       {selectedBooking && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
@@ -2171,10 +2404,23 @@ export default function AdminDashboardPage() {
               )}
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex items-center gap-2">
+              {!isSecurityOnly && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    openEditStatusModal(selectedBooking);
+                  }}
+                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <Edit className="w-4 h-4" />
+                  <span>แก้ไขสถานะคิวนี้</span>
+                </button>
+              )}
               <button
+                type="button"
                 onClick={() => setSelectedBooking(null)}
-                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition"
+                className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition"
               >
                 ปิดหน้าต่าง
               </button>

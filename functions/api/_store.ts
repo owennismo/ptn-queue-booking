@@ -776,7 +776,10 @@ export class DataStore {
       // Add audit log
       let logAction: AuditLog['action'] = 'APPROVE_QUEUE';
       if (status === 'Rejected') logAction = 'REJECT_QUEUE';
-      if (status === 'Cancelled') logAction = 'CANCEL_QUEUE';
+      else if (status === 'Cancelled') logAction = 'CANCEL_QUEUE';
+      else if (status === 'CheckedIn') logAction = 'CHECKIN_QUEUE';
+      else if (status === 'Receiving') logAction = 'RECEIVING_QUEUE';
+      else if (status === 'Completed') logAction = 'COMPLETE_QUEUE';
 
       await this.addAuditLog(
         logAction,
