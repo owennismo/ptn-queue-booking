@@ -71,7 +71,7 @@ interface AuditLog {
   created_at: string;
 }
 
-const IDLE_TIMEOUT_SECONDS = 15 * 60; // 15 minutes
+const IDLE_TIMEOUT_SECONDS = 60 * 60; // 1 hour (3600 seconds)
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -283,19 +283,29 @@ export default function AdminDashboardPage() {
     const savedOperator = sessionStorage.getItem('ptn_admin_operator') || localStorage.getItem('ptn_admin_operator') || 'เจ้าหน้าที่คลังสินค้า';
     const savedRole = ((sessionStorage.getItem('ptn_admin_role') || localStorage.getItem('ptn_admin_role')) as StaffRole) || 'warehouse_officer';
     const savedRoleName = sessionStorage.getItem('ptn_admin_role_name') || localStorage.getItem('ptn_admin_role_name') || 'เจ้าหน้าที่';
+    const savedLoginTime = sessionStorage.getItem('ptn_admin_login_time') || localStorage.getItem('ptn_admin_login_time');
 
     if (!savedToken) {
       router.push('/admin/login');
       return;
     }
 
+    // Check if session has exceeded 1 hour
+    if (savedLoginTime) {
+      const loginTime = parseInt(savedLoginTime, 10);
+      if (Date.now() - loginTime > IDLE_TIMEOUT_SECONDS * 1000) {
+        handleLogout('idle');
+        return;
+      }
+    }
+
     setToken(savedToken);
     setOperatorName(savedOperator);
     setUserRole(savedRole);
     setUserRoleName(savedRoleName);
-  }, [router]);
+  }, [router, handleLogout]);
 
-  // 2. Idle Timer (Auto-Logout after 15 minutes of inactivity)
+  // 2. Idle Timer (Auto-Logout after 1 hour of inactivity)
   const lastActivityRef = useRef<number>(Date.now());
 
   useEffect(() => {
@@ -1120,10 +1130,14 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Format idle time display (MM:SS)
+  // Format idle time display (HH:MM:SS or MM:SS)
   const formatIdleTime = (sec: number) => {
-    const m = Math.floor(sec / 60);
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
     const s = sec % 60;
+    if (h > 0) {
+      return `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+    }
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 

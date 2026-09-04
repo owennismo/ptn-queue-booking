@@ -45,14 +45,14 @@ export async function onRequestPost(context: { request: Request; env: any }) {
         role: staff.role, // 'super_admin' | 'warehouse_officer' | 'security_gate'
         role_name: staff.role_name,
         ip: clientIp,
-      }, 28800);
+      }, 3600); // 1 hour (3600 seconds)
 
       return new Response(
         JSON.stringify({
           success: true,
           message: `เข้าสู่ระบบสำเร็จ: ยินดีต้อนรับ ${staff.full_name}`,
           token,
-          expires_in: 28800,
+          expires_in: 3600,
           staff: {
             id: staff.id,
             username: staff.username,
