@@ -132,23 +132,7 @@ const DEFAULT_STAFF: StaffUser[] = [
   },
 ];
 
-const DEFAULT_BOOKINGS: Booking[] = [
-  {
-    booking_id: 'PTN-DEMO-001',
-    user_phone: '081-234-5678',
-    carrier_name: 'Kerry Express',
-    client_name: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
-    pallet_count: 5,
-    vehicle_count: 1,
-    requested_date: '2026-09-03',
-    requested_time: '09:30 - 10:30',
-    driver_name: 'สมชาย ใจดี',
-    license_plate: '1กข-9999 กทม.',
-    notes: 'สินค้าควบคุมอุณหภูมิ 2-8 องศา',
-    status: 'Pending',
-    created_at: '2026-09-02 12:00:00',
-  },
-];
+const DEFAULT_BOOKINGS: Booking[] = [];
 
 // Global in-memory cache for instant responses
 const globalStore = (globalThis as any).__PTN_STORE__ || {
@@ -782,6 +766,29 @@ export class DataStore {
       return globalStore.bookings;
     }
     return globalStore.bookings;
+  }
+
+  async clearAllBookings(operator = 'Super Admin', ip = '127.0.0.1'): Promise<number> {
+    const previousCount = (await this.getAllBookings()).length;
+    globalStore.bookings = [];
+    await this.putKV('bookings', []);
+
+    if (this.d1) {
+      try {
+        await this.d1.prepare('DELETE FROM bookings').run();
+      } catch (e) {
+        console.error('D1 delete bookings error:', e);
+      }
+    }
+
+    await this.addAuditLog(
+      'DELETE_STAFF',
+      `ล้างข้อมูลคิวจองทั้งหมดในระบบเรียบร้อยแล้ว (${previousCount} รายการ)`,
+      operator,
+      ip
+    );
+
+    return previousCount;
   }
 
   async createBooking(data: any): Promise<Booking> {

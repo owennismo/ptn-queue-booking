@@ -589,6 +589,30 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Clear all bookings (Super Admin)
+  const [clearingAllBookings, setClearingAllBookings] = useState(false);
+
+  const handleClearAllBookings = async () => {
+    if (!window.confirm('⚠️ คุณแน่ใจหรือไม่ว่าต้องการ "ล้างข้อมูลคิวจองทั้งหมด" ในระบบ?\nข้อมูลคิวการจองจะถูกลบออกทั้งหมดอย่างถาวร')) {
+      return;
+    }
+    setClearingAllBookings(true);
+    try {
+      const res = await authFetch('/api/admin/bookings', {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'ล้างข้อมูลไม่สำเร็จ');
+      showToast(data.message || 'ล้างข้อมูลคิวจองทั้งหมดสำเร็จ', 'success');
+      setBookings([]);
+      fetchForecast();
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการล้างข้อมูล', 'error');
+    } finally {
+      setClearingAllBookings(false);
+    }
+  };
+
   // Open Edit Queue Status Modal
   const openEditStatusModal = (booking: Booking) => {
     setEditingStatusBooking(booking);
@@ -1518,6 +1542,19 @@ export default function AdminDashboardPage() {
                     <Printer className="w-3.5 h-3.5 text-slate-600" />
                     <span>พิมพ์ใบสรุป</span>
                   </button>
+
+                  {isSuperAdmin && bookings.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAllBookings}
+                      disabled={clearingAllBookings}
+                      className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                      title="ล้างข้อมูลคิวจองทั้งหมดในระบบ (เฉพาะ Super Admin)"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                      <span>{clearingAllBookings ? 'กำลังล้าง...' : 'ล้างคิวทั้งหมด'}</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
