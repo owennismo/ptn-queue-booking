@@ -720,11 +720,16 @@ export class DataStore {
     return item || null;
   }
 
-  async searchBookings(phone?: string, id?: string): Promise<Booking[]> {
+  async searchBookings(phone?: string, id?: string, ids?: string[]): Promise<Booking[]> {
     const bookings = await this.getAllBookings();
     if (id) {
       const cleanId = id.trim().toUpperCase();
       return bookings.filter((b: Booking) => b.booking_id.toUpperCase().includes(cleanId));
+    }
+
+    if (ids && ids.length > 0) {
+      const upperIds = ids.map((i) => i.trim().toUpperCase());
+      return bookings.filter((b: Booking) => upperIds.includes(b.booking_id.toUpperCase()));
     }
 
     if (phone) {
@@ -734,8 +739,8 @@ export class DataStore {
       );
     }
 
-    // Return all bookings if no search filter provided
-    return bookings;
+    // Default: for privacy protection, return empty array if no filter is provided
+    return [];
   }
 
   async getAdminBookings(date?: string | null, status?: string | null, search?: string | null): Promise<Booking[]> {

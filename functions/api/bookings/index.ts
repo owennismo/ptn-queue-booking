@@ -72,9 +72,11 @@ export async function onRequestGet(context: { request: Request; env: any }) {
     const url = new URL(request.url);
     const phone = url.searchParams.get('phone');
     const id = url.searchParams.get('id');
+    const idsParam = url.searchParams.get('ids');
+    const ids = idsParam ? idsParam.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
 
     const store = new DataStore(env);
-    const bookings = await store.searchBookings(phone || undefined, id || undefined);
+    const bookings = await store.searchBookings(phone || undefined, id || undefined, ids);
 
     if (id && bookings.length === 0) {
       return new Response(JSON.stringify({ error: 'ไม่พบคิวการจองนี้ในระบบ' }), {
