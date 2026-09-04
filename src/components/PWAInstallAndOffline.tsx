@@ -14,6 +14,37 @@ export default function PWAInstallAndOffline() {
   const [isIOS, setIsIOS] = useState(false);
   const [showIOSPrompt, setShowIOSPrompt] = useState(false);
 
+  // Dynamically sync manifest and apple-touch-icon for public vs admin
+  useEffect(() => {
+    const targetManifest = isAdmin ? '/admin-manifest.json' : '/manifest.json';
+    const targetAppleIcon = isAdmin ? '/admin-apple-touch-icon.png' : '/apple-touch-icon.png';
+    const targetFavicon = isAdmin ? '/admin-favicon.png' : '/favicon.png';
+
+    // 1. Manifest Link
+    let manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement;
+    if (manifestLink) {
+      if (manifestLink.getAttribute('href') !== targetManifest) {
+        manifestLink.setAttribute('href', targetManifest);
+      }
+    } else {
+      manifestLink = document.createElement('link');
+      manifestLink.rel = 'manifest';
+      manifestLink.href = targetManifest;
+      document.head.appendChild(manifestLink);
+    }
+
+    // 2. Apple Touch Icon Link
+    let appleLink = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement;
+    if (appleLink) {
+      appleLink.setAttribute('href', targetAppleIcon);
+    } else {
+      appleLink = document.createElement('link');
+      appleLink.rel = 'apple-touch-icon';
+      appleLink.href = targetAppleIcon;
+      document.head.appendChild(appleLink);
+    }
+  }, [isAdmin]);
+
   useEffect(() => {
     // 1. Service Worker Registration
     if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
