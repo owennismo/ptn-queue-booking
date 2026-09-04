@@ -47,8 +47,10 @@ import {
   ArrowDown,
   Sparkles,
   CheckCheck,
+  Check,
   FileSpreadsheet,
   QrCode,
+  PackageCheck,
 } from 'lucide-react';
 import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole, BookingStatus } from '@/lib/types';
 import QRScannerModal from '@/components/QRScannerModal';
@@ -152,7 +154,16 @@ export default function AdminDashboardPage() {
   const [editingStatusBooking, setEditingStatusBooking] = useState<Booking | null>(null);
   const [targetStatus, setTargetStatus] = useState<BookingStatus>('Approved');
   const [statusChangeReason, setStatusChangeReason] = useState('');
+  const [editActualPalletInput, setEditActualPalletInput] = useState<number | string>('');
+  const [editReceivingNotesInput, setEditReceivingNotesInput] = useState('');
   const [statusSubmitting, setStatusSubmitting] = useState(false);
+
+  // Complete Receiving & Goods Inspection Modal State
+  const [completeModalOpen, setCompleteModalOpen] = useState(false);
+  const [completingBooking, setCompletingBooking] = useState<Booking | null>(null);
+  const [actualPalletInput, setActualPalletInput] = useState<number | string>('');
+  const [receivingNotesInput, setReceivingNotesInput] = useState('');
+  const [completeSubmitting, setCompleteSubmitting] = useState(false);
 
   // QR Scanner Modal State
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -527,6 +538,8 @@ export default function AdminDashboardPage() {
     setEditingStatusBooking(booking);
     setTargetStatus(booking.status);
     setStatusChangeReason('');
+    setEditActualPalletInput(booking.actual_pallet_count !== undefined && booking.actual_pallet_count !== null ? booking.actual_pallet_count : booking.pallet_count);
+    setEditReceivingNotesInput(booking.receiving_notes || '');
     setEditStatusModalOpen(true);
   };
 
@@ -542,12 +555,24 @@ export default function AdminDashboardPage() {
 
     setStatusSubmitting(true);
     try {
+      const payload: any = {
+        status: targetStatus,
+        admin_reason: statusChangeReason.trim() || `ปรับเปลี่ยนสถานะเป็น ${targetStatus} โดย ${operatorName}`,
+      };
+
+      if (targetStatus === 'Completed' || targetStatus === 'Receiving') {
+        const actualCount = parseInt(String(editActualPalletInput), 10);
+        if (!isNaN(actualCount)) {
+          payload.actual_pallet_count = actualCount;
+        }
+        if (editReceivingNotesInput.trim()) {
+          payload.receiving_notes = editReceivingNotesInput.trim();
+        }
+      }
+
       const res = await authFetch(`/api/admin/bookings/${editingStatusBooking.booking_id}`, {
         method: 'PATCH',
-        body: JSON.stringify({
-          status: targetStatus,
-          admin_reason: statusChangeReason.trim() || `ปรับเปลี่ยนสถานะเป็น ${targetStatus} โดย ${operatorName}`,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -565,6 +590,69 @@ export default function AdminDashboardPage() {
       showToast(err.message || 'เกิดข้อผิดพลาดในการแก้ไขสถานะคิว', 'error');
     } finally {
       setStatusSubmitting(false);
+    }
+  };
+
+  // Open Complete Receiving & Inspect Goods Modal
+  const openCompleteModal = (booking: Booking) => {
+    setCompletingBooking(booking);
+    setActualPalletInput(booking.actual_pallet_count !== undefined && booking.actual_pallet_count !== null ? booking.actual_pallet_count : booking.pallet_count);
+    setReceivingNotesInput(booking.receiving_notes || '');
+    setCompleteModalOpen(true);
+  };
+
+  // Handle Complete Receiving Form Submit
+  const handleCompleteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!completingBooking) return;
+
+    const actual = parseInt(String(actualPalletInput), 10);
+    if (isNaN(actual) || actual < 0) {
+      showToast('กรุณาระบุจำนวนลังที่รับจริงเป็นตัวเลขที่ถูกต้อง', 'error');
+      return;
+    }
+
+    if (actual < completingBooking.pallet_count && !receivingNotesInput.trim()) {
+      showToast('กรณีสินค้ามาไม่ครบ กรุณาระบุหมายเหตุการตรวจรับ (เช่น เอกสาร DO/PO หรือสาเหตุที่ขาดส่ง)', 'error');
+      return;
+    }
+
+    setCompleteSubmitting(true);
+    try {
+      const isPartial = actual < completingBooking.pallet_count;
+      const isOver = actual > completingBooking.pallet_count;
+      const resultLabel = isPartial
+        ? `รับไม่ครบ (รับจริง ${actual}/${completingBooking.pallet_count} ลัง ขาด ${completingBooking.pallet_count - actual} ลัง)`
+        : isOver
+        ? `รับเกิน (รับจริง ${actual}/${completingBooking.pallet_count} ลัง)`
+        : `รับครบถ้วน (${actual} ลัง)`;
+
+      const res = await authFetch(`/api/admin/bookings/${completingBooking.booking_id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: 'Completed',
+          actual_pallet_count: actual,
+          receiving_notes: receivingNotesInput.trim() || null,
+          admin_reason: `ตรวจรับเสร็จสิ้น: ${resultLabel} โดย ${operatorName}`,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      showToast(`ตรวจรับคิว ${completingBooking.booking_id} เสร็จสมบูรณ์แล้ว (${resultLabel})`);
+      setCompleteModalOpen(false);
+      setCompletingBooking(null);
+      setActualPalletInput('');
+      setReceivingNotesInput('');
+      fetchBookings();
+      fetchForecast();
+      if (selectedBooking?.booking_id === completingBooking.booking_id) {
+        setSelectedBooking(data.booking);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการบันทึกตรวจรับสินค้า', 'error');
+    } finally {
+      setCompleteSubmitting(false);
     }
   };
 
@@ -741,7 +829,11 @@ export default function AdminDashboardPage() {
       'บริษัทเจ้าของสินค้า/ผู้ส่ง',
       'ประเภทสินค้า',
       'ประเภทรถ',
-      'จำนวนลัง',
+      'จำนวนลังที่จอง',
+      'จำนวนลังที่รับจริง',
+      'ผลการตรวจรับ',
+      'หมายเหตุการตรวจรับสินค้า',
+      'ผู้ตรวจรับสินค้า',
       'จำนวนรถ (คัน)',
       'ชื่อผู้ส่งสินค้า',
       'ทะเบียนรถ',
@@ -760,6 +852,16 @@ export default function AdminDashboardPage() {
       b.cargo_type || 'ยาและเวชภัณฑ์ทั่วไป',
       b.vehicle_type || 'รถกระบะ 4 ล้อ',
       b.pallet_count,
+      b.actual_pallet_count !== undefined && b.actual_pallet_count !== null ? b.actual_pallet_count : '-',
+      b.actual_pallet_count !== undefined && b.actual_pallet_count !== null
+        ? b.actual_pallet_count < b.pallet_count
+          ? `ไม่ครบ (ขาด ${b.pallet_count - b.actual_pallet_count} ลัง)`
+          : b.actual_pallet_count > b.pallet_count
+          ? `เกิน (+${b.actual_pallet_count - b.pallet_count} ลัง)`
+          : 'ครบถ้วน'
+        : '-',
+      b.receiving_notes || '-',
+      b.received_by || '-',
       b.vehicle_count,
       b.driver_name || '-',
       b.license_plate || '-',
@@ -1187,6 +1289,7 @@ export default function AdminDashboardPage() {
                     <option value="CheckedIn">🚗 ตรวจรับเข้าแล้ว (Checked-in)</option>
                     <option value="Receiving">📦 กำลังลงสินค้า (Receiving)</option>
                     <option value="Completed">✨ เสร็จสิ้นสมบูรณ์ (Completed)</option>
+                    <option value="Partial">⚠️ เฉพาะสินค้ามาไม่ครบ (Partial Delivery)</option>
                     <option value="Rejected">❌ ไม่อนุมัติ (Rejected)</option>
                     <option value="Cancelled">🚫 ยกเลิกแล้ว (Cancelled)</option>
                   </select>
@@ -1326,8 +1429,32 @@ export default function AdminDashboardPage() {
                           <td className="py-4 px-4 font-medium text-slate-800">
                             {item.client_name}
                           </td>
-                          <td className="py-4 px-4 text-center font-bold text-slate-800">
-                            {item.pallet_count} ลัง <span className="text-[11px] font-normal text-slate-400">({item.vehicle_count} คัน)</span>
+                          <td className="py-4 px-4 text-center">
+                            <div className="font-bold text-slate-900">
+                              {item.pallet_count} ลัง <span className="text-[11px] font-normal text-slate-400">({item.vehicle_count} คัน)</span>
+                            </div>
+                            {item.actual_pallet_count !== undefined && item.actual_pallet_count !== null && (
+                              <div className="mt-1 flex justify-center">
+                                {item.actual_pallet_count < item.pallet_count ? (
+                                  <span
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-bold shadow-2xs cursor-help"
+                                    title={item.receiving_notes ? `หมายเหตุ: ${item.receiving_notes}` : `สินค้ามาไม่ครบ (ขาด ${item.pallet_count - item.actual_pallet_count} ลัง)`}
+                                  >
+                                    <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                                    <span>รับจริง {item.actual_pallet_count} ลัง (ขาด {item.pallet_count - item.actual_pallet_count})</span>
+                                  </span>
+                                ) : item.actual_pallet_count > item.pallet_count ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-100 border border-blue-300 text-blue-900 text-[10px] font-bold">
+                                    <span>รับจริง {item.actual_pallet_count} ลัง (+{item.actual_pallet_count - item.pallet_count})</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 text-[10px] font-bold">
+                                    <Check className="w-3 h-3 text-emerald-600 shrink-0" />
+                                    <span>รับครบ {item.actual_pallet_count} ลัง</span>
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </td>
                           <td className="py-4 px-4 whitespace-nowrap">
                             {getStatusBadge(item.status)}
@@ -1382,15 +1509,15 @@ export default function AdminDashboardPage() {
                                 </button>
                               )}
 
-                              {/* 4. If Receiving: Complete Receiving (for Warehouse) */}
+                              {/* 4. If Receiving: Complete Receiving with Inspection (for Warehouse) */}
                               {!isSecurityOnly && item.status === 'Receiving' && (
                                 <button
-                                  onClick={() => handleWorkflowAction(item, 'Completed', 'เสร็จสิ้นสมบูรณ์')}
+                                  onClick={() => openCompleteModal(item)}
                                   className="px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1"
-                                  title="ลงสินค้าและตรวจรับเสร็จสมบูรณ์"
+                                  title="ตรวจนับสินค้าและบันทึกเสร็จสิ้น"
                                 >
                                   <CheckCheck className="w-3.5 h-3.5" />
-                                  <span>เสร็จสิ้น</span>
+                                  <span>ตรวจรับเสร็จสิ้น</span>
                                 </button>
                               )}
 
@@ -2278,6 +2405,43 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
+            {/* If Target Status is Completed or Receiving, show actual pallet count & notes */}
+            {(targetStatus === 'Completed' || targetStatus === 'Receiving') && (
+              <div className="p-4 bg-teal-50/60 rounded-2xl border border-teal-200/80 space-y-3">
+                <div className="flex items-center gap-2 text-teal-900 font-bold text-xs">
+                  <PackageCheck className="w-4 h-4 text-teal-600" />
+                  <span>บันทึกผลการตรวจนับสินค้าจริง (Goods Inspection)</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-700">
+                      จำนวนลังที่รับจริง (ยอดจอง {editingStatusBooking.pallet_count} ลัง)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editActualPalletInput}
+                      onChange={(e) => setEditActualPalletInput(e.target.value)}
+                      placeholder={`เช่น ${editingStatusBooking.pallet_count}`}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-700">
+                      หมายเหตุการตรวจรับ (ระบุ DO / สาเหตุหากไม่ครบ)
+                    </label>
+                    <input
+                      type="text"
+                      value={editReceivingNotesInput}
+                      onChange={(e) => setEditReceivingNotesInput(e.target.value)}
+                      placeholder="เช่น ขาด 5 ลัง ตาม DO#123..."
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Reason / Admin Notes */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
@@ -2323,10 +2487,173 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
+      {/* 📦 COMPLETE RECEIVING & GOODS INSPECTION MODAL */}
+      {completeModalOpen && completingBooking && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <form
+            onSubmit={handleCompleteSubmit}
+            className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 border border-slate-200 max-h-[90vh] overflow-y-auto animate-in fade-in duration-200"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5 text-slate-900">
+                <div className="w-10 h-10 rounded-2xl bg-teal-100 text-teal-800 flex items-center justify-center font-bold">
+                  <CheckCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">บันทึกตรวจรับสินค้าเสร็จสิ้น</h3>
+                  <p className="text-[11px] text-slate-500 font-mono">Booking ID: {completingBooking.booking_id}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCompleteModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Shipment Summary */}
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-800 text-sm">{completingBooking.carrier_name}</span>
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800">
+                  กำลังลงสินค้า
+                </span>
+              </div>
+              <div className="text-slate-600 text-[11px]">
+                ผู้ส่ง: <strong>{completingBooking.client_name}</strong> | ประเภท: <strong>{completingBooking.cargo_type || 'ยาและเวชภัณฑ์'}</strong>
+              </div>
+              <div className="text-slate-700 font-semibold text-xs pt-1">
+                ยอดที่แจ้งจองไว้: <strong className="text-emerald-700 text-sm">{completingBooking.pallet_count} ลัง</strong> ({completingBooking.vehicle_count} คัน)
+              </div>
+            </div>
+
+            {/* Actual Count Input & Quick Calculation */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-800 block">
+                จำนวนลังที่ตรวจรับจริง (Actual Received Quantity) <span className="text-rose-500">*</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  value={actualPalletInput}
+                  onChange={(e) => setActualPalletInput(e.target.value)}
+                  placeholder={`ระบุจำนวนลัง เช่น ${completingBooking.pallet_count}`}
+                  className="flex-1 px-4 py-2.5 bg-slate-50 border-2 border-slate-300 rounded-xl font-bold text-slate-900 text-base focus:border-teal-600 focus:bg-white focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setActualPalletInput(completingBooking.pallet_count)}
+                  className="px-3.5 py-2.5 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-xl text-xs font-bold transition whitespace-nowrap"
+                  title="ตั้งค่าเท่ากับยอดจอง"
+                >
+                  รับครบ {completingBooking.pallet_count} ลัง
+                </button>
+              </div>
+
+              {/* Discrepancy Status Indicator */}
+              {actualPalletInput !== '' && !isNaN(parseInt(String(actualPalletInput), 10)) && (
+                <div className="pt-1">
+                  {parseInt(String(actualPalletInput), 10) < completingBooking.pallet_count ? (
+                    <div className="p-3 bg-amber-50 border border-amber-300 rounded-2xl flex items-start gap-2 text-amber-900 text-xs">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="block font-bold">⚠️ สินค้ามาไม่ครบ (Partial Delivery)</strong>
+                        <span>
+                          ขาดส่งจำนวน{' '}
+                          <strong className="text-rose-700 font-extrabold text-sm">
+                            {completingBooking.pallet_count - parseInt(String(actualPalletInput), 10)} ลัง
+                          </strong>{' '}
+                          (กรุณาระบุหมายเหตุการขาดส่งด้านล่าง)
+                        </span>
+                      </div>
+                    </div>
+                  ) : parseInt(String(actualPalletInput), 10) > completingBooking.pallet_count ? (
+                    <div className="p-3 bg-blue-50 border border-blue-300 rounded-2xl flex items-start gap-2 text-blue-900 text-xs">
+                      <AlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="block font-bold">ℹ️ สินค้ามาเกินจำนวนที่จอง</strong>
+                        <span>
+                          เกินจำนวน{' '}
+                          <strong className="text-blue-800 font-extrabold text-sm">
+                            +{parseInt(String(actualPalletInput), 10) - completingBooking.pallet_count} ลัง
+                          </strong>
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center gap-2 text-emerald-900 text-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div>
+                        <strong className="block font-bold">✅ ตรวจรับสินค้าครบถ้วนสมบูรณ์ 100%</strong>
+                        <span>ยอดรับจริงตรงตามที่แจ้งจองไว้ ({actualPalletInput} ลัง)</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Receiving Notes / Discrepancy Reason */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                <span>
+                  หมายเหตุการตรวจรับสินค้า{' '}
+                  {actualPalletInput !== '' &&
+                    parseInt(String(actualPalletInput), 10) < completingBooking.pallet_count && (
+                      <span className="text-rose-600 font-bold">* (จำเป็นต้องระบุสาเหตุ/เลข DO)</span>
+                    )}
+                </span>
+                <span className="text-[10px] text-slate-400">บันทึกลงระบบ & รายงาน</span>
+              </label>
+              <textarea
+                rows={3}
+                required={
+                  actualPalletInput !== '' &&
+                  parseInt(String(actualPalletInput), 10) < completingBooking.pallet_count
+                }
+                value={receivingNotesInput}
+                onChange={(e) => setReceivingNotesInput(e.target.value)}
+                placeholder="เช่น สินค้าขาดส่ง 5 ลัง เนื่องจากรอบการผลิตไม่ทัน ตามเอกสาร DO #DO-2026-0901, สภาพกล่องสมบูรณ์..."
+                className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-teal-500 focus:bg-white focus:outline-none"
+              />
+            </div>
+
+            {/* Inspector info */}
+            <div className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-xl flex items-center justify-between">
+              <span>ผู้ตรวจรับสินค้า: <strong className="text-slate-800">{operatorName}</strong></span>
+              <span className="text-teal-700 font-semibold">ปิดงาน & สำเร็จคิว</span>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setCompleteModalOpen(false)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="submit"
+                disabled={completeSubmitting}
+                className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 shadow-sm flex items-center gap-1.5"
+              >
+                <CheckCheck className="w-4 h-4" />
+                <span>{completeSubmitting ? 'กำลังบันทึก...' : 'ยืนยันปิดงานตรวจรับ'}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* 📄 BOOKING DETAIL DRAWER / MODAL */}
       {selectedBooking && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 border border-slate-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 border border-slate-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <span className="text-[11px] font-bold text-emerald-700 uppercase">รายละเอียดคิว</span>
@@ -2375,9 +2702,57 @@ export default function AdminDashboardPage() {
                 <span className="font-bold text-slate-800">{selectedBooking.vehicle_type || 'รถกระบะ 4 ล้อ'}</span>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl">
-                <span className="text-slate-400 block">จำนวนลัง / รถ</span>
+                <span className="text-slate-400 block">จำนวนลังที่จอง / รถ</span>
                 <span className="font-bold text-slate-800">{selectedBooking.pallet_count} ลัง ({selectedBooking.vehicle_count} คัน)</span>
               </div>
+
+              {/* Actual Received pallet count & inspection results */}
+              {selectedBooking.actual_pallet_count !== undefined && selectedBooking.actual_pallet_count !== null && (
+                <div className={`p-3 rounded-xl col-span-2 border ${
+                  selectedBooking.actual_pallet_count < selectedBooking.pallet_count
+                    ? 'bg-amber-50 border-amber-200 text-amber-950'
+                    : selectedBooking.actual_pallet_count > selectedBooking.pallet_count
+                    ? 'bg-blue-50 border-blue-200 text-blue-950'
+                    : 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold flex items-center gap-1">
+                      <PackageCheck className="w-4 h-4 text-emerald-700" />
+                      ผลการตรวจรับสินค้าจริง:
+                    </span>
+                    <span className="font-extrabold text-sm">
+                      {selectedBooking.actual_pallet_count} / {selectedBooking.pallet_count} ลัง
+                    </span>
+                  </div>
+                  <div className="text-[11px] mt-1">
+                    {selectedBooking.actual_pallet_count < selectedBooking.pallet_count ? (
+                      <span className="text-amber-800 font-bold">
+                        ⚠️ สินค้ามาไม่ครบ (ขาดส่ง {selectedBooking.pallet_count - selectedBooking.actual_pallet_count} ลัง)
+                      </span>
+                    ) : selectedBooking.actual_pallet_count > selectedBooking.pallet_count ? (
+                      <span className="text-blue-800 font-bold">
+                        ℹ️ สินค้ามาเกิน (+{selectedBooking.actual_pallet_count - selectedBooking.pallet_count} ลัง)
+                      </span>
+                    ) : (
+                      <span className="text-emerald-800 font-bold">
+                        ✅ ตรวจรับครบถ้วนสมบูรณ์ 100%
+                      </span>
+                    )}
+                  </div>
+                  {selectedBooking.receiving_notes && (
+                    <div className="text-[11px] mt-1.5 pt-1.5 border-t border-slate-200 text-slate-700">
+                      <strong>หมายเหตุการตรวจรับ:</strong> {selectedBooking.receiving_notes}
+                    </div>
+                  )}
+                  {selectedBooking.received_by && (
+                    <div className="text-[10px] text-slate-500 mt-1">
+                      ผู้ตรวจรับ: {selectedBooking.received_by}
+                      {selectedBooking.receiving_completed_at && ` (${selectedBooking.receiving_completed_at})`}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {(selectedBooking.driver_name || selectedBooking.license_plate) && (
                 <div className="p-3 bg-slate-50 rounded-xl col-span-2">
                   <span className="text-slate-400 block">ข้อมูลผู้ส่งสินค้าและทะเบียน</span>

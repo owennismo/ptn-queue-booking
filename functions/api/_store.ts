@@ -20,6 +20,10 @@ export interface Booking {
   admin_reason?: string | null;
   admin_action_date?: string | null;
   admin_action_by?: string | null;
+  actual_pallet_count?: number | null;
+  receiving_notes?: string | null;
+  received_by?: string | null;
+  receiving_completed_at?: string | null;
   created_at: string;
 }
 
@@ -742,7 +746,16 @@ export class DataStore {
       results = results.filter((b: Booking) => b.requested_date === date);
     }
     if (status && status !== 'All') {
-      results = results.filter((b: Booking) => b.status === status);
+      if (status === 'Partial') {
+        results = results.filter(
+          (b: Booking) =>
+            b.actual_pallet_count !== undefined &&
+            b.actual_pallet_count !== null &&
+            b.actual_pallet_count < b.pallet_count
+        );
+      } else {
+        results = results.filter((b: Booking) => b.status === status);
+      }
     }
     if (search) {
       const s = search.toLowerCase();
@@ -758,7 +771,18 @@ export class DataStore {
     return results;
   }
 
-  async updateBookingStatus(id: string, status: string, reason?: string | null, actionBy = 'Admin', ip = '127.0.0.1'): Promise<Booking | null> {
+  async updateBookingStatus(
+    id: string,
+    status: string,
+    reason?: string | null,
+    actionBy = 'Admin',
+    ip = '127.0.0.1',
+    extra?: {
+      actual_pallet_count?: number | null;
+      receiving_notes?: string | null;
+      received_by?: string | null;
+    }
+  ): Promise<Booking | null> {
     const cleanId = id.trim().toUpperCase();
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const bookings = await this.getAllBookings();
@@ -769,6 +793,22 @@ export class DataStore {
       item.admin_reason = reason || null;
       item.admin_action_date = nowStr;
       item.admin_action_by = actionBy;
+
+      if (extra) {
+        if (extra.actual_pallet_count !== undefined) {
+          item.actual_pallet_count = extra.actual_pallet_count;
+        }
+        if (extra.receiving_notes !== undefined) {
+          item.receiving_notes = extra.receiving_notes;
+        }
+        if (extra.received_by !== undefined) {
+          item.received_by = extra.received_by;
+        }
+        if (status === 'Completed' || status === 'Receiving') {
+          item.receiving_completed_at = nowStr;
+          item.received_by = extra.received_by || actionBy;
+        }
+      }
 
       globalStore.bookings = bookings;
       await this.putKV('bookings', bookings);
@@ -781,9 +821,13 @@ export class DataStore {
       else if (status === 'Receiving') logAction = 'RECEIVING_QUEUE';
       else if (status === 'Completed') logAction = 'COMPLETE_QUEUE';
 
+      const receivingInfo = item.actual_pallet_count !== undefined && item.actual_pallet_count !== null
+        ? ` [รับจริง: ${item.actual_pallet_count}/${item.pallet_count} ลัง]`
+        : '';
+
       await this.addAuditLog(
         logAction,
-        `เปลี่ยนสถานะคิว ${cleanId} เป็น ${status}${reason ? ` (เหตุผล: ${reason})` : ''}`,
+        `เปลี่ยนสถานะคิว ${cleanId} เป็น ${status}${receivingInfo}${reason ? ` (เหตุผล: ${reason})` : ''}`,
         actionBy,
         ip
       );

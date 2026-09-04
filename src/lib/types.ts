@@ -19,6 +19,10 @@ export interface Booking {
   admin_action_date?: string | null;
   admin_action_by?: string | null;
   admin_reason?: string | null;
+  actual_pallet_count?: number | null;
+  receiving_notes?: string | null;
+  received_by?: string | null;
+  receiving_completed_at?: string | null;
 }
 
 export interface TimeSlot {

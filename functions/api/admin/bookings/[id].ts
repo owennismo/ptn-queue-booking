@@ -13,7 +13,7 @@ export async function onRequestPatch(context: { params: any; request: Request; e
 
     const id = params.id;
     const body: any = await request.json();
-    const { status, admin_reason } = body;
+    const { status, admin_reason, actual_pallet_count, receiving_notes, received_by } = body;
     const operatorName = auth.payload?.operator || 'Admin';
     const clientIp = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
 
@@ -32,7 +32,18 @@ export async function onRequestPatch(context: { params: any; request: Request; e
     }
 
     const store = new DataStore(env);
-    const updated = await store.updateBookingStatus(id, status, admin_reason, operatorName, clientIp);
+    const updated = await store.updateBookingStatus(
+      id,
+      status,
+      admin_reason,
+      operatorName,
+      clientIp,
+      {
+        actual_pallet_count: actual_pallet_count !== undefined ? (parseInt(actual_pallet_count, 10) >= 0 ? parseInt(actual_pallet_count, 10) : null) : undefined,
+        receiving_notes: receiving_notes !== undefined ? receiving_notes : undefined,
+        received_by: received_by || operatorName,
+      }
+    );
 
     if (!updated) {
       return new Response(JSON.stringify({ error: 'ไม่พบรายการจองนี้' }), {
