@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { WifiOff, Wifi, Download, X, Smartphone, Share } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { WifiOff, Wifi, Download, X, Smartphone, Share, ShieldAlert } from 'lucide-react';
 
 export default function PWAInstallAndOffline() {
+  const pathname = usePathname();
+  const isAdmin = pathname.startsWith('/admin');
   const [isOffline, setIsOffline] = useState(false);
   const [wasOffline, setWasOffline] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -104,19 +107,32 @@ export default function PWAInstallAndOffline() {
       {showInstallBanner && deferredPrompt && (
         <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-50 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-slate-700 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom duration-200">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shrink-0 shadow-md">
-              <Smartphone className="w-5 h-5" />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 shadow-md ${
+              isAdmin ? 'bg-slate-800 border border-slate-600' : 'bg-emerald-600'
+            }`}>
+              {isAdmin ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src="/admin-icon-192.png" alt="PTN Admin" className="w-8 h-8 rounded-lg" />
+              ) : (
+                <Smartphone className="w-5 h-5" />
+              )}
             </div>
             <div>
-              <h4 className="font-bold text-xs sm:text-sm">ติดตั้งแอป PTN จองคิว</h4>
-              <p className="text-[11px] text-slate-300">เพิ่มลงหน้าจอมือถือเพื่อเปิดใช้งานได้สะดวกรวดเร็ว</p>
+              <h4 className="font-bold text-xs sm:text-sm">
+                {isAdmin ? 'ติดตั้งแอป PTN Admin' : 'ติดตั้งแอป PTN จองคิว'}
+              </h4>
+              <p className="text-[11px] text-slate-300">
+                {isAdmin ? 'ศูนย์ควบคุมคลังสินค้า เพิ่มลงหน้าจอเพื่อความสะดวก' : 'เพิ่มลงหน้าจอมือถือเพื่อเปิดใช้งานได้สะดวกรวดเร็ว'}
+              </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleInstallClick}
-              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition shadow-sm flex items-center gap-1.5"
+              className={`px-3.5 py-1.5 text-white text-xs font-bold rounded-xl transition shadow-sm flex items-center gap-1.5 ${
+                isAdmin ? 'bg-sky-600 hover:bg-sky-500' : 'bg-emerald-600 hover:bg-emerald-500'
+              }`}
             >
               <Download className="w-3.5 h-3.5" />
               <span>ติดตั้ง</span>
@@ -136,8 +152,15 @@ export default function PWAInstallAndOffline() {
         <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-50 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-slate-700 space-y-2 animate-in fade-in slide-in-from-bottom duration-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Smartphone className="w-4 h-4 text-emerald-400" />
-              <h4 className="font-bold text-xs">ติดตั้งบน iPhone / iPad</h4>
+              {isAdmin ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src="/admin-icon-192.png" alt="PTN Admin" className="w-5 h-5 rounded" />
+              ) : (
+                <Smartphone className="w-4 h-4 text-emerald-400" />
+              )}
+              <h4 className="font-bold text-xs">
+                {isAdmin ? 'ติดตั้ง PTN Admin บน iOS' : 'ติดตั้ง PTN จองคิว บน iOS'}
+              </h4>
             </div>
             <button onClick={handleDismiss} className="text-slate-400 hover:text-white">
               <X className="w-4 h-4" />

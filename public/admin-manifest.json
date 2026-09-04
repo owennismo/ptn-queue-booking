@@ -1,0 +1,31 @@
+{
+  "name": "PTN Admin - ศูนย์จัดการคิวคลังสินค้า",
+  "short_name": "PTN Admin",
+  "description": "ระบบศูนย์ควบคุมและบริหารจัดการคิวขนส่งสินค้า บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)",
+  "start_url": "/admin",
+  "id": "/admin",
+  "scope": "/admin",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/admin-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/admin-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/admin-apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
