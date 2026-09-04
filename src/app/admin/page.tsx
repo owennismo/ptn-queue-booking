@@ -52,6 +52,7 @@ import {
 } from 'lucide-react';
 import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole, BookingStatus } from '@/lib/types';
 import QRScannerModal from '@/components/QRScannerModal';
+import ThaiDatePicker from '@/components/ThaiDatePicker';
 import { formatThaiDate, formatThaiShortDate } from '@/lib/dateUtils';
 
 interface AuditLog {
@@ -1623,13 +1624,12 @@ export default function AdminDashboardPage() {
               <p className="text-xs text-slate-500">กำหนดวันหยุดทำการ หรือวันที่คลังสินค้าปิดปรับปรุง</p>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">เลือกวันที่ต้องการปิด</label>
-                <input
-                  type="date"
-                  required
+                <label className="text-xs font-semibold text-slate-700">เลือกวันที่ต้องการปิด (พ.ศ.)</label>
+                <ThaiDatePicker
                   value={newBlockedDate}
-                  onChange={(e) => setNewBlockedDate(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900"
+                  onChange={(date) => setNewBlockedDate(date)}
+                  placeholder="เลือกวันที่ต้องการปิด (พ.ศ.)"
+                  required
                 />
               </div>
 

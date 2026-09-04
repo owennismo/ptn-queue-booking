@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { formatThaiDate, formatThaiShortDate, formatPhoneMask } from '@/lib/dateUtils';
+import ThaiDatePicker from '@/components/ThaiDatePicker';
 
 interface Slot {
   id: number;
@@ -362,23 +363,22 @@ export default function BookingPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Date Input */}
-              <div className="space-y-1.5">
+              {/* Date Input with Thai Buddhist Era (พ.ศ.) Picker */}
+              <div className="space-y-1.5 sm:col-span-2">
                 <label className="block text-sm font-semibold text-slate-700">
-                  <span className="text-rose-500">*</span> วันที่ต้องการเข้าส่ง
+                  <span className="text-rose-500">*</span> วันที่ต้องการเข้าส่ง (ระบุเป็น วัน/เดือน/ปี พ.ศ.)
                 </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    min={getTodayStr()}
+                <div className="relative max-w-md">
+                  <ThaiDatePicker
                     value={requestedDate}
-                    onChange={(e) => setRequestedDate(e.target.value)}
+                    onChange={(newDate) => setRequestedDate(newDate)}
+                    minDate={getTodayStr()}
+                    placeholder="คลิกเพื่อเลือกวันที่ (ปฏิทินไทย พ.ศ.)"
                     required
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-slate-900 font-medium"
                   />
                 </div>
                 {requestedDate && (
-                  <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
+                  <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg max-w-md">
                     <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                     <span>วันที่เลือก: {formatThaiDateDisplay(requestedDate)}</span>
                   </div>
