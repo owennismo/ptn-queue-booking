@@ -3,7 +3,7 @@
   "short_name": "PTN Admin",
   "description": "ระบบศูนย์ควบคุมและบริหารจัดการคิวขนส่งสินค้า บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)",
   "start_url": "/admin",
-  "id": "/admin",
+  "id": "ptn-admin-app",
   "scope": "/admin",
   "display": "standalone",
   "background_color": "#0f172a",
