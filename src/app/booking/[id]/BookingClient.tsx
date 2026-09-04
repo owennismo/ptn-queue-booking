@@ -604,19 +604,19 @@ ${url}`;
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
           {/* Company Brand */}
           <Link href="/" className="flex items-center gap-3 self-start sm:self-auto group">
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white flex items-center justify-center font-black text-base shadow-md shadow-emerald-900/20 group-hover:scale-105 transition">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white flex items-center justify-center font-black text-lg shadow-md shadow-emerald-900/20 group-hover:scale-105 transition">
               P
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-slate-900 text-sm tracking-tight">
+                <span className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
                   PTN PHARMA CENTER
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                   พัฒนาเภสัช
                 </span>
               </div>
-              <span className="text-[11px] text-slate-500 font-medium block">
+              <span className="text-xs text-slate-600 font-medium block">
                 ระบบนัดหมายจองคิวส่งสินค้าคลังยาและเวชภัณฑ์
               </span>
             </div>
@@ -626,11 +626,11 @@ ${url}`;
           <div className="flex items-center gap-2 w-full sm:w-auto justify-start sm:justify-end flex-wrap">
             <a
               href="tel:0993787463"
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-xs font-bold transition shadow-2xs group"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-sm font-bold transition shadow-2xs group"
               title="โทรติดต่อแผนกรับสินค้าโดยตรง"
             >
-              <div className="w-5 h-5 rounded-lg bg-emerald-600 text-white flex items-center justify-center group-hover:scale-110 transition shadow-xs">
-                <Phone className="w-3 h-3" />
+              <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center group-hover:scale-110 transition shadow-xs">
+                <Phone className="w-3.5 h-3.5" />
               </div>
               <span>
                 แผนกรับสินค้า: <strong className="text-emerald-700 font-mono">099-378-7463</strong>
@@ -641,11 +641,11 @@ ${url}`;
               href="https://line.me/ti/p/~ptnexpress"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#06C755]/10 hover:bg-[#06C755]/20 text-[#048737] border border-[#06C755]/30 text-xs font-bold transition shadow-2xs group"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#06C755]/10 hover:bg-[#06C755]/20 text-[#048737] border border-[#06C755]/30 text-sm font-bold transition shadow-2xs group"
               title="เพิ่มเพื่อนทาง LINE"
             >
-              <div className="w-5 h-5 rounded-lg bg-[#06C755] text-white flex items-center justify-center group-hover:scale-110 transition shadow-xs">
-                <MessageCircle className="w-3.5 h-3.5" />
+              <div className="w-6 h-6 rounded-lg bg-[#06C755] text-white flex items-center justify-center group-hover:scale-110 transition shadow-xs">
+                <MessageCircle className="w-4 h-4" />
               </div>
               <span>
                 LINE ID: <strong className="text-[#036d2c] font-mono">ptnexpress</strong>
@@ -661,7 +661,7 @@ ${url}`;
           <div className="flex flex-wrap items-center justify-between gap-2 no-print">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-emerald-700 transition"
+              className="inline-flex items-center gap-1.5 text-base font-semibold text-slate-600 hover:text-emerald-700 transition"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>จองคิวใหม่</span>
@@ -678,16 +678,16 @@ ${url}`;
             </button>
             <button
               onClick={handleCopyLink}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-sm"
             >
-              <Copy className="w-3.5 h-3.5" />
+              <Copy className="w-4 h-4" />
               <span>{copied ? 'คัดลอกแล้ว!' : 'คัดลอกลิงก์'}</span>
             </button>
             <button
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-sm"
             >
-              <Printer className="w-3.5 h-3.5" />
+              <Printer className="w-4 h-4" />
               <span>พิมพ์</span>
             </button>
           </div>
@@ -696,24 +696,24 @@ ${url}`;
         {/* Digital Ticket Card */}
         <div className="ticket-card bg-white rounded-3xl border border-slate-200/80 shadow-xl overflow-hidden">
           <div className={`bg-gradient-to-r ${statusInfo.headerBg} p-6 sm:p-8 text-white text-center relative`}>
-            <p className="text-xs uppercase tracking-widest text-emerald-100 font-semibold mb-1">
+            <p className="text-xs sm:text-sm uppercase tracking-widest text-emerald-100 font-semibold mb-1">
               บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)
             </p>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight">บัตรคิวเข้าส่งสินค้าดิจิทัล</h1>
-            <div className="mt-4 inline-block bg-white/15 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/30 text-sm font-mono font-bold tracking-wider">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">บัตรคิวเข้าส่งสินค้าดิจิทัล</h1>
+            <div className="mt-4 inline-block bg-white/15 backdrop-blur-md px-5 py-2 rounded-full border border-white/30 text-base sm:text-lg font-mono font-bold tracking-wider">
               {booking.booking_id}
             </div>
           </div>
 
           <div className="p-6 sm:p-8 space-y-6">
             {/* Status Alert Banner */}
-            <div className={`p-4 rounded-2xl border flex items-start gap-4 ${statusInfo.badgeBg}`}>
-              <div className="shrink-0">{statusInfo.icon}</div>
+            <div className={`p-5 rounded-2xl border flex items-start gap-4 ${statusInfo.badgeBg}`}>
+              <div className="shrink-0 mt-0.5">{statusInfo.icon}</div>
               <div>
-                <h3 className="font-bold text-base">{statusInfo.title}</h3>
-                <p className="text-xs sm:text-sm mt-0.5 opacity-90">{statusInfo.desc}</p>
+                <h3 className="font-bold text-lg sm:text-xl">{statusInfo.title}</h3>
+                <p className="text-sm sm:text-base mt-1 opacity-95">{statusInfo.desc}</p>
                 {booking.admin_reason && (
-                  <div className="mt-2.5 p-3 bg-white/80 rounded-xl border border-rose-200 text-xs text-rose-900 font-medium">
+                  <div className="mt-3 p-3 bg-white/90 rounded-xl border border-rose-200 text-sm text-rose-900 font-medium">
                     <span className="font-bold">เหตุผลจากเจ้าหน้าที่:</span> {booking.admin_reason}
                   </div>
                 )}
@@ -730,12 +730,12 @@ ${url}`;
                 type="button"
                 onClick={handleDownloadImage}
                 disabled={downloadingImage}
-                className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-xs sm:text-sm shadow-md shadow-emerald-200 transition active:scale-[0.98]"
+                className="flex items-center justify-center gap-2 px-4 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm sm:text-base shadow-md shadow-emerald-200 transition active:scale-[0.98]"
               >
                 {downloadingImage ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <Download className="w-4 h-4" />
+                  <Download className="w-5 h-5" />
                 )}
                 <span>บันทึกเป็นรูปภาพ</span>
               </button>
@@ -744,9 +744,9 @@ ${url}`;
               <button
                 type="button"
                 onClick={handleShareLine}
-                className="flex items-center justify-center gap-2 px-4 py-3 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-2xl font-bold text-xs sm:text-sm shadow-md shadow-green-200 transition active:scale-[0.98]"
+                className="flex items-center justify-center gap-2 px-4 py-3.5 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-2xl font-bold text-sm sm:text-base shadow-md shadow-green-200 transition active:scale-[0.98]"
               >
-                <Share2 className="w-4 h-4" />
+                <Share2 className="w-5 h-5" />
                 <span>แชร์เข้า LINE</span>
               </button>
 
@@ -754,30 +754,30 @@ ${url}`;
               <button
                 type="button"
                 onClick={handleOpenGoogleMaps}
-                className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-xs sm:text-sm shadow-md shadow-slate-300 transition active:scale-[0.98]"
+                className="flex items-center justify-center gap-2 px-4 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-sm sm:text-base shadow-md shadow-slate-300 transition active:scale-[0.98]"
               >
-                <MapPin className="w-4 h-4 text-emerald-400" />
+                <MapPin className="w-5 h-5 text-emerald-400" />
                 <span>แผนที่ GPS นำทาง</span>
               </button>
             </div>
 
             {/* QR Code Pass Box */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-100">
-              <div className="text-center sm:text-left space-y-1">
+              <div className="text-center sm:text-left space-y-1.5">
                 <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Digital Pass QR</span>
-                <h4 className="font-bold text-slate-800 text-base">สแกนตรวจสอบที่คลังสินค้า</h4>
-                <p className="text-xs text-slate-500 max-w-xs">
+                <h4 className="font-bold text-slate-900 text-lg sm:text-xl">สแกนตรวจสอบที่คลังสินค้า</h4>
+                <p className="text-sm text-slate-600 max-w-sm">
                   แสดง QR Code นี้ให้เจ้าหน้าที่ตรวจสอบคิวส่ง หรือฝ่ายรับสินค้าสแกนเมื่อเดินทางมาถึง
                 </p>
               </div>
-              <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-sm shrink-0">
+              <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-sm shrink-0">
                 <QRCodeSVG
                   value={
                     typeof window !== 'undefined'
                       ? `${window.location.origin}/booking/${booking.booking_id}`
                       : `https://ptn-queue-booking.pages.dev/booking/${booking.booking_id}`
                   }
-                  size={120}
+                  size={130}
                   level="H"
                   includeMargin={false}
                 />
@@ -788,58 +788,58 @@ ${url}`;
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               {/* Date in Thai format */}
               <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1">
-                <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-emerald-600" /> วันที่เข้าส่ง (พ.ศ.)
+                <span className="text-sm text-slate-600 font-semibold flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-emerald-600" /> วันที่เข้าส่ง (พ.ศ.)
                 </span>
-                <p className="font-bold text-slate-900 text-base">{formatThaiDate(booking.requested_date)}</p>
-                <p className="text-[11px] text-slate-400 font-mono">({booking.requested_date})</p>
+                <p className="font-bold text-slate-900 text-lg">{formatThaiDate(booking.requested_date)}</p>
+                <p className="text-xs text-slate-500 font-mono">({booking.requested_date})</p>
               </div>
 
               {/* Time Slot */}
               <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1">
-                <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-emerald-600" /> ช่วงเวลานัดหมาย
+                <span className="text-sm text-slate-600 font-semibold flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-emerald-600" /> ช่วงเวลานัดหมาย
                 </span>
-                <p className="font-bold text-slate-900 text-base">{booking.requested_time}</p>
+                <p className="font-bold text-slate-900 text-lg">{booking.requested_time}</p>
               </div>
 
               {/* Carrier */}
               <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1">
-                <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                  <Truck className="w-3.5 h-3.5 text-emerald-600" /> บริษัทขนส่ง
+                <span className="text-sm text-slate-600 font-semibold flex items-center gap-1.5">
+                  <Truck className="w-4 h-4 text-emerald-600" /> บริษัทขนส่ง
                 </span>
-                <p className="font-bold text-slate-900 text-base">{booking.carrier_name}</p>
+                <p className="font-bold text-slate-900 text-lg">{booking.carrier_name}</p>
               </div>
 
               {/* Phone */}
               <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1">
-                <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5 text-emerald-600" /> เบอร์โทรติดต่อ
+                <span className="text-sm text-slate-600 font-semibold flex items-center gap-1.5">
+                  <Phone className="w-4 h-4 text-emerald-600" /> เบอร์โทรติดต่อ
                 </span>
-                <p className="font-bold text-slate-900 text-base">{booking.user_phone}</p>
+                <p className="font-bold text-slate-900 text-lg font-mono">{booking.user_phone}</p>
               </div>
 
               {/* Client Name */}
               <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1 sm:col-span-2">
-                <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-emerald-600" /> บริษัทเจ้าของสินค้า / ผู้ส่ง
+                <span className="text-sm text-slate-600 font-semibold flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4 text-emerald-600" /> บริษัทเจ้าของสินค้า / ผู้ส่ง
                 </span>
-                <p className="font-bold text-slate-900 text-base">{booking.client_name}</p>
+                <p className="font-bold text-slate-900 text-lg">{booking.client_name}</p>
               </div>
 
               {/* Cargo Category (ยาธรรมดา vs ยาเย็น) */}
               <div className={`p-4 rounded-2xl border space-y-1 sm:col-span-2 ${
                 isColdChain ? 'bg-cyan-50/80 border-cyan-200 text-cyan-950' : 'bg-slate-50/70 border-slate-100 text-slate-900'
               }`}>
-                <span className="text-xs font-medium flex items-center gap-1.5 text-slate-500">
-                  {isColdChain ? <ThermometerSnowflake className="w-3.5 h-3.5 text-cyan-600" /> : <Package className="w-3.5 h-3.5 text-emerald-600" />}
+                <span className="text-sm font-semibold flex items-center gap-1.5 text-slate-600">
+                  {isColdChain ? <ThermometerSnowflake className="w-4 h-4 text-cyan-600" /> : <Package className="w-4 h-4 text-emerald-600" />}
                   ประเภทสินค้า (Cargo Category)
                 </span>
                 <div className="flex items-center justify-between">
-                  <p className="font-bold text-base">{booking.cargo_type || 'ยาและเวชภัณฑ์ทั่วไป (Room Temp)'}</p>
+                  <p className="font-bold text-lg">{booking.cargo_type || 'ยาและเวชภัณฑ์ทั่วไป (Room Temp)'}</p>
                   {isColdChain && (
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-200 text-cyan-900 flex items-center gap-1">
-                      <ThermometerSnowflake className="w-3 h-3" /> ยาเย็น 2-8°C
+                    <span className="px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-cyan-200 text-cyan-900 flex items-center gap-1.5">
+                      <ThermometerSnowflake className="w-4 h-4" /> ยาเย็น 2-8°C
                     </span>
                   )}
                 </div>
@@ -847,28 +847,28 @@ ${url}`;
 
               {/* Vehicle Type */}
               <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1">
-                <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                  <Car className="w-3.5 h-3.5 text-emerald-600" /> ประเภทรถขนส่ง
+                <span className="text-sm text-slate-600 font-semibold flex items-center gap-1.5">
+                  <Car className="w-4 h-4 text-emerald-600" /> ประเภทรถขนส่ง
                 </span>
-                <p className="font-bold text-slate-900 text-base">{booking.vehicle_type || 'รถกระบะ 4 ล้อ'}</p>
+                <p className="font-bold text-slate-900 text-lg">{booking.vehicle_type || 'รถกระบะ 4 ล้อ'}</p>
               </div>
 
               {/* Crate & Vehicle Count */}
               <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1">
-                <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                  <Package className="w-3.5 h-3.5 text-emerald-600" /> จำนวนลังและจำนวนรถ
+                <span className="text-sm text-slate-600 font-semibold flex items-center gap-1.5">
+                  <Package className="w-4 h-4 text-emerald-600" /> จำนวนลังและจำนวนรถ
                 </span>
-                <p className="font-bold text-slate-900 text-base">
-                  {booking.pallet_count} ลัง <span className="text-xs font-normal text-slate-500">({booking.vehicle_count} คัน)</span>
+                <p className="font-bold text-slate-900 text-lg">
+                  {booking.pallet_count} ลัง <span className="text-sm font-normal text-slate-600">({booking.vehicle_count} คัน)</span>
                 </p>
               </div>
 
               {(booking.driver_name || booking.license_plate) && (
                 <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1 sm:col-span-2">
-                  <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-emerald-600" /> ข้อมูลผู้ส่งสินค้าและทะเบียนรถ
+                  <span className="text-sm text-slate-600 font-semibold flex items-center gap-1.5">
+                    <User className="w-4 h-4 text-emerald-600" /> ข้อมูลผู้ส่งสินค้าและทะเบียนรถ
                   </span>
-                  <p className="font-bold text-slate-900 text-sm">
+                  <p className="font-bold text-slate-900 text-base">
                     {booking.driver_name ? `ผู้ส่งสินค้า: ${booking.driver_name}` : ''}
                     {booking.driver_name && booking.license_plate ? ' | ' : ''}
                     {booking.license_plate ? `ทะเบียน: ${booking.license_plate}` : ''}
@@ -878,8 +878,8 @@ ${url}`;
 
               {booking.notes && (
                 <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1 sm:col-span-2">
-                  <span className="text-xs text-slate-500 font-medium">หมายเหตุเพิ่มเติม</span>
-                  <p className="text-xs text-slate-700">{booking.notes}</p>
+                  <span className="text-sm text-slate-600 font-semibold">หมายเหตุเพิ่มเติม</span>
+                  <p className="text-sm text-slate-700">{booking.notes}</p>
                 </div>
               )}
 

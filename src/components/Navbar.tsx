@@ -24,35 +24,35 @@ export default function Navbar() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-slate-900 text-lg sm:text-xl tracking-tight">PTN Pharma</span>
-                <span className="text-[10px] uppercase font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">พัฒนาเภสัช</span>
+                <span className="text-xs uppercase font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">พัฒนาเภสัช</span>
               </div>
-              <p className="text-xs text-slate-500 hidden sm:block">บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด</p>
+              <p className="text-xs sm:text-sm text-slate-600 font-medium hidden sm:block">บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด</p>
             </div>
           </Link>
 
           {/* Navigation Links - Public Only */}
-          <nav className="flex items-center gap-1.5 sm:gap-3">
+          <nav className="flex items-center gap-2 sm:gap-3">
             <Link
               href="/"
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-base font-semibold transition-colors ${
                 pathname === '/'
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
-              <CalendarClock className="w-4 h-4" />
+              <CalendarClock className="w-5 h-5" />
               <span>จองคิว</span>
             </Link>
 
             <Link
               href="/track"
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-base font-semibold transition-colors ${
                 pathname === '/track'
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
-              <Search className="w-4 h-4" />
+              <Search className="w-5 h-5" />
               <span>เช็คสถานะ</span>
             </Link>
           </nav>

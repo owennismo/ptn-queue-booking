@@ -1130,55 +1130,55 @@ export default function AdminDashboardPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Approved':
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> อนุมัติแล้ว</span>;
+        return <span className="px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1.5 shadow-2xs"><CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> อนุมัติแล้ว</span>;
       case 'CheckedIn':
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 text-blue-600" /> เข้าพื้นที่แล้ว</span>;
+        return <span className="px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold bg-blue-100 text-blue-800 flex items-center gap-1.5 shadow-2xs"><Truck className="w-4 h-4 text-blue-600 shrink-0" /> เข้าพื้นที่แล้ว</span>;
       case 'Receiving':
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 flex items-center gap-1.5"><Package className="w-3.5 h-3.5 text-indigo-600 animate-pulse" /> กำลังลงสินค้า</span>;
+        return <span className="px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold bg-indigo-100 text-indigo-800 flex items-center gap-1.5 shadow-2xs"><Package className="w-4 h-4 text-indigo-600 animate-pulse shrink-0" /> กำลังลงสินค้า</span>;
       case 'Completed':
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-teal-100 text-teal-900 flex items-center gap-1.5"><CheckCheck className="w-3.5 h-3.5 text-teal-700" /> เสร็จสิ้นสมบูรณ์</span>;
+        return <span className="px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold bg-teal-100 text-teal-950 flex items-center gap-1.5 shadow-2xs"><CheckCheck className="w-4 h-4 text-teal-700 shrink-0" /> เสร็จสิ้นสมบูรณ์</span>;
       case 'Rejected':
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 flex items-center gap-1.5"><XCircle className="w-3.5 h-3.5 text-rose-600" /> ไม่อนุมัติ</span>;
+        return <span className="px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold bg-rose-100 text-rose-800 flex items-center gap-1.5 shadow-2xs"><XCircle className="w-4 h-4 text-rose-600 shrink-0" /> ไม่อนุมัติ</span>;
       case 'Cancelled':
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5 text-slate-500" /> ยกเลิกแล้ว</span>;
+        return <span className="px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold bg-slate-100 text-slate-700 flex items-center gap-1.5 shadow-2xs"><AlertCircle className="w-4 h-4 text-slate-500 shrink-0" /> ยกเลิกแล้ว</span>;
       default:
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" /> รอการตรวจสอบ</span>;
+        return <span className="px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold bg-amber-100 text-amber-900 flex items-center gap-1.5 shadow-2xs"><Clock className="w-4 h-4 text-amber-600 animate-pulse shrink-0" /> รอการตรวจสอบ</span>;
     }
   };
 
   const getRoleBadge = (role: StaffRole) => {
     switch (role) {
       case 'super_admin':
-        return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">👑 Super Admin</span>;
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-950 border border-amber-300 flex items-center gap-1">👑 Super Admin</span>;
       case 'warehouse_officer':
-        return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">📦 คลังสินค้า</span>;
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1">📦 คลังสินค้า</span>;
       case 'security_gate':
-        return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300 flex items-center gap-1">🛡️ ตรวจสอบคิวส่ง</span>;
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-300 flex items-center gap-1">🛡️ ตรวจสอบคิวส่ง</span>;
       default:
-        return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">เจ้าหน้าที่</span>;
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">เจ้าหน้าที่</span>;
     }
   };
 
   const getActionBadge = (action: string) => {
     switch (action) {
       case 'APPROVE_QUEUE':
-        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">อนุมัติคิว</span>;
+        return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-100 text-emerald-800">อนุมัติคิว</span>;
       case 'REJECT_QUEUE':
-        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800">ปฏิเสธคิว</span>;
+        return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-rose-100 text-rose-800">ปฏิเสธคิว</span>;
       case 'CANCEL_QUEUE':
-        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-200 text-slate-700">ยกเลิกคิว</span>;
+        return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-slate-200 text-slate-700">ยกเลิกคิว</span>;
       case 'LOGIN_SUCCESS':
-        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-800">เข้าสู่ระบบ</span>;
+        return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-blue-100 text-blue-800">เข้าสู่ระบบ</span>;
       case 'LOGIN_FAILED':
-        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-800">กรอกรหัสผิด</span>;
+        return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-red-100 text-red-800">กรอกรหัสผิด</span>;
       case 'ADD_STAFF':
-        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800">เพิ่มเจ้าหน้าที่</span>;
+        return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-purple-100 text-purple-800">เพิ่มเจ้าหน้าที่</span>;
       case 'UPDATE_STAFF':
-        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-100 text-cyan-800">แก้ไขเจ้าหน้าที่</span>;
+        return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-cyan-100 text-cyan-800">แก้ไขเจ้าหน้าที่</span>;
       case 'DELETE_STAFF':
-        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800">ลบเจ้าหน้าที่</span>;
+        return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-rose-100 text-rose-800">ลบเจ้าหน้าที่</span>;
       default:
-        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-700">{action}</span>;
+        return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-slate-100 text-slate-700">{action}</span>;
     }
   };
 
@@ -1217,8 +1217,8 @@ export default function AdminDashboardPage() {
               <Truck className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-base font-bold tracking-tight">ระบบจัดการคิวคลังสินค้า</h1>
-              <p className="text-[11px] text-slate-400">บจก. พีทีเอ็น ฟาร์มาเซ็นเตอร์ (พัฒนาเภสัช)</p>
+              <h1 className="text-base sm:text-lg font-extrabold tracking-tight">ระบบจัดการคิวคลังสินค้า</h1>
+              <p className="text-xs text-slate-400">บจก. พีทีเอ็น ฟาร์มาเซ็นเตอร์ (พัฒนาเภสัช)</p>
             </div>
           </div>
 
@@ -1226,60 +1226,60 @@ export default function AdminDashboardPage() {
             {/* Browser Web Push Notification Toggle */}
             <button
               onClick={handleRequestNotifPermission}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 border ${
                 notifPermission === 'granted'
                   ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
                   : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
               }`}
               title={notifPermission === 'granted' ? 'เปิดการแจ้งเตือนบนเบราว์เซอร์แล้ว (คลิกเพื่อทดสอบ)' : 'คลิกเพื่อเปิดรับการแจ้งเตือนบนเบราว์เซอร์เมื่อมีคิวใหม่'}
             >
-              <Bell className={`w-3.5 h-3.5 ${notifPermission === 'granted' ? 'text-emerald-400 animate-bounce' : ''}`} />
+              <Bell className={`w-4 h-4 ${notifPermission === 'granted' ? 'text-emerald-400 animate-bounce' : ''}`} />
               <span>{notifPermission === 'granted' ? 'แจ้งเตือนเบราว์เซอร์: เปิด' : 'เปิดแจ้งเตือนเบราว์เซอร์'}</span>
             </button>
 
             {/* Audio Notification Toggle */}
             <button
               onClick={toggleSound}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 border ${
                 soundEnabled
                   ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
                   : 'bg-slate-800 border-slate-700 text-slate-400'
               }`}
               title="เปิด/ปิดเสียงแจ้งเตือนเมื่อมีคิวใหม่"
             >
-              {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-400" /> : <VolumeX className="w-3.5 h-3.5" />}
+              {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4" />}
               <span>{soundEnabled ? 'เสียงเตือน: เปิด' : 'เสียงเตือน: ปิด'}</span>
             </button>
 
             {/* Operator info with Role Badge */}
-            <div className="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-2.5 text-xs">
-              <User className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="bg-slate-800 border border-slate-700 px-3.5 py-2 rounded-xl flex items-center gap-2.5 text-xs sm:text-sm">
+              <User className="w-4 h-4 text-emerald-400" />
               <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-slate-200">{operatorName}</span>
+                <span className="font-bold text-slate-200">{operatorName}</span>
                 {getRoleBadge(userRole)}
               </div>
               <span className="text-slate-600">|</span>
-              <Clock className="w-3.5 h-3.5 text-amber-400" />
-              <span className="text-slate-400 text-[11px]" title="เซสชันจะหมดอายุหากไม่มีการใช้งาน">
-                Auto-Logout: <strong className="text-amber-300 font-mono">{formatIdleTime(idleSecondsRemaining)}</strong>
+              <Clock className="w-4 h-4 text-amber-400" />
+              <span className="text-slate-400 text-xs" title="เซสชันจะหมดอายุหากไม่มีการใช้งาน">
+                Auto-Logout: <strong className="text-amber-300 font-mono text-xs">{formatIdleTime(idleSecondsRemaining)}</strong>
               </span>
             </div>
 
             <button
               onClick={() => handleLogout('manual')}
-              className="px-3 py-1.5 bg-rose-600/90 hover:bg-rose-600 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm"
+              className="px-3.5 py-2 bg-rose-600/90 hover:bg-rose-600 text-white text-xs sm:text-sm font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm"
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-4 h-4" />
               <span>ออกจากระบบ</span>
             </button>
           </div>
         </div>
 
         {/* Tab Navigation */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-2 border-t border-slate-800 pt-2 pb-2 overflow-x-auto text-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-2 border-t border-slate-800 pt-2 pb-2 overflow-x-auto text-sm">
           <button
             onClick={() => setActiveTab('queues')}
-            className={`px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 whitespace-nowrap ${
+            className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'queues' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
@@ -1291,7 +1291,7 @@ export default function AdminDashboardPage() {
             <>
               <button
                 onClick={() => setActiveTab('capacity')}
-                className={`px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 whitespace-nowrap ${
+                className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 whitespace-nowrap ${
                   activeTab === 'capacity' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800'
                 }`}
               >
@@ -1301,7 +1301,7 @@ export default function AdminDashboardPage() {
 
               <button
                 onClick={() => setActiveTab('blocking')}
-                className={`px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 whitespace-nowrap ${
+                className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 whitespace-nowrap ${
                   activeTab === 'blocking' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800'
                 }`}
               >
@@ -1314,7 +1314,7 @@ export default function AdminDashboardPage() {
           {isSuperAdmin && (
             <button
               onClick={() => setActiveTab('staff')}
-              className={`px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 whitespace-nowrap ${
+              className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 whitespace-nowrap ${
                 activeTab === 'staff' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >
@@ -1325,7 +1325,7 @@ export default function AdminDashboardPage() {
 
           <button
             onClick={() => setActiveTab('audit')}
-            className={`px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 whitespace-nowrap ${
+            className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'audit' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
@@ -1338,7 +1338,7 @@ export default function AdminDashboardPage() {
             href="/poster"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap bg-emerald-600/30 hover:bg-emerald-600 border border-emerald-500/40 text-emerald-100 hover:text-white text-xs ml-auto shadow-sm"
+            className="px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap bg-emerald-600/30 hover:bg-emerald-600 border border-emerald-500/40 text-emerald-100 hover:text-white text-xs sm:text-sm ml-auto shadow-sm"
             title="เปิดหน้าโปสเตอร์ QR Code (Standee) สำหรับพิมพ์ติดหน้างานหรือดาวน์โหลดรูปภาพ"
           >
             <QrCode className="w-4 h-4 text-emerald-300" />
@@ -1361,27 +1361,27 @@ export default function AdminDashboardPage() {
 
         {/* 🌟 1. Tomorrow / Advance Forecast Banner */}
         {forecast && (
-          <div className="bg-gradient-to-r from-emerald-900 to-slate-900 text-white p-5 rounded-3xl border border-emerald-700/50 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 no-print">
-            <div className="flex items-center gap-3">
+          <div className="bg-gradient-to-r from-emerald-900 to-slate-900 text-white p-6 rounded-3xl border border-emerald-700/50 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 no-print">
+            <div className="flex items-center gap-3.5">
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
                 <Bell className="w-6 h-6 animate-bounce" />
               </div>
               <div>
-                <span className="text-[11px] uppercase tracking-wider font-bold text-emerald-300">
+                <span className="text-xs uppercase tracking-wider font-bold text-emerald-300">
                   Advance Queue Forecast • สรุปยอดคิวล่วงหน้า
                 </span>
-                <h3 className="text-base sm:text-lg font-extrabold">{forecast.notification_message}</h3>
+                <h3 className="text-base sm:text-xl font-extrabold">{forecast.notification_message}</h3>
               </div>
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
-              <div className="text-center px-3.5 py-2 bg-white/10 rounded-2xl border border-white/10">
-                <span className="text-[10px] text-slate-300 block">รอตรวจสอบทั้งหมด</span>
-                <span className="text-lg font-black text-amber-400">{forecast.total_pending_all} คิว</span>
+              <div className="text-center px-4 py-2.5 bg-white/10 rounded-2xl border border-white/10">
+                <span className="text-xs text-slate-300 block font-medium">รอตรวจสอบทั้งหมด</span>
+                <span className="text-xl font-black text-amber-400">{forecast.total_pending_all} คิว</span>
               </div>
-              <div className="text-center px-3.5 py-2 bg-white/10 rounded-2xl border border-white/10">
-                <span className="text-[10px] text-slate-300 block">คิววันพรุ่งนี้</span>
-                <span className="text-lg font-black text-emerald-300">{forecast.tomorrow_total} คิว</span>
+              <div className="text-center px-4 py-2.5 bg-white/10 rounded-2xl border border-white/10">
+                <span className="text-xs text-slate-300 block font-medium">คิววันพรุ่งนี้</span>
+                <span className="text-xl font-black text-emerald-300">{forecast.tomorrow_total} คิว</span>
               </div>
             </div>
           </div>
@@ -1394,11 +1394,11 @@ export default function AdminDashboardPage() {
             <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 no-print">
               <div className="flex flex-wrap items-center gap-3">
                 {/* Date Filter Quick Buttons & Picker */}
-                <div className="flex flex-wrap items-center gap-1 bg-slate-50 border border-slate-200 p-1 rounded-2xl">
+                <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 border border-slate-200 p-1.5 rounded-2xl">
                   <button
                     type="button"
                     onClick={() => setFilterDate('All')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition ${
                       filterDate === 'All' || !filterDate
                         ? 'bg-slate-900 text-white shadow-sm'
                         : 'text-slate-600 hover:text-slate-900'
@@ -1409,7 +1409,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setFilterDate(getTodayStr())}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition ${
                       filterDate === getTodayStr()
                         ? 'bg-emerald-600 text-white shadow-sm'
                         : 'text-slate-600 hover:text-slate-900'
@@ -1420,7 +1420,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setFilterDate(getTomorrowStr())}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition ${
                       filterDate === getTomorrowStr()
                         ? 'bg-emerald-600 text-white shadow-sm'
                         : 'text-slate-600 hover:text-slate-900'
@@ -1429,7 +1429,7 @@ export default function AdminDashboardPage() {
                     พรุ่งนี้
                   </button>
 
-                  <div className="w-36 sm:w-44 border-l border-slate-200 pl-1">
+                  <div className="w-40 sm:w-48 border-l border-slate-200 pl-1.5">
                     <ThaiDatePicker
                       value={filterDate === 'All' ? '' : filterDate}
                       onChange={(date) => setFilterDate(date || 'All')}
@@ -1440,12 +1440,12 @@ export default function AdminDashboardPage() {
                 </div>
 
                 {/* Status Filter */}
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-2xl">
+                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-2xl">
                   <Filter className="w-4 h-4 text-slate-500" />
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none"
+                    className="bg-transparent text-xs sm:text-sm font-bold text-slate-800 focus:outline-none"
                   >
                     <option value="All">ทุกสถานะ</option>
                     <option value="Pending">⏳ รอตรวจสอบ (Pending)</option>
@@ -1464,28 +1464,28 @@ export default function AdminDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setScannerOpen(true)}
-                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm whitespace-nowrap"
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-sm whitespace-nowrap"
                   title="เปิดกล้องสแกน QR Code ตรวจคิว"
                 >
                   <Camera className="w-4 h-4" />
                   <span>สแกน QR</span>
                 </button>
 
-                <div className="relative flex-1 md:w-56">
+                <div className="relative flex-1 md:w-60">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     placeholder="ค้นหา ID, ขนส่ง, ผู้ส่ง, ทะเบียน..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
                 <button
                   onClick={fetchBookings}
                   disabled={loadingBookings}
-                  className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl transition"
+                  className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl transition"
                   title="รีเฟรชข้อมูล"
                 >
                   <RefreshCw className={`w-4 h-4 ${loadingBookings ? 'animate-spin text-emerald-600' : ''}`} />
@@ -1570,22 +1570,22 @@ export default function AdminDashboardPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                  <table className="w-full text-left border-collapse text-sm sm:text-base">
                     <thead>
-                      <tr className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
-                        <th className="py-3.5 px-4">Booking ID</th>
-                        <th className="py-3.5 px-4">วันที่ & รอบเวลานัดหมาย</th>
-                        <th className="py-3.5 px-4">บริษัทขนส่ง</th>
-                        <th className="py-3.5 px-4">เจ้าของสินค้า / ผู้ส่ง</th>
-                        <th className="py-3.5 px-4 text-center">จำนวนลัง</th>
-                        <th className="py-3.5 px-4">สถานะ</th>
-                        <th className="py-3.5 px-4 text-center no-print">การจัดการ</th>
+                      <tr className="bg-slate-100/90 text-slate-800 font-bold border-b border-slate-200 text-xs sm:text-sm">
+                        <th className="py-4 px-4">Booking ID</th>
+                        <th className="py-4 px-4">วันที่ & รอบเวลานัดหมาย</th>
+                        <th className="py-4 px-4">บริษัทขนส่ง</th>
+                        <th className="py-4 px-4">เจ้าของสินค้า / ผู้ส่ง</th>
+                        <th className="py-4 px-4 text-center">จำนวนลัง</th>
+                        <th className="py-4 px-4">สถานะ</th>
+                        <th className="py-4 px-4 text-center no-print">การจัดการ</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {bookings.map((item) => (
-                        <tr key={item.booking_id} className="hover:bg-slate-50/70 transition">
-                          <td className="py-4 px-4 font-mono font-bold text-slate-900">
+                        <tr key={item.booking_id} className="hover:bg-slate-50/80 transition">
+                          <td className="py-4 px-4 font-mono font-extrabold text-slate-900 text-sm sm:text-base">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span>{item.booking_id}</span>
                               {(item.photo_url || item.receiving_photo_url) && (
@@ -1600,53 +1600,53 @@ export default function AdminDashboardPage() {
                                       setLightboxTitle(title);
                                     }
                                   }}
-                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-800 text-[10px] font-sans font-semibold transition"
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-800 text-xs font-sans font-bold transition"
                                   title="คลิกเพื่อดูรูปภาพแนบ"
                                 >
-                                  <ImageIcon className="w-3 h-3 text-teal-600" />
+                                  <ImageIcon className="w-3.5 h-3.5 text-teal-600" />
                                   <span>รูปแนบ</span>
                                 </button>
                               )}
                             </div>
                           </td>
-                          <td className="py-4 px-4 font-semibold text-slate-700 whitespace-nowrap">
-                            <div className="flex items-center gap-1 text-slate-900 font-bold text-xs">
-                              <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                          <td className="py-4 px-4 font-semibold text-slate-800 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5 text-slate-900 font-bold text-sm">
+                              <Calendar className="w-4 h-4 text-emerald-600" />
                               <span>{formatThaiShortDate(item.requested_date)}</span>
                             </div>
-                            <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
-                              <Clock className="w-3 h-3 text-slate-400" />
+                            <div className="text-xs sm:text-sm text-slate-600 font-medium flex items-center gap-1.5 mt-0.5">
+                              <Clock className="w-3.5 h-3.5 text-slate-400" />
                               <span>{item.requested_time}</span>
                             </div>
                           </td>
                           <td className="py-4 px-4">
-                            <span className="font-bold text-slate-900 block">{item.carrier_name}</span>
-                            <span className="text-[11px] text-slate-400">{item.user_phone}</span>
+                            <span className="font-bold text-slate-900 block text-sm sm:text-base">{item.carrier_name}</span>
+                            <span className="text-xs text-slate-500 font-medium">{item.user_phone}</span>
                           </td>
-                          <td className="py-4 px-4 font-medium text-slate-800">
+                          <td className="py-4 px-4 font-bold text-slate-800 text-sm sm:text-base">
                             {item.client_name}
                           </td>
                           <td className="py-4 px-4 text-center">
-                            <div className="font-bold text-slate-900">
-                              {item.pallet_count} ลัง <span className="text-[11px] font-normal text-slate-400">({item.vehicle_count} คัน)</span>
+                            <div className="font-extrabold text-slate-900 text-sm sm:text-base">
+                              {item.pallet_count} ลัง <span className="text-xs font-normal text-slate-500">({item.vehicle_count} คัน)</span>
                             </div>
                             {item.actual_pallet_count !== undefined && item.actual_pallet_count !== null && (
                               <div className="mt-1 flex justify-center">
                                 {item.actual_pallet_count < item.pallet_count ? (
                                   <span
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-bold shadow-2xs cursor-help"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-300 text-amber-950 text-xs font-bold shadow-2xs cursor-help"
                                     title={item.receiving_notes ? `หมายเหตุ: ${item.receiving_notes}` : `สินค้ามาไม่ครบ (ขาด ${item.pallet_count - item.actual_pallet_count} ลัง)`}
                                   >
-                                    <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                                     <span>รับจริง {item.actual_pallet_count} ลัง (ขาด {item.pallet_count - item.actual_pallet_count})</span>
                                   </span>
                                 ) : item.actual_pallet_count > item.pallet_count ? (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-100 border border-blue-300 text-blue-900 text-[10px] font-bold">
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-100 border border-blue-300 text-blue-950 text-xs font-bold">
                                     <span>รับจริง {item.actual_pallet_count} ลัง (+{item.actual_pallet_count - item.pallet_count})</span>
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 text-[10px] font-bold">
-                                    <Check className="w-3 h-3 text-emerald-600 shrink-0" />
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-950 text-xs font-bold">
+                                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                                     <span>รับครบ {item.actual_pallet_count} ลัง</span>
                                   </span>
                                 )}
@@ -1663,7 +1663,7 @@ export default function AdminDashboardPage() {
                                 <>
                                   <button
                                     onClick={() => handleApprove(item)}
-                                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
+                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition"
                                     title="อนุมัติคิวทันที"
                                   >
                                     อนุมัติ
@@ -1674,7 +1674,7 @@ export default function AdminDashboardPage() {
                                       setRejectReason('');
                                       setRejectModalOpen(true);
                                     }}
-                                    className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition"
+                                    className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs sm:text-sm rounded-xl border border-rose-200 transition"
                                     title="ปฏิเสธคิวพร้อมระบุเหตุผล"
                                   >
                                     ปฏิเสธ
@@ -1687,7 +1687,7 @@ export default function AdminDashboardPage() {
                                 <>
                                   <button
                                     onClick={() => handleWorkflowAction(item, 'Receiving', 'กำลังลงสินค้า')}
-                                    className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1"
+                                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center gap-1"
                                     title="เริ่มตรวจนับและลงสินค้า"
                                   >
                                     <Package className="w-3.5 h-3.5" />
@@ -1695,7 +1695,7 @@ export default function AdminDashboardPage() {
                                   </button>
                                   <button
                                     onClick={() => openCompleteModal(item)}
-                                    className="px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1"
+                                    className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center gap-1"
                                     title="ตรวจนับสินค้าและบันทึกปิดงานเสร็จสิ้น"
                                   >
                                     <CheckCheck className="w-3.5 h-3.5" />
@@ -1708,7 +1708,7 @@ export default function AdminDashboardPage() {
                               {!isSecurityOnly && item.status === 'Receiving' && (
                                 <button
                                   onClick={() => openCompleteModal(item)}
-                                  className="px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1"
+                                  className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center gap-1"
                                   title="ตรวจนับสินค้าและบันทึกปิดงานเสร็จสิ้น"
                                 >
                                   <CheckCheck className="w-3.5 h-3.5" />
@@ -1721,7 +1721,7 @@ export default function AdminDashboardPage() {
                                 <button
                                   type="button"
                                   onClick={() => openEditStatusModal(item)}
-                                  className="px-2 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold text-xs rounded-xl transition flex items-center gap-1 shadow-xs"
+                                  className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 font-bold text-xs sm:text-sm rounded-xl transition flex items-center gap-1 shadow-2xs"
                                   title="แก้ไขหรือเปลี่ยนสถานะการอนุมัติคิวนี้"
                                 >
                                   <Edit className="w-3.5 h-3.5 text-amber-700" />
@@ -1740,7 +1740,7 @@ export default function AdminDashboardPage() {
                                     setCancelError(null);
                                     setCancelModalOpen(true);
                                   }}
-                                  className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
+                                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition"
                                   title="ยกเลิกคิว (ระบบป้องกัน)"
                                 >
                                   ยกเลิก
@@ -1750,7 +1750,7 @@ export default function AdminDashboardPage() {
                               {/* View Details */}
                               <button
                                 onClick={() => setSelectedBooking(item)}
-                                className="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition"
+                                className="p-2 text-slate-500 hover:text-slate-800 rounded-xl hover:bg-slate-100 transition"
                                 title="ดูรายละเอียดบัตรคิว"
                               >
                                 <Eye className="w-4 h-4" />

@@ -169,11 +169,11 @@ export default function ThaiDatePicker({
           </div>
           <div>
             {value ? (
-              <span className="text-slate-900 font-extrabold text-xs sm:text-sm font-mono tracking-tight">
+              <span className="text-slate-900 font-extrabold text-sm sm:text-base font-mono tracking-tight">
                 {displayFormattedText}
               </span>
             ) : (
-              <span className="text-slate-400 text-xs font-normal">
+              <span className="text-slate-500 text-sm font-normal">
                 {placeholder}
               </span>
             )}
@@ -191,7 +191,7 @@ export default function ThaiDatePicker({
               className="p-1 hover:text-slate-600 rounded-full hover:bg-slate-200 transition"
               title="ล้างวันที่"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </button>
           )}
           <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180 text-emerald-600' : ''}`} />
@@ -208,14 +208,14 @@ export default function ThaiDatePicker({
 
       {/* 🌟 POPUP THAI BUDDHIST CALENDAR */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 z-50 w-full sm:w-80 bg-white rounded-3xl border border-slate-200 shadow-2xl p-4 space-y-3 animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute top-full left-0 mt-2 z-50 w-full sm:w-88 bg-white rounded-3xl border border-slate-200 shadow-2xl p-4 space-y-3 animate-in fade-in zoom-in-95 duration-150">
           {/* Quick Shortcuts */}
-          <div className="flex items-center gap-1.5 pb-2 border-b border-slate-100">
+          <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
             {(!disableSundays || today.getDay() !== 0) && (!minDate || todayStr >= minDate) && !disabledDates.includes(todayStr) && (
               <button
                 type="button"
                 onClick={() => handleQuickSelect(todayStr)}
-                className="flex-1 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-lg transition text-center"
+                className="flex-1 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-lg transition text-center"
               >
                 วันนี้ ({formatThaiNumericDate(todayStr)})
               </button>
@@ -224,13 +224,13 @@ export default function ThaiDatePicker({
               <button
                 type="button"
                 onClick={() => handleQuickSelect(tomorrowStr)}
-                className="flex-1 py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-lg transition text-center"
+                className="flex-1 py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition text-center"
               >
                 พรุ่งนี้ ({formatThaiNumericDate(tomorrowStr)})
               </button>
             )}
             {disableSundays && (today.getDay() === 0 || tomorrow.getDay() === 0) && (
-              <span className="text-[10px] text-rose-600 font-bold px-2 py-1 bg-rose-50 rounded-lg flex items-center gap-1">
+              <span className="text-xs text-rose-600 font-bold px-2 py-1 bg-rose-50 rounded-lg flex items-center gap-1">
                 🚫 วันอาทิตย์ปิดทำการ
               </span>
             )}
@@ -241,17 +241,17 @@ export default function ThaiDatePicker({
             <button
               type="button"
               onClick={prevMonth}
-              className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition"
+              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition"
               title="เดือนก่อนหน้า"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
 
             <div className="text-center">
-              <span className="font-extrabold text-slate-900 text-sm block">
+              <span className="font-extrabold text-slate-900 text-base block">
                 {THAI_MONTHS[viewMonth]}
               </span>
-              <span className="text-[11px] font-bold text-emerald-700 block">
+              <span className="text-xs font-bold text-emerald-700 block">
                 ปี พ.ศ. {thaiBuddhistYear}
               </span>
             </div>
@@ -259,19 +259,19 @@ export default function ThaiDatePicker({
             <button
               type="button"
               onClick={nextMonth}
-              className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition"
+              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition"
               title="เดือนถัดไป"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-5 h-5" />
             </button>
           </div>
 
           {/* Day Names Grid */}
-          <div className="grid grid-cols-7 text-center text-[11px] font-bold text-slate-400">
+          <div className="grid grid-cols-7 text-center text-xs font-bold text-slate-500">
             {THAI_DAYS_SHORT.map((dayName, idx) => (
               <div
                 key={dayName}
-                className={`py-1 ${idx === 0 ? 'text-rose-500 font-extrabold' : 'text-slate-500'}`}
+                className={`py-1 ${idx === 0 ? 'text-rose-600 font-extrabold' : 'text-slate-600'}`}
               >
                 {dayName}
               </div>
@@ -279,10 +279,10 @@ export default function ThaiDatePicker({
           </div>
 
           {/* Days Grid */}
-          <div className="grid grid-cols-7 gap-1 text-center text-xs">
+          <div className="grid grid-cols-7 gap-1 text-center text-sm">
             {/* Empty slots for previous month offset */}
             {Array.from({ length: firstDayOfMonth }).map((_, idx) => (
-              <div key={`empty-${idx}`} className="h-8" />
+              <div key={`empty-${idx}`} className="h-9" />
             ))}
 
             {/* Days of current month */}
@@ -301,7 +301,7 @@ export default function ThaiDatePicker({
                   type="button"
                   disabled={disabled}
                   onClick={() => handleSelectDay(dayNum)}
-                  className={`h-8 w-8 mx-auto rounded-xl font-bold flex items-center justify-center transition text-xs ${
+                  className={`h-9 w-9 mx-auto rounded-xl font-bold flex items-center justify-center transition text-sm ${
                     isSelected
                       ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200 scale-105'
                       : isToday
@@ -323,12 +323,12 @@ export default function ThaiDatePicker({
           </div>
 
           {/* Footer note */}
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block" /> วันที่เลือก
+          <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block" /> วันที่เลือก
             </span>
-            <span className="flex items-center gap-1 font-bold text-rose-600">
-              <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" /> วันอาทิตย์ (ปิดทำการ)
+            <span className="flex items-center gap-1.5 font-bold text-rose-600">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" /> วันอาทิตย์ (ปิดทำการ)
             </span>
           </div>
         </div>

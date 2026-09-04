@@ -162,44 +162,44 @@ export default function TrackPage() {
     switch (status) {
       case 'Approved':
         return (
-          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1 shadow-sm">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> อนุมัติแล้ว
+          <span className="px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1 shadow-sm">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" /> อนุมัติแล้ว
           </span>
         );
       case 'CheckedIn':
         return (
-          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 flex items-center gap-1 shadow-sm">
-            <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" /> เข้าพื้นที่แล้ว
+          <span className="px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-blue-100 text-blue-800 flex items-center gap-1 shadow-sm">
+            <CheckCircle2 className="w-4 h-4 text-blue-600" /> เข้าพื้นที่แล้ว
           </span>
         );
       case 'Receiving':
         return (
-          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 flex items-center gap-1 shadow-sm">
-            <Truck className="w-3.5 h-3.5 text-indigo-600 animate-bounce" /> กำลังลงสินค้า
+          <span className="px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-indigo-100 text-indigo-800 flex items-center gap-1 shadow-sm">
+            <Truck className="w-4 h-4 text-indigo-600 animate-bounce" /> กำลังลงสินค้า
           </span>
         );
       case 'Completed':
         return (
-          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-teal-100 text-teal-800 flex items-center gap-1 shadow-sm">
-            <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" /> ตรวจรับเสร็จแล้ว
+          <span className="px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-teal-100 text-teal-800 flex items-center gap-1 shadow-sm">
+            <CheckCircle2 className="w-4 h-4 text-teal-600" /> ตรวจรับเสร็จแล้ว
           </span>
         );
       case 'Rejected':
         return (
-          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 flex items-center gap-1 shadow-sm">
-            <XCircle className="w-3.5 h-3.5 text-rose-600" /> ไม่อนุมัติ
+          <span className="px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-rose-100 text-rose-800 flex items-center gap-1 shadow-sm">
+            <XCircle className="w-4 h-4 text-rose-600" /> ไม่อนุมัติ
           </span>
         );
       case 'Cancelled':
         return (
-          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 flex items-center gap-1 shadow-sm">
-            <AlertCircle className="w-3.5 h-3.5 text-slate-500" /> ยกเลิกแล้ว
+          <span className="px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-slate-100 text-slate-700 flex items-center gap-1 shadow-sm">
+            <AlertCircle className="w-4 h-4 text-slate-500" /> ยกเลิกแล้ว
           </span>
         );
       default:
         return (
-          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 flex items-center gap-1 shadow-sm animate-pulse">
-            <Clock className="w-3.5 h-3.5 text-amber-600" /> รอตรวจสอบ
+          <span className="px-3 py-1 rounded-full text-xs sm:text-sm font-bold bg-amber-100 text-amber-800 flex items-center gap-1 shadow-sm animate-pulse">
+            <Clock className="w-4 h-4 text-amber-600" /> รอตรวจสอบ
           </span>
         );
     }
@@ -209,61 +209,61 @@ export default function TrackPage() {
     <Link
       key={item.booking_id}
       href={`/booking?id=${item.booking_id}`}
-      className="block bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md hover:border-emerald-300 transition group"
+      className="block bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm hover:shadow-md hover:border-emerald-300 transition group"
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-        <div className="space-y-0.5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-100">
+        <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="font-mono font-bold text-slate-900 group-hover:text-emerald-600 transition text-base">
+            <span className="font-mono font-extrabold text-slate-900 group-hover:text-emerald-600 transition text-lg sm:text-xl">
               {item.booking_id}
             </span>
           </div>
-          <span className="text-xs text-slate-500 font-medium block">
-            ผู้รับ/เจ้าของสินค้า: <strong className="text-slate-700">{item.client_name}</strong>
+          <span className="text-sm text-slate-600 font-medium block">
+            ผู้รับ/เจ้าของสินค้า: <strong className="text-slate-800">{item.client_name}</strong>
           </span>
         </div>
         <div>{getStatusBadge(item.status)}</div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 text-xs text-slate-600">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 pt-3.5 text-sm text-slate-600">
         <div>
-          <span className="text-slate-400 block text-[11px]">วันที่นัดหมาย (พ.ศ.)</span>
-          <span className="font-bold text-slate-800 flex items-center gap-1 mt-0.5">
-            <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          <span className="text-slate-500 block text-xs font-medium">วันที่นัดหมาย (พ.ศ.)</span>
+          <span className="font-bold text-slate-900 flex items-center gap-1.5 mt-0.5 text-base">
+            <Calendar className="w-4 h-4 text-emerald-600 shrink-0" />
             {formatThaiShortDate(item.requested_date)}
           </span>
         </div>
         <div>
-          <span className="text-slate-400 block text-[11px]">ช่วงเวลานัด</span>
-          <span className="font-bold text-slate-800 flex items-center gap-1 mt-0.5">
-            <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          <span className="text-slate-500 block text-xs font-medium">ช่วงเวลานัด</span>
+          <span className="font-bold text-slate-900 flex items-center gap-1.5 mt-0.5 text-base">
+            <Clock className="w-4 h-4 text-emerald-600 shrink-0" />
             {item.requested_time}
           </span>
         </div>
         <div>
-          <span className="text-slate-400 block text-[11px]">บริษัทขนส่ง</span>
-          <span className="font-bold text-slate-800 flex items-center gap-1 mt-0.5 truncate">
-            <Truck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          <span className="text-slate-500 block text-xs font-medium">บริษัทขนส่ง</span>
+          <span className="font-bold text-slate-900 flex items-center gap-1.5 mt-0.5 truncate text-base">
+            <Truck className="w-4 h-4 text-emerald-600 shrink-0" />
             {item.carrier_name}
           </span>
         </div>
         <div>
-          <span className="text-slate-400 block text-[11px]">จำนวนสินค้า</span>
-          <span className="font-bold text-slate-800 flex items-center gap-1 mt-0.5">
-            <Package className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          <span className="text-slate-500 block text-xs font-medium">จำนวนสินค้า</span>
+          <span className="font-bold text-slate-900 flex items-center gap-1.5 mt-0.5 text-base">
+            <Package className="w-4 h-4 text-emerald-600 shrink-0" />
             {item.pallet_count} ลัง / {item.vehicle_count} คัน
           </span>
         </div>
       </div>
 
       {/* Cargo Type & Vehicle Type Badges */}
-      <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[11px]">
-        <div className="flex flex-wrap items-center gap-1.5">
+      <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm">
+        <div className="flex flex-wrap items-center gap-2">
           {item.cargo_type && (
             <span
-              className={`px-2 py-0.5 rounded-md font-medium ${
+              className={`px-2.5 py-1 rounded-lg font-medium ${
                 item.cargo_type.includes('ยาเย็น') || item.cargo_type.includes('Cold Chain')
-                  ? 'bg-cyan-100 text-cyan-800 border border-cyan-200'
+                  ? 'bg-cyan-100 text-cyan-800 border border-cyan-200 font-bold'
                   : 'bg-slate-100 text-slate-700'
               }`}
             >
@@ -271,20 +271,20 @@ export default function TrackPage() {
             </span>
           )}
           {item.vehicle_type && (
-            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-medium">
+            <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg font-medium">
               🚛 {item.vehicle_type}
             </span>
           )}
         </div>
 
-        <span className="text-emerald-600 font-semibold group-hover:underline flex items-center gap-0.5 shrink-0">
-          เปิดดูบัตรคิว <ArrowRight className="w-3 h-3" />
+        <span className="text-emerald-700 font-bold group-hover:underline flex items-center gap-1 shrink-0 text-sm">
+          เปิดดูบัตรคิว <ArrowRight className="w-4 h-4" />
         </span>
       </div>
 
       {(item.driver_name || item.license_plate) && (
-        <div className="mt-2 text-[11px] text-slate-500">
-          ผู้ส่งสินค้า: <strong className="text-slate-700">{item.driver_name || '-'}</strong> | ทะเบียน: <strong className="text-slate-700">{item.license_plate || '-'}</strong>
+        <div className="mt-2 text-xs text-slate-600">
+          ผู้ส่งสินค้า: <strong className="text-slate-800">{item.driver_name || '-'}</strong> | ทะเบียน: <strong className="text-slate-800">{item.license_plate || '-'}</strong>
         </div>
       )}
     </Link>
@@ -297,19 +297,19 @@ export default function TrackPage() {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
           {/* Company Brand */}
           <Link href="/" className="flex items-center gap-3 self-start sm:self-auto group">
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white flex items-center justify-center font-black text-base shadow-md shadow-emerald-900/20 group-hover:scale-105 transition">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white flex items-center justify-center font-black text-lg shadow-md shadow-emerald-900/20 group-hover:scale-105 transition">
               P
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-slate-900 text-sm tracking-tight">
+                <span className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
                   PTN PHARMA CENTER
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                   พัฒนาเภสัช
                 </span>
               </div>
-              <span className="text-[11px] text-slate-500 font-medium block">
+              <span className="text-xs text-slate-600 font-medium block">
                 ระบบนัดหมายจองคิวส่งสินค้าคลังยาและเวชภัณฑ์
               </span>
             </div>
@@ -319,11 +319,11 @@ export default function TrackPage() {
           <div className="flex items-center gap-2 w-full sm:w-auto justify-start sm:justify-end flex-wrap">
             <a
               href="tel:0993787463"
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-xs font-bold transition shadow-2xs group"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-sm font-bold transition shadow-2xs group"
               title="โทรติดต่อแผนกรับสินค้าโดยตรง"
             >
-              <div className="w-5 h-5 rounded-lg bg-emerald-600 text-white flex items-center justify-center group-hover:scale-110 transition shadow-xs">
-                <Phone className="w-3 h-3" />
+              <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center group-hover:scale-110 transition shadow-xs">
+                <Phone className="w-3.5 h-3.5" />
               </div>
               <span>
                 แผนกรับสินค้า: <strong className="text-emerald-700 font-mono">099-378-7463</strong>
@@ -334,11 +334,11 @@ export default function TrackPage() {
               href="https://line.me/ti/p/~ptnexpress"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#06C755]/10 hover:bg-[#06C755]/20 text-[#048737] border border-[#06C755]/30 text-xs font-bold transition shadow-2xs group"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#06C755]/10 hover:bg-[#06C755]/20 text-[#048737] border border-[#06C755]/30 text-sm font-bold transition shadow-2xs group"
               title="เพิ่มเพื่อนทาง LINE"
             >
-              <div className="w-5 h-5 rounded-lg bg-[#06C755] text-white flex items-center justify-center group-hover:scale-110 transition shadow-xs">
-                <MessageCircle className="w-3.5 h-3.5" />
+              <div className="w-6 h-6 rounded-lg bg-[#06C755] text-white flex items-center justify-center group-hover:scale-110 transition shadow-xs">
+                <MessageCircle className="w-4 h-4" />
               </div>
               <span>
                 LINE ID: <strong className="text-[#036d2c] font-mono">ptnexpress</strong>
@@ -351,15 +351,15 @@ export default function TrackPage() {
       <div className="py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto space-y-6">
           {/* Header Title */}
-          <div className="text-center space-y-1.5">
-            <div className="inline-flex items-center gap-2 bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-full px-3 py-1 text-xs font-semibold mb-2">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+          <div className="text-center space-y-2">
+            <div className="inline-flex items-center gap-2 bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-full px-3.5 py-1 text-xs sm:text-sm font-semibold mb-1">
+              <ShieldCheck className="w-4 h-4 text-emerald-700" />
               <span>ระบบตรวจสอบและติดตามสถานะคิวดิจิทัล (Private Tracking)</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
               ตรวจสอบสถานะบัตรคิว
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
+            <p className="text-sm sm:text-base text-slate-600 max-w-lg mx-auto">
               กรอกรหัสการจองคิว หรือเบอร์โทรศัพท์ที่ใช้จอง หรือสแกน QR Code เพื่อตรวจสอบสถานะแบบเรียลไทม์
             </p>
           </div>
@@ -367,9 +367,9 @@ export default function TrackPage() {
           {/* Search Input Box & QR Camera Button */}
           <form
             onSubmit={handleSearchSubmit}
-            className="bg-white rounded-3xl border border-slate-200/90 p-3 sm:p-4 shadow-md space-y-3"
+            className="bg-white rounded-3xl border border-slate-200/90 p-4 sm:p-5 shadow-md space-y-3"
           >
-            <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex flex-col sm:flex-row gap-2.5">
               <div className="relative flex-1">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                   <Search className="w-5 h-5" />
@@ -379,7 +379,7 @@ export default function TrackPage() {
                   placeholder="กรอกรหัสคิว เช่น PTN-XXXX หรือ เบอร์โทรศัพท์ที่ใช้จอง..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-sm"
+                  className="w-full pl-11 pr-10 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-semibold focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-base"
                 />
                 {query && (
                   <button
@@ -387,7 +387,7 @@ export default function TrackPage() {
                     onClick={handleClearSearch}
                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-5 h-5" />
                   </button>
                 )}
               </div>
@@ -396,12 +396,12 @@ export default function TrackPage() {
                 <button
                   type="submit"
                   disabled={searching || !query.trim()}
-                  className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-2xl transition flex items-center justify-center gap-1.5 shrink-0 text-sm shadow-sm"
+                  className="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-2xl transition flex items-center justify-center gap-2 shrink-0 text-base shadow-sm"
                 >
                   {searching ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <Search className="w-4 h-4" />
+                    <Search className="w-5 h-5" />
                   )}
                   <span>ค้นหา</span>
                 </button>
@@ -409,19 +409,19 @@ export default function TrackPage() {
                 <button
                   type="button"
                   onClick={() => setScannerOpen(true)}
-                  className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition flex items-center justify-center gap-1.5 shrink-0 text-sm shadow-sm"
+                  className="px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition flex items-center justify-center gap-2 shrink-0 text-base shadow-sm"
                   title="เปิดกล้องสแกน QR Code"
                 >
-                  <Camera className="w-4 h-4 text-emerald-600" />
+                  <Camera className="w-5 h-5 text-emerald-600" />
                   <span className="hidden sm:inline">สแกน QR</span>
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-xs text-slate-400 px-1 pt-1 border-t border-slate-100">
-              <span>💡 แนะนำ: ค้นหาได้ด้วยรหัสคิว 10 หลัก หรือเบอร์โทรศัพท์ 10 หลัก</span>
-              <Link href="/" className="text-emerald-600 font-semibold hover:underline flex items-center gap-1">
-                <PlusCircle className="w-3.5 h-3.5" /> จองคิวใหม่
+            <div className="flex items-center justify-between text-xs sm:text-sm text-slate-500 px-1 pt-2 border-t border-slate-100">
+              <span>💡 แนะนำ: ค้นหาได้ด้วยรหัสคิว หรือเบอร์โทรศัพท์ 10 หลัก</span>
+              <Link href="/" className="text-emerald-700 font-bold hover:underline flex items-center gap-1">
+                <PlusCircle className="w-4 h-4" /> จองคิวใหม่
               </Link>
             </div>
           </form>
