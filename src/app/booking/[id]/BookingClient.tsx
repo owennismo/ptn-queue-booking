@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, use } from 'react';
+import React, { useEffect, useState, useRef, use } from 'react';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -25,10 +25,13 @@ import {
   ThermometerSnowflake,
   ShieldCheck,
   MessageCircle,
+  Bell,
 } from 'lucide-react';
 import { Booking } from '@/lib/types';
 import { toPng } from 'html-to-image';
 import { formatThaiDate, formatThaiShortDate } from '@/lib/dateUtils';
+import NotificationPrompt from '@/components/NotificationPrompt';
+import { sendQueueNotification } from '@/lib/pushNotifications';
 
 export default function BookingDetailPage({
   params,
@@ -49,6 +52,7 @@ export default function BookingDetailPage({
   const [cancelling, setCancelling] = useState<boolean>(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isCreatorDevice, setIsCreatorDevice] = useState<boolean>(false);
+  const prevStatusRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && booking?.booking_id) {
@@ -111,7 +115,44 @@ export default function BookingDetailPage({
         throw new Error(data.error || 'ไม่พบข้อมูลการจอง');
       }
 
-      setBooking(data.booking);
+      const fetchedBooking: Booking = data.booking;
+
+      // 🔔 Trigger Web Push Notification if status changed
+      if (prevStatusRef.current && prevStatusRef.current !== fetchedBooking.status) {
+        const newSt = fetchedBooking.status;
+        let title = '🔔 อัปเดตสถานะคิวส่งสินค้า!';
+        let body = `คิว ${fetchedBooking.booking_id} (${fetchedBooking.carrier_name}) เปลี่ยนสถานะเป็น "${newSt}"`;
+
+        if (newSt === 'Approved') {
+          title = '🎉 คิวส่งสินค้าได้รับการอนุมัติแล้ว!';
+          body = `คิว ${fetchedBooking.booking_id} (${formatThaiShortDate(fetchedBooking.requested_date)} ${fetchedBooking.requested_time}) ได้รับการอนุมัติแล้ว พร้อมเข้าส่งสินค้าได้`;
+        } else if (newSt === 'CheckedIn') {
+          title = '🚗 รถขนส่งเช็คอินเข้าพื้นที่แล้ว!';
+          body = `คิว ${fetchedBooking.booking_id} ได้รับการตรวจรับเข้าพื้นที่คลังสินค้าแล้ว กรุณารอเรียกเข้าช่องจอดเทียบ`;
+        } else if (newSt === 'Receiving') {
+          title = '📦 เริ่มการตรวจนับและลงสินค้า!';
+          body = `คิว ${fetchedBooking.booking_id} กำลังดำเนินการลงสินค้าที่คลัง`;
+        } else if (newSt === 'Completed') {
+          title = '✨ ตรวจรับสินค้าเสร็จสิ้นสมบูรณ์!';
+          body = `คิว ${fetchedBooking.booking_id} ตรวจรับเสร็จสิ้นแล้ว ${fetchedBooking.actual_pallet_count !== undefined && fetchedBooking.actual_pallet_count !== null ? `(รับจริง ${fetchedBooking.actual_pallet_count} ลัง)` : ''}`;
+        } else if (newSt === 'Rejected') {
+          title = '❌ คิวส่งสินค้าไม่ได้รับการอนุมัติ';
+          body = `คิว ${fetchedBooking.booking_id}: ${fetchedBooking.admin_reason || 'กรุณาตรวจสอบสาเหตุบนบัตรคิว'}`;
+        } else if (newSt === 'Cancelled') {
+          title = '🚫 คิวถูกยกเลิกแล้ว';
+          body = `คิว ${fetchedBooking.booking_id} ได้รับการยกเลิกเรียบร้อยแล้ว`;
+        }
+
+        sendQueueNotification({
+          title,
+          body,
+          booking_id: fetchedBooking.booking_id,
+          url: `/booking/${fetchedBooking.booking_id}`,
+        });
+      }
+
+      prevStatusRef.current = fetchedBooking.status;
+      setBooking(fetchedBooking);
     } catch (err: any) {
       setError(err.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
     } finally {
@@ -673,6 +714,9 @@ ${url}`;
                 )}
               </div>
             </div>
+
+            {/* 🔔 Web Push Notification Prompt Banner & Toggle */}
+            <NotificationPrompt booking={booking} />
 
             {/* Quick Action Buttons Bar (Save Image, Share LINE, Google Maps) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 no-print">

@@ -84,3 +84,55 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// 4. Push event: Handle incoming Web Push Notifications
+self.addEventListener('push', (event) => {
+  let data = {
+    title: 'PTN Pharma Center แจ้งเตือนคิวส่งของ',
+    body: 'มีการอัปเดตสถานะคิวการเข้าส่งสินค้า',
+    icon: '/icon-192.png',
+    badge: '/favicon.png',
+    data: { url: '/' },
+  };
+
+  if (event.data) {
+    try {
+      data = { ...data, ...event.data.json() };
+    } catch (e) {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon || '/icon-192.png',
+    badge: data.badge || '/favicon.png',
+    vibrate: [200, 100, 200],
+    data: data.data || { url: '/' },
+  };
+
+  event.waitUntil(self.registration.showNotification(data.title, options));
+});
+
+// 5. Notification Click event: Focus or open window to the specific booking URL
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // If a window is already open, navigate and focus it
+      for (let client of windowClients) {
+        if (client.url.includes(targetUrl) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // Otherwise open new window
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
