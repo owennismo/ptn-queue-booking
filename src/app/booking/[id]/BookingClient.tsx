@@ -217,17 +217,13 @@ ${url}`;
       const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
       window.open(lineUrl, '_blank');
     } else {
-      // Desktop / PC:
-      // 1. Copy formatted ticket text to clipboard so user can easily paste (Ctrl+V) directly into LINE PC
+      // Desktop / PC (แบบ A):
+      // คัดลอกข้อความรายละเอียดบัตรคิวลง Clipboard ทันที โดยไม่เปิดหน้าต่างใดๆ โผล่ขึ้นมา
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
         navigator.clipboard.writeText(text).catch(() => {});
       }
       setLineCopiedToast(true);
       setTimeout(() => setLineCopiedToast(false), 5000);
-
-      // 2. Open official LINE Web Share dialog
-      const desktopShareUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
-      window.open(desktopShareUrl, 'line_share_dialog', 'width=600,height=650,menubar=no,location=no,status=no,resizable=yes');
     }
   };
 
@@ -792,9 +788,9 @@ ${url}`;
               <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-2xl text-emerald-900 text-xs sm:text-sm font-semibold flex items-center gap-2.5 animate-in fade-in slide-in-from-top-1 shadow-sm">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                 <div>
-                  <p className="font-bold text-emerald-900">คัดลอกข้อความบัตรคิวลงคลิปบอร์ดแล้ว!</p>
+                  <p className="font-bold text-emerald-900">คัดลอกข้อความบัตรคิวลงคลิปบอร์ดเรียบร้อยแล้ว!</p>
                   <p className="text-emerald-700 font-normal text-xs mt-0.5">
-                    คุณสามารถกดวาง (Ctrl+V) ส่งในแอป LINE PC ได้ทันที หรือส่งผ่านหน้าต่าง LINE Web ที่เปิดขึ้นมาได้เลย
+                    คุณสามารถเปิดโปรแกรม LINE PC แล้วกดวาง (Ctrl+V หรือ Cmd+V) ส่งในแชทได้ทันที
                   </p>
                 </div>
               </div>
