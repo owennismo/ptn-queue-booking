@@ -31,28 +31,28 @@ export default function Navbar() {
           </Link>
 
           {/* Navigation Links - Public Only */}
-          <nav className="flex items-center gap-2 sm:gap-3">
+          <nav className="flex items-center gap-1.5 sm:gap-3">
             <Link
               href="/"
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-base font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-sm sm:text-base font-semibold transition-colors ${
                 pathname === '/'
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
-              <CalendarClock className="w-5 h-5" />
+              <CalendarClock className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>จองคิว</span>
             </Link>
 
             <Link
               href="/track"
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-base font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-sm sm:text-base font-semibold transition-colors ${
                 pathname === '/track'
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
-              <Search className="w-5 h-5" />
+              <Search className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>เช็คสถานะ</span>
             </Link>
           </nav>

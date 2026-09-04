@@ -1211,9 +1211,9 @@ export default function AdminDashboardPage() {
 
       {/* Top Header & Security Bar */}
       <header className="bg-slate-900 text-white sticky top-0 z-30 shadow-md no-print">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center font-bold shadow-md shadow-emerald-900/50">
+            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center font-bold shadow-md shadow-emerald-900/50 shrink-0">
               <Truck className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -1222,64 +1222,64 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap justify-start md:justify-end">
             {/* Browser Web Push Notification Toggle */}
             <button
               onClick={handleRequestNotifPermission}
-              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 border ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border shrink-0 ${
                 notifPermission === 'granted'
                   ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
                   : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
               }`}
               title={notifPermission === 'granted' ? 'เปิดการแจ้งเตือนบนเบราว์เซอร์แล้ว (คลิกเพื่อทดสอบ)' : 'คลิกเพื่อเปิดรับการแจ้งเตือนบนเบราว์เซอร์เมื่อมีคิวใหม่'}
             >
-              <Bell className={`w-4 h-4 ${notifPermission === 'granted' ? 'text-emerald-400 animate-bounce' : ''}`} />
-              <span>{notifPermission === 'granted' ? 'แจ้งเตือนเบราว์เซอร์: เปิด' : 'เปิดแจ้งเตือนเบราว์เซอร์'}</span>
+              <Bell className={`w-4 h-4 shrink-0 ${notifPermission === 'granted' ? 'text-emerald-400 animate-bounce' : ''}`} />
+              <span>{notifPermission === 'granted' ? 'แจ้งเตือน: เปิด' : 'เปิดแจ้งเตือน'}</span>
             </button>
 
             {/* Audio Notification Toggle */}
             <button
               onClick={toggleSound}
-              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 border ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border shrink-0 ${
                 soundEnabled
                   ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
                   : 'bg-slate-800 border-slate-700 text-slate-400'
               }`}
               title="เปิด/ปิดเสียงแจ้งเตือนเมื่อมีคิวใหม่"
             >
-              {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4" />}
-              <span>{soundEnabled ? 'เสียงเตือน: เปิด' : 'เสียงเตือน: ปิด'}</span>
+              {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400 shrink-0" /> : <VolumeX className="w-4 h-4 shrink-0" />}
+              <span>{soundEnabled ? 'เสียง: เปิด' : 'เสียง: ปิด'}</span>
             </button>
 
             {/* Operator info with Role Badge */}
-            <div className="bg-slate-800 border border-slate-700 px-3.5 py-2 rounded-xl flex items-center gap-2.5 text-xs sm:text-sm">
-              <User className="w-4 h-4 text-emerald-400" />
+            <div className="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs shrink-0">
+              <User className="w-4 h-4 text-emerald-400 shrink-0" />
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-slate-200">{operatorName}</span>
+                <span className="font-bold text-slate-200 truncate max-w-[120px] sm:max-w-none">{operatorName}</span>
                 {getRoleBadge(userRole)}
               </div>
-              <span className="text-slate-600">|</span>
-              <Clock className="w-4 h-4 text-amber-400" />
-              <span className="text-slate-400 text-xs" title="เซสชันจะหมดอายุหากไม่มีการใช้งาน">
-                Auto-Logout: <strong className="text-amber-300 font-mono text-xs">{formatIdleTime(idleSecondsRemaining)}</strong>
-              </span>
+              <span className="text-slate-600 hidden sm:inline">|</span>
+              <div className="hidden sm:flex items-center gap-1 text-slate-400 text-xs" title="เซสชันจะหมดอายุหากไม่มีการใช้งาน">
+                <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>Auto-Logout: <strong className="text-amber-300 font-mono text-xs">{formatIdleTime(idleSecondsRemaining)}</strong></span>
+              </div>
             </div>
 
             <button
               onClick={() => handleLogout('manual')}
-              className="px-3.5 py-2 bg-rose-600/90 hover:bg-rose-600 text-white text-xs sm:text-sm font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm"
+              className="px-3 py-1.5 bg-rose-600/90 hover:bg-rose-600 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm shrink-0"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-4 h-4 shrink-0" />
               <span>ออกจากระบบ</span>
             </button>
           </div>
         </div>
 
         {/* Tab Navigation */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-2 border-t border-slate-800 pt-2 pb-2 overflow-x-auto text-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-1.5 sm:gap-2 border-t border-slate-800 py-2 overflow-x-auto text-xs sm:text-sm">
           <button
             onClick={() => setActiveTab('queues')}
-            className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 whitespace-nowrap ${
+            className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'queues' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
@@ -1291,7 +1291,7 @@ export default function AdminDashboardPage() {
             <>
               <button
                 onClick={() => setActiveTab('capacity')}
-                className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 whitespace-nowrap ${
+                className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                   activeTab === 'capacity' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800'
                 }`}
               >
@@ -1301,7 +1301,7 @@ export default function AdminDashboardPage() {
 
               <button
                 onClick={() => setActiveTab('blocking')}
-                className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 whitespace-nowrap ${
+                className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                   activeTab === 'blocking' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800'
                 }`}
               >
@@ -1314,23 +1314,23 @@ export default function AdminDashboardPage() {
           {isSuperAdmin && (
             <button
               onClick={() => setActiveTab('staff')}
-              className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                 activeTab === 'staff' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >
               <Users className="w-4 h-4 text-amber-300" />
-              <span>จัดการเจ้าหน้าที่และพนักงาน</span>
+              <span>จัดการเจ้าหน้าที่</span>
             </button>
           )}
 
           <button
             onClick={() => setActiveTab('audit')}
-            className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 whitespace-nowrap ${
+            className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'audit' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>ประวัติความปลอดภัย (Audit Logs)</span>
+            <span>Audit Logs</span>
           </button>
 
           {/* Direct Link to High-Res Poster / Standee Page */}
@@ -1338,11 +1338,11 @@ export default function AdminDashboardPage() {
             href="/poster"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap bg-emerald-600/30 hover:bg-emerald-600 border border-emerald-500/40 text-emerald-100 hover:text-white text-xs sm:text-sm ml-auto shadow-sm"
+            className="px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 bg-emerald-600/30 hover:bg-emerald-600 border border-emerald-500/40 text-emerald-100 hover:text-white ml-auto shadow-sm"
             title="เปิดหน้าโปสเตอร์ QR Code (Standee) สำหรับพิมพ์ติดหน้างานหรือดาวน์โหลดรูปภาพ"
           >
             <QrCode className="w-4 h-4 text-emerald-300" />
-            <span>พิมพ์โปสเตอร์ QR Code (Standee)</span>
+            <span>พิมพ์โปสเตอร์ Standee</span>
           </a>
         </div>
       </header>
@@ -1391,25 +1391,25 @@ export default function AdminDashboardPage() {
         {activeTab === 'queues' && (
           <div className="space-y-6">
             {/* Filters & Actions Bar */}
-            <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 no-print">
-              <div className="flex flex-wrap items-center gap-3">
+            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-sm flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 sm:gap-4 no-print">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 {/* Date Filter Quick Buttons & Picker */}
-                <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 border border-slate-200 p-1.5 rounded-2xl">
+                <div className="flex flex-wrap items-center gap-1 bg-slate-50 border border-slate-200 p-1 sm:p-1.5 rounded-2xl w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setFilterDate('All')}
-                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition ${
+                    className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition flex-1 sm:flex-initial text-center ${
                       filterDate === 'All' || !filterDate
                         ? 'bg-slate-900 text-white shadow-sm'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    📅 ทุกวันที่ ({bookings.length})
+                    📅 ทุกวัน ({bookings.length})
                   </button>
                   <button
                     type="button"
                     onClick={() => setFilterDate(getTodayStr())}
-                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition ${
+                    className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition flex-1 sm:flex-initial text-center ${
                       filterDate === getTodayStr()
                         ? 'bg-emerald-600 text-white shadow-sm'
                         : 'text-slate-600 hover:text-slate-900'
@@ -1420,7 +1420,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setFilterDate(getTomorrowStr())}
-                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition ${
+                    className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition flex-1 sm:flex-initial text-center ${
                       filterDate === getTomorrowStr()
                         ? 'bg-emerald-600 text-white shadow-sm'
                         : 'text-slate-600 hover:text-slate-900'
@@ -1429,7 +1429,7 @@ export default function AdminDashboardPage() {
                     พรุ่งนี้
                   </button>
 
-                  <div className="w-40 sm:w-48 border-l border-slate-200 pl-1.5">
+                  <div className="w-full sm:w-44 border-t sm:border-t-0 sm:border-l border-slate-200 pt-1 sm:pt-0 sm:pl-1.5">
                     <ThaiDatePicker
                       value={filterDate === 'All' ? '' : filterDate}
                       onChange={(date) => setFilterDate(date || 'All')}
@@ -1440,12 +1440,12 @@ export default function AdminDashboardPage() {
                 </div>
 
                 {/* Status Filter */}
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-2xl">
-                  <Filter className="w-4 h-4 text-slate-500" />
+                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 sm:py-2.5 rounded-2xl w-full sm:w-auto">
+                  <Filter className="w-4 h-4 text-slate-500 shrink-0" />
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="bg-transparent text-xs sm:text-sm font-bold text-slate-800 focus:outline-none"
+                    className="bg-transparent text-xs sm:text-sm font-bold text-slate-800 focus:outline-none w-full"
                   >
                     <option value="All">ทุกสถานะ</option>
                     <option value="Pending">⏳ รอตรวจสอบ (Pending)</option>
@@ -1460,32 +1460,32 @@ export default function AdminDashboardPage() {
               </div>
 
               {/* Search Box & Camera QR Scanner */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full xl:w-auto">
                 <button
                   type="button"
                   onClick={() => setScannerOpen(true)}
-                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-sm whitespace-nowrap"
+                  className="px-3.5 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-sm whitespace-nowrap shrink-0"
                   title="เปิดกล้องสแกน QR Code ตรวจคิว"
                 >
                   <Camera className="w-4 h-4" />
                   <span>สแกน QR</span>
                 </button>
 
-                <div className="relative flex-1 md:w-60">
+                <div className="relative flex-1 xl:w-64">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     placeholder="ค้นหา ID, ขนส่ง, ผู้ส่ง, ทะเบียน..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full pl-9 pr-3.5 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
                 <button
                   onClick={fetchBookings}
                   disabled={loadingBookings}
-                  className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl transition"
+                  className="p-2 sm:p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl transition shrink-0"
                   title="รีเฟรชข้อมูล"
                 >
                   <RefreshCw className={`w-4 h-4 ${loadingBookings ? 'animate-spin text-emerald-600' : ''}`} />
@@ -1656,14 +1656,14 @@ export default function AdminDashboardPage() {
                           <td className="py-4 px-4 whitespace-nowrap">
                             {getStatusBadge(item.status)}
                           </td>
-                          <td className="py-4 px-4 text-center no-print">
+                          <td className="py-3 px-3 text-center no-print">
                             <div className="flex items-center justify-center gap-1.5 flex-wrap">
                               {/* 1. If Pending: 1-Click Approve or Reject */}
                               {!isSecurityOnly && item.status === 'Pending' && (
                                 <>
                                   <button
                                     onClick={() => handleApprove(item)}
-                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition"
+                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition shrink-0"
                                     title="อนุมัติคิวทันที"
                                   >
                                     อนุมัติ
@@ -1674,7 +1674,7 @@ export default function AdminDashboardPage() {
                                       setRejectReason('');
                                       setRejectModalOpen(true);
                                     }}
-                                    className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs sm:text-sm rounded-xl border border-rose-200 transition"
+                                    className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition shrink-0"
                                     title="ปฏิเสธคิวพร้อมระบุเหตุผล"
                                   >
                                     ปฏิเสธ
@@ -1687,7 +1687,7 @@ export default function AdminDashboardPage() {
                                 <>
                                   <button
                                     onClick={() => handleWorkflowAction(item, 'Receiving', 'กำลังลงสินค้า')}
-                                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center gap-1"
+                                    className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1 shrink-0"
                                     title="เริ่มตรวจนับและลงสินค้า"
                                   >
                                     <Package className="w-3.5 h-3.5" />
@@ -1695,7 +1695,7 @@ export default function AdminDashboardPage() {
                                   </button>
                                   <button
                                     onClick={() => openCompleteModal(item)}
-                                    className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center gap-1"
+                                    className="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1 shrink-0"
                                     title="ตรวจนับสินค้าและบันทึกปิดงานเสร็จสิ้น"
                                   >
                                     <CheckCheck className="w-3.5 h-3.5" />
@@ -1708,7 +1708,7 @@ export default function AdminDashboardPage() {
                               {!isSecurityOnly && item.status === 'Receiving' && (
                                 <button
                                   onClick={() => openCompleteModal(item)}
-                                  className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center gap-1"
+                                  className="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1 shrink-0"
                                   title="ตรวจนับสินค้าและบันทึกปิดงานเสร็จสิ้น"
                                 >
                                   <CheckCheck className="w-3.5 h-3.5" />
@@ -1721,7 +1721,7 @@ export default function AdminDashboardPage() {
                                 <button
                                   type="button"
                                   onClick={() => openEditStatusModal(item)}
-                                  className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 font-bold text-xs sm:text-sm rounded-xl transition flex items-center gap-1 shadow-2xs"
+                                  className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 font-bold text-xs rounded-xl transition flex items-center gap-1 shadow-2xs shrink-0"
                                   title="แก้ไขหรือเปลี่ยนสถานะการอนุมัติคิวนี้"
                                 >
                                   <Edit className="w-3.5 h-3.5 text-amber-700" />
@@ -1740,7 +1740,7 @@ export default function AdminDashboardPage() {
                                     setCancelError(null);
                                     setCancelModalOpen(true);
                                   }}
-                                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition"
+                                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition shrink-0"
                                   title="ยกเลิกคิว (ระบบป้องกัน)"
                                 >
                                   ยกเลิก
@@ -1750,7 +1750,7 @@ export default function AdminDashboardPage() {
                               {/* View Details */}
                               <button
                                 onClick={() => setSelectedBooking(item)}
-                                className="p-2 text-slate-500 hover:text-slate-800 rounded-xl hover:bg-slate-100 transition"
+                                className="p-1.5 text-slate-500 hover:text-slate-800 rounded-xl hover:bg-slate-100 transition shrink-0"
                                 title="ดูรายละเอียดบัตรคิว"
                               >
                                 <Eye className="w-4 h-4" />
