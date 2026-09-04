@@ -169,16 +169,11 @@ export default function ThaiDatePicker({
           </div>
           <div>
             {value ? (
-              <div className="flex items-center gap-2">
-                <span className="text-slate-900 font-extrabold text-sm sm:text-base font-mono tracking-tight">
-                  {displayFormattedText}
-                </span>
-                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100/70 border border-emerald-300/60 px-1.5 py-0.5 rounded-md">
-                  พ.ศ. {parseInt(value.split('-')[0], 10) + 543}
-                </span>
-              </div>
+              <span className="text-slate-900 font-extrabold text-xs sm:text-sm font-mono tracking-tight">
+                {displayFormattedText}
+              </span>
             ) : (
-              <span className="text-slate-400 text-xs sm:text-sm font-normal">
+              <span className="text-slate-400 text-xs font-normal">
                 {placeholder}
               </span>
             )}
