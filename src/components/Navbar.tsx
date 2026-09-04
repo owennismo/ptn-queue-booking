@@ -7,8 +7,8 @@ import { CalendarClock, Search, ShieldAlert, Truck, Sparkles } from 'lucide-reac
 export default function Navbar() {
   const pathname = usePathname();
 
-  // Hide public navbar on admin pages and poster page (they have their own specialized headers)
-  if (pathname.startsWith('/admin') || pathname === '/poster') {
+  // Hide public navbar on admin pages, poster page, and preview prototype
+  if (pathname.startsWith('/admin') || pathname === '/poster' || pathname === '/preview') {
     return null;
   }
 
