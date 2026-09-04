@@ -7,6 +7,11 @@ import { CalendarClock, Search, ShieldAlert, Truck, Sparkles } from 'lucide-reac
 export default function Navbar() {
   const pathname = usePathname();
 
+  // Hide public navbar on admin pages and poster page (they have their own specialized headers)
+  if (pathname.startsWith('/admin') || pathname === '/poster') {
+    return null;
+  }
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm no-print">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -25,13 +30,13 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* Navigation Links */}
-          <nav className="flex items-center gap-1 sm:gap-2">
+          {/* Navigation Links - Public Only */}
+          <nav className="flex items-center gap-1.5 sm:gap-3">
             <Link
               href="/"
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors ${
                 pathname === '/'
-                  ? 'bg-emerald-50 text-emerald-700'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
@@ -41,26 +46,14 @@ export default function Navbar() {
 
             <Link
               href="/track"
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors ${
                 pathname === '/track'
-                  ? 'bg-emerald-50 text-emerald-700'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
               <Search className="w-4 h-4" />
               <span>เช็คสถานะ</span>
-            </Link>
-
-            <Link
-              href="/admin"
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                pathname.startsWith('/admin')
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-            >
-              <ShieldAlert className="w-4 h-4" />
-              <span>เจ้าหน้าที่ / Admin</span>
             </Link>
           </nav>
         </div>
