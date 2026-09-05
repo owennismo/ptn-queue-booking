@@ -20,9 +20,9 @@ export async function onRequestPost(context: { request: Request; env: any }) {
       photo_url,
     } = body;
 
-    if (!user_phone || !carrier_name || !client_name || !requested_date || !requested_time) {
+    if (!user_phone || !carrier_name || !client_name || !requested_date || !requested_time || !driver_name) {
       return new Response(
-        JSON.stringify({ error: 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน (เบอร์โทร, บริษัทขนส่ง, บริษัทเจ้าของสินค้า, วันที่, และช่วงเวลา)' }),
+        JSON.stringify({ error: 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน (เบอร์โทร, บริษัทขนส่ง, บริษัทเจ้าของสินค้า, ชื่อผู้ส่งสินค้า, วันที่, และช่วงเวลา)' }),
         { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
       );
     }

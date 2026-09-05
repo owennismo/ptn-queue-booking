@@ -129,6 +129,10 @@ export default function BookingPage() {
         setErrorMessage('กรุณาระบุบริษัทเจ้าของสินค้า / ผู้รับปลายทาง');
         return false;
       }
+      if (!driverName.trim()) {
+        setErrorMessage('กรุณาระบุชื่อผู้ส่งสินค้า / คนขับรถ');
+        return false;
+      }
     } else if (stepNum === 3) {
       if (palletCount < 1) {
         setErrorMessage('จำนวนลังต้องอย่างน้อย 1 ลัง');
@@ -295,6 +299,10 @@ export default function BookingPage() {
     }
     if (!clientName.trim()) {
       setErrorMessage('กรุณาระบุบริษัทเจ้าของสินค้า / ผู้รับปลายทาง');
+      return;
+    }
+    if (!driverName.trim()) {
+      setErrorMessage('กรุณาระบุชื่อผู้ส่งสินค้า / คนขับรถ');
       return;
     }
 
@@ -811,7 +819,7 @@ export default function BookingPage() {
                 {/* Driver Name */}
                 <div className="space-y-1.5">
                   <label className="block text-base font-semibold text-slate-800">
-                    ชื่อผู้ส่งสินค้า / คนขับรถ <span className="text-xs text-slate-500 font-normal">(ระบุหรือไม่ก็ได้)</span>
+                    <span className="text-rose-500">*</span> ชื่อผู้ส่งสินค้า / คนขับรถ
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -819,6 +827,7 @@ export default function BookingPage() {
                     </div>
                     <input
                       type="text"
+                      required
                       placeholder="เช่น สมชาย ใจดี"
                       value={driverName}
                       onChange={(e) => setDriverName(e.target.value)}
@@ -1141,6 +1150,10 @@ export default function BookingPage() {
                   <div className="flex justify-between border-b border-white/10 pb-2">
                     <span className="text-slate-400">เจ้าของสินค้า / ผู้รับ:</span>
                     <strong className="text-white font-bold truncate max-w-[200px]">{clientName}</strong>
+                  </div>
+                  <div className="flex justify-between border-b border-white/10 pb-2">
+                    <span className="text-slate-400">ผู้ส่งสินค้า / คนขับ:</span>
+                    <strong className="text-white font-bold truncate max-w-[200px]">{driverName}</strong>
                   </div>
                   <div className="flex justify-between border-b border-white/10 pb-2">
                     <span className="text-slate-400">เบอร์โทรติดต่อ:</span>
