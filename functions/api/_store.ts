@@ -1280,6 +1280,95 @@ export class DataStore {
     return [];
   }
 
+  async getLatestProfileByPhone(phone: string): Promise<{
+    found: boolean;
+    profile?: {
+      driver_name: string;
+      carrier_name: string;
+      client_name: string;
+      vehicle_type: string;
+      cargo_type: string;
+      license_plate: string;
+      booking_count: number;
+    };
+  }> {
+    if (!phone) return { found: false };
+    const cleanPhone = phone.trim().replace(/\D/g, '');
+    if (cleanPhone.length < 9) return { found: false };
+
+    const bookings = await this.getAllBookings();
+    const matches = bookings.filter((b: Booking) => {
+      const bPhone = (b.user_phone || '').replace(/\D/g, '');
+      return bPhone === cleanPhone || (bPhone.length >= 9 && cleanPhone.length >= 9 && (bPhone.endsWith(cleanPhone) || cleanPhone.endsWith(bPhone)));
+    });
+
+    if (matches.length === 0) {
+      return { found: false };
+    }
+
+    matches.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const latest = matches[0];
+
+    return {
+      found: true,
+      profile: {
+        driver_name: latest.driver_name || '',
+        carrier_name: latest.carrier_name || '',
+        client_name: latest.client_name || '',
+        vehicle_type: latest.vehicle_type || '',
+        cargo_type: latest.cargo_type || '',
+        license_plate: latest.license_plate || '',
+        booking_count: matches.length,
+      },
+    };
+  }
+
+  async getFrequentSuggestions(): Promise<{
+    carriers: string[];
+    clients: string[];
+  }> {
+    const defaultCarriers = [
+      'Kerry Express',
+      'Flash Express',
+      'SCG Logistics',
+      'DHL Supply Chain',
+      'J&T Express',
+      'ไปรษณีย์ไทย (EMS)',
+      'ขนส่งเอกชน',
+      'นิ่มซี่เส็งขนส่ง',
+      'รถร่วมบริการ',
+    ];
+
+    const bookings = await this.getAllBookings();
+    const carrierCounts = new Map<string, number>();
+    const clientCounts = new Map<string, number>();
+
+    defaultCarriers.forEach((c) => carrierCounts.set(c, 1));
+
+    bookings.forEach((b) => {
+      if (b.carrier_name) {
+        const c = b.carrier_name.trim();
+        if (c) carrierCounts.set(c, (carrierCounts.get(c) || 0) + 2);
+      }
+      if (b.client_name) {
+        const cl = b.client_name.trim();
+        if (cl) clientCounts.set(cl, (clientCounts.get(cl) || 0) + 1);
+      }
+    });
+
+    const carriers = Array.from(carrierCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([name]) => name)
+      .slice(0, 15);
+
+    const clients = Array.from(clientCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([name]) => name)
+      .slice(0, 15);
+
+    return { carriers, clients };
+  }
+
   async getAdminBookingsWithStats(
     date?: string | null,
     status?: string | null,

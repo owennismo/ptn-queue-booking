@@ -32,6 +32,9 @@ import {
   Download,
   ArrowLeft,
   ArrowRight,
+  Zap,
+  RotateCcw,
+  Loader2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { formatThaiDate, formatThaiShortDate, formatPhoneMask } from '@/lib/dateUtils';
@@ -133,6 +136,58 @@ export default function BookingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Profile Memory & Auto-Fill states
+  const [rememberProfile, setRememberProfile] = useState<boolean>(true);
+  const [isPreFilledFromLocal, setIsPreFilledFromLocal] = useState<boolean>(false);
+  const [cloudProfileFound, setCloudProfileFound] = useState<{
+    driver_name: string;
+    carrier_name: string;
+    client_name: string;
+    vehicle_type: string;
+    cargo_type: string;
+    license_plate: string;
+    booking_count: number;
+  } | null>(null);
+  const [lookingUpPhone, setLookingUpPhone] = useState<boolean>(false);
+  const [carrierSuggestions, setCarrierSuggestions] = useState<string[]>([]);
+  const [clientSuggestions, setClientSuggestions] = useState<string[]>([]);
+
+  // Load saved profile from LocalStorage on mount
+  useEffect(() => {
+    try {
+      const savedStr = localStorage.getItem('ptn_saved_profile');
+      if (savedStr) {
+        const saved = JSON.parse(savedStr);
+        if (saved && typeof saved === 'object') {
+          if (saved.userPhone) setUserPhone(saved.userPhone);
+          if (saved.carrierName) setCarrierName(saved.carrierName);
+          if (saved.clientName) setClientName(saved.clientName);
+          if (saved.driverName) setDriverName(saved.driverName);
+          if (saved.vehicleType) setVehicleType(saved.vehicleType);
+          if (saved.cargoType) setCargoType(saved.cargoType);
+          if (saved.licensePlate) setLicensePlate(saved.licensePlate);
+          if (typeof saved.rememberMe === 'boolean') setRememberProfile(saved.rememberMe);
+          setIsPreFilledFromLocal(true);
+        }
+      }
+    } catch (e) {
+      console.warn('Could not read saved profile:', e);
+    }
+  }, []);
+
+  // Fetch suggestions for carrier & client datalists
+  useEffect(() => {
+    fetch('/api/bookings/profile?suggestions=true')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) {
+          if (Array.isArray(d.carriers)) setCarrierSuggestions(d.carriers);
+          if (Array.isArray(d.clients)) setClientSuggestions(d.clients);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Validation function per step
   const validateStep = (stepNum: number): boolean => {
     setErrorMessage(null);
@@ -231,9 +286,69 @@ export default function BookingPage() {
     setPhotoError(null);
   };
 
-  // Phone Input Masking (08X-XXX-XXXX / 0XX-XXX-XXXX)
+  // Phone Input Masking (08X-XXX-XXXX / 0XX-XXX-XXXX) & Cloud Auto-fill lookup
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUserPhone(formatPhoneMask(e.target.value));
+    const formatted = formatPhoneMask(e.target.value);
+    setUserPhone(formatted);
+
+    const digitsOnly = formatted.replace(/\D/g, '');
+    if (digitsOnly.length >= 10) {
+      triggerPhoneLookup(digitsOnly);
+    } else {
+      setCloudProfileFound(null);
+    }
+  };
+
+  const triggerPhoneLookup = async (phoneDigits: string) => {
+    try {
+      setLookingUpPhone(true);
+      const res = await fetch(`/api/bookings/profile?phone=${phoneDigits}`);
+      const data = await res.json();
+      if (data.success && data.found && data.profile) {
+        const p = data.profile;
+        // If current form values already match, don't show prompt
+        if (
+          driverName.trim() === p.driver_name &&
+          carrierName.trim() === p.carrier_name &&
+          clientName.trim() === p.client_name
+        ) {
+          setCloudProfileFound(null);
+        } else {
+          setCloudProfileFound(p);
+        }
+      } else {
+        setCloudProfileFound(null);
+      }
+    } catch (e) {
+      setCloudProfileFound(null);
+    } finally {
+      setLookingUpPhone(false);
+    }
+  };
+
+  const handleApplyCloudProfile = () => {
+    if (!cloudProfileFound) return;
+    if (cloudProfileFound.driver_name) setDriverName(cloudProfileFound.driver_name);
+    if (cloudProfileFound.carrier_name) setCarrierName(cloudProfileFound.carrier_name);
+    if (cloudProfileFound.client_name) setClientName(cloudProfileFound.client_name);
+    if (cloudProfileFound.vehicle_type) setVehicleType(cloudProfileFound.vehicle_type);
+    if (cloudProfileFound.cargo_type) setCargoType(cloudProfileFound.cargo_type);
+    if (cloudProfileFound.license_plate) setLicensePlate(cloudProfileFound.license_plate);
+    setCloudProfileFound(null);
+    setIsPreFilledFromLocal(true);
+  };
+
+  const handleClearSavedProfile = () => {
+    try {
+      localStorage.removeItem('ptn_saved_profile');
+    } catch (e) {}
+    setUserPhone('');
+    setCarrierName('');
+    setClientName('');
+    setDriverName('');
+    setLicensePlate('');
+    setIsPreFilledFromLocal(false);
+    setCloudProfileFound(null);
   };
 
   // Helper format Thai Date
@@ -412,6 +527,26 @@ export default function BookingPage() {
           localStorage.setItem('ptn_my_bookings', JSON.stringify(myBookings));
         }
         sessionStorage.setItem('ptn_booking_id', data.booking.booking_id);
+
+        // Save profile if rememberProfile is checked
+        if (rememberProfile) {
+          localStorage.setItem(
+            'ptn_saved_profile',
+            JSON.stringify({
+              rememberMe: true,
+              userPhone: userPhone.trim(),
+              carrierName: carrierName.trim(),
+              clientName: clientName.trim(),
+              driverName: driverName.trim(),
+              licensePlate: licensePlate.trim(),
+              vehicleType: vehicleType,
+              cargoType: cargoType,
+              updatedAt: new Date().toISOString(),
+            })
+          );
+        } else {
+          localStorage.removeItem('ptn_saved_profile');
+        }
       } catch (e) {}
 
       // Trigger Confetti Effect
@@ -707,6 +842,42 @@ export default function BookingPage() {
                 </div>
               </div>
 
+              {/* Datalist Auto-Suggestions for frequent carriers and clients */}
+              <datalist id="carrier-suggestions">
+                {carrierSuggestions.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+              <datalist id="client-suggestions">
+                {clientSuggestions.map((cl) => (
+                  <option key={cl} value={cl} />
+                ))}
+              </datalist>
+
+              {/* LocalStorage Pre-filled banner */}
+              {isPreFilledFromLocal && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-3 text-emerald-900 shadow-sm animate-in fade-in duration-300">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                      <Zap className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold truncate">นำข้อมูลล่าสุดของคุณมาใส่ให้อัตโนมัติแล้ว</p>
+                      <p className="text-xs text-emerald-700 truncate">สามารถแก้ไขข้อมูลสำหรับการจองรอบนี้ หรือกดล้างข้อมูลได้</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearSavedProfile}
+                    className="shrink-0 text-xs text-emerald-800 hover:text-rose-600 bg-white hover:bg-rose-50 border border-emerald-200 hover:border-rose-200 px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 shadow-sm active:scale-95"
+                    title="ล้างข้อมูลและกรอกใหม่"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>ล้างข้อมูล</span>
+                  </button>
+                </div>
+              )}
+
               {/* Cargo Type Selection */}
               <div className="space-y-2">
                 <label className="block text-base font-semibold text-slate-800">
@@ -762,8 +933,13 @@ export default function BookingPage() {
                       maxLength={12}
                       value={userPhone}
                       onChange={handlePhoneChange}
-                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-slate-900 font-semibold text-base"
+                      className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-slate-900 font-semibold text-base"
                     />
+                    {lookingUpPhone && (
+                      <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-emerald-600">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      </div>
+                    )}
                   </div>
                   <p className="text-xs text-slate-500">ระบบจัดรูปแบบ 08X-XXX-XXXX ให้อัตโนมัติ</p>
                 </div>
@@ -780,6 +956,7 @@ export default function BookingPage() {
                     <input
                       type="text"
                       required
+                      list="carrier-suggestions"
                       placeholder="เช่น Kerry Express, Flash Express, ขนส่งเอกชน..."
                       value={carrierName}
                       onChange={(e) => setCarrierName(e.target.value)}
@@ -787,6 +964,49 @@ export default function BookingPage() {
                     />
                   </div>
                 </div>
+
+                {/* Cloud Profile Suggestion Card (If phone matches past bookings) */}
+                {cloudProfileFound && (
+                  <div className="sm:col-span-2 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 rounded-2xl p-4 text-amber-950 shadow-sm space-y-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 font-bold text-sm text-amber-900">
+                        <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>พบประวัติการจองเดิมจากเบอร์โทรนี้ ({cloudProfileFound.booking_count} ครั้งล่าสุด)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCloudProfileFound(null)}
+                        className="text-amber-500 hover:text-amber-700 p-1 rounded-lg hover:bg-amber-100/60 transition"
+                        title="ปิดการแจ้งเตือน"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="bg-white/90 rounded-xl p-3 text-xs sm:text-sm border border-amber-200/60 text-slate-700 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+                      <div><span className="text-slate-500">ผู้ส่ง/คนขับ:</span> <strong className="text-slate-900">{cloudProfileFound.driver_name || '-'}</strong></div>
+                      <div><span className="text-slate-500">บริษัทขนส่ง:</span> <strong className="text-slate-900">{cloudProfileFound.carrier_name || '-'}</strong></div>
+                      <div><span className="text-slate-500">เจ้าของสินค้า:</span> <strong className="text-slate-900">{cloudProfileFound.client_name || '-'}</strong></div>
+                      <div><span className="text-slate-500">ทะเบียนรถ:</span> <strong className="text-slate-900">{cloudProfileFound.license_plate || '-'}</strong></div>
+                    </div>
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setCloudProfileFound(null)}
+                        className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-800 font-medium rounded-lg hover:bg-amber-100/50 transition"
+                      >
+                        ไม่ใช้ข้อมูลนี้
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleApplyCloudProfile}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5 active:scale-95"
+                      >
+                        <Zap className="w-3.5 h-3.5" />
+                        <span>ดึงข้อมูลมาใส่ให้อัตโนมัติ</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Client Name */}
                 <div className="space-y-1.5 sm:col-span-2">
@@ -800,6 +1020,7 @@ export default function BookingPage() {
                     <input
                       type="text"
                       required
+                      list="client-suggestions"
                       placeholder="เช่น บจก. พีทีเอ็น เภสัชภัณฑ์, โรงงานผู้ผลิต..."
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
@@ -870,6 +1091,23 @@ export default function BookingPage() {
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Remember Profile Option */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="remember-profile-checkbox"
+                  checked={rememberProfile}
+                  onChange={(e) => setRememberProfile(e.target.checked)}
+                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                />
+                <label
+                  htmlFor="remember-profile-checkbox"
+                  className="text-xs sm:text-sm text-slate-700 font-medium cursor-pointer select-none"
+                >
+                  จดจำข้อมูลของฉันสำหรับการจองครั้งถัดไปในเครื่องนี้ (เบอร์โทร, ชื่อผู้ส่ง, บริษัท, ทะเบียน)
+                </label>
               </div>
 
               {/* Navigation Action Buttons for Step 2 */}
