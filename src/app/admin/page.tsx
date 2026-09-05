@@ -57,7 +57,9 @@ import {
   Database,
   Settings,
   FileText,
+  BarChart3,
 } from 'lucide-react';
+import AdminAnalytics from '@/components/AdminAnalytics';
 import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole, BookingStatus, SystemSettings, DEFAULT_SYSTEM_SETTINGS } from '@/lib/types';
 import QRScannerModal from '@/components/QRScannerModal';
 import ThaiDatePicker from '@/components/ThaiDatePicker';
@@ -136,7 +138,7 @@ export default function AdminDashboardPage() {
   const [idleSecondsRemaining, setIdleSecondsRemaining] = useState<number>(IDLE_TIMEOUT_SECONDS);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'queues' | 'capacity' | 'blocking' | 'staff' | 'audit' | 'settings'>('queues');
+  const [activeTab, setActiveTab] = useState<'queues' | 'capacity' | 'blocking' | 'staff' | 'audit' | 'settings' | 'analytics'>('queues');
 
   // Queues state (Default to 'All' to show all incoming bookings)
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -1652,6 +1654,18 @@ export default function AdminDashboardPage() {
             >
               <Settings className="w-4 h-4 text-cyan-300" />
               <span>ข้อมูลติดต่อและประกาศ</span>
+            </button>
+          )}
+
+          {isSuperAdmin && (
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+                activeTab === 'analytics' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4 text-purple-300" />
+              <span>วิเคราะห์ข้อมูล (Analytics)</span>
             </button>
           )}
 
@@ -3348,6 +3362,11 @@ export default function AdminDashboardPage() {
               </div>
             </form>
           </div>
+        )}
+
+        {/* 🌟 TAB 7: LOGISTICS & WAREHOUSE ANALYTICS (SUPER ADMIN ONLY) */}
+        {isSuperAdmin && activeTab === 'analytics' && token && (
+          <AdminAnalytics token={token} />
         )}
       </main>
 
