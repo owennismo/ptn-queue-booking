@@ -91,8 +91,8 @@ export default function BookingPage() {
   const [carrierName, setCarrierName] = useState('');
   const [clientName, setClientName] = useState('');
   const [userPhone, setUserPhone] = useState('');
-  const [palletCount, setPalletCount] = useState<number>(1);
-  const [vehicleCount, setVehicleCount] = useState<number>(1);
+  const [palletCount, setPalletCount] = useState<number | string>(1);
+  const [vehicleCount, setVehicleCount] = useState<number | string>(1);
   const [vehicleType, setVehicleType] = useState<string>('รถกระบะ 4 ล้อ (ตู้ทึบ/คอก)');
   const [cargoType, setCargoType] = useState<string>('ยาและเวชภัณฑ์ทั่วไป (Room Temp 15-30°C)');
   const [driverName, setDriverName] = useState('');
@@ -152,8 +152,12 @@ export default function BookingPage() {
         return false;
       }
     } else if (stepNum === 3) {
-      if (palletCount < 1) {
+      if (!palletCount || Number(palletCount) < 1) {
         setErrorMessage('จำนวนลังต้องอย่างน้อย 1 ลัง');
+        return false;
+      }
+      if (!vehicleCount || Number(vehicleCount) < 1) {
+        setErrorMessage('จำนวนรถขนส่งต้องอย่างน้อย 1 คัน');
         return false;
       }
     }
@@ -358,8 +362,8 @@ export default function BookingPage() {
           user_phone: userPhone,
           carrier_name: carrierName,
           client_name: clientName,
-          pallet_count: palletCount,
-          vehicle_count: vehicleCount,
+          pallet_count: Math.max(1, Number(palletCount) || 1),
+          vehicle_count: Math.max(1, Number(vehicleCount) || 1),
           vehicle_type: vehicleType,
           cargo_type: cargoType,
           requested_date: requestedDate,
@@ -914,8 +918,8 @@ export default function BookingPage() {
                   <div className="relative flex items-center pt-2">
                     <button
                       type="button"
-                      onClick={() => setPalletCount((prev) => Math.max(1, prev - 1))}
-                      className="w-12 h-12 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-l-2xl font-bold flex items-center justify-center text-xl transition shadow-2xs active:scale-95"
+                      onClick={() => setPalletCount((prev) => Math.max(1, (Number(prev) || 1) - 1))}
+                      className="w-12 h-12 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-l-2xl font-bold flex items-center justify-center text-xl transition shadow-2xs active:scale-95 shrink-0"
                     >
                       -
                     </button>
@@ -923,19 +927,33 @@ export default function BookingPage() {
                       type="number"
                       min="1"
                       required
+                      placeholder="ระบุจำนวนลัง"
                       value={palletCount}
-                      onChange={(e) => setPalletCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                      className="w-full py-3 text-center bg-white border-y border-slate-300 text-emerald-800 font-extrabold text-xl focus:outline-none"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          setPalletCount('');
+                        } else {
+                          const num = parseInt(val, 10);
+                          setPalletCount(isNaN(num) ? '' : Math.max(1, num));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (palletCount === '' || Number(palletCount) < 1) {
+                          setPalletCount(1);
+                        }
+                      }}
+                      className="w-full py-3 text-center bg-white border-y border-slate-300 text-emerald-800 font-extrabold text-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:z-10"
                     />
                     <button
                       type="button"
-                      onClick={() => setPalletCount((prev) => prev + 1)}
-                      className="w-12 h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-r-2xl font-bold flex items-center justify-center text-xl transition shadow-md shadow-emerald-200 active:scale-95"
+                      onClick={() => setPalletCount((prev) => (Number(prev) || 0) + 1)}
+                      className="w-12 h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-r-2xl font-bold flex items-center justify-center text-xl transition shadow-md shadow-emerald-200 active:scale-95 shrink-0"
                     >
                       +
                     </button>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">กดปุ่ม + หรือ - เพื่อปรับจำนวนลัง</p>
+                  <p className="text-xs text-slate-500 mt-1">สามารถพิมพ์ตัวเลขได้โดยตรง หรือกดปุ่ม + / - เพื่อปรับจำนวน</p>
                 </div>
 
                 {/* Vehicle Count with Stepper */}
@@ -946,8 +964,8 @@ export default function BookingPage() {
                   <div className="relative flex items-center pt-2">
                     <button
                       type="button"
-                      onClick={() => setVehicleCount((prev) => Math.max(1, prev - 1))}
-                      className="w-12 h-12 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-l-2xl font-bold flex items-center justify-center text-xl transition shadow-2xs active:scale-95"
+                      onClick={() => setVehicleCount((prev) => Math.max(1, (Number(prev) || 1) - 1))}
+                      className="w-12 h-12 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-l-2xl font-bold flex items-center justify-center text-xl transition shadow-2xs active:scale-95 shrink-0"
                     >
                       -
                     </button>
@@ -955,19 +973,33 @@ export default function BookingPage() {
                       type="number"
                       min="1"
                       required
+                      placeholder="ระบุจำนวนคัน"
                       value={vehicleCount}
-                      onChange={(e) => setVehicleCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                      className="w-full py-3 text-center bg-white border-y border-slate-300 text-slate-900 font-extrabold text-xl focus:outline-none"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          setVehicleCount('');
+                        } else {
+                          const num = parseInt(val, 10);
+                          setVehicleCount(isNaN(num) ? '' : Math.max(1, num));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (vehicleCount === '' || Number(vehicleCount) < 1) {
+                          setVehicleCount(1);
+                        }
+                      }}
+                      className="w-full py-3 text-center bg-white border-y border-slate-300 text-slate-900 font-extrabold text-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:z-10"
                     />
                     <button
                       type="button"
-                      onClick={() => setVehicleCount((prev) => prev + 1)}
-                      className="w-12 h-12 bg-slate-800 hover:bg-slate-900 text-white rounded-r-2xl font-bold flex items-center justify-center text-xl transition shadow-sm active:scale-95"
+                      onClick={() => setVehicleCount((prev) => (Number(prev) || 0) + 1)}
+                      className="w-12 h-12 bg-slate-800 hover:bg-slate-900 text-white rounded-r-2xl font-bold flex items-center justify-center text-xl transition shadow-sm active:scale-95 shrink-0"
                     >
                       +
                     </button>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">ระบุจำนวนคันรถที่เข้าเทียบท่า</p>
+                  <p className="text-xs text-slate-500 mt-1">สามารถพิมพ์ตัวเลขได้โดยตรง หรือกดปุ่ม + / - เพื่อปรับจำนวน</p>
                 </div>
 
                 {/* Notes */}
