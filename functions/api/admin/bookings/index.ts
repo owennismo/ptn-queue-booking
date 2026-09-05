@@ -17,9 +17,9 @@ export async function onRequestGet(context: { request: Request; env: any }) {
     const search = url.searchParams.get('search');
 
     const store = new DataStore(env);
-    const bookings = await store.getAdminBookings(date, status, search);
+    const { bookings, stats } = await store.getAdminBookingsWithStats(date, status, search);
 
-    return new Response(JSON.stringify({ bookings }), {
+    return new Response(JSON.stringify({ bookings, stats }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
   } catch (error: any) {

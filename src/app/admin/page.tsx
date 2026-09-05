@@ -156,6 +156,21 @@ export default function AdminDashboardPage() {
     return bookings.filter(isBookingOverdue).length;
   }, [forecast?.overdue_count, bookings, isBookingOverdue]);
 
+  // Real-time KPI Stats from API
+  const [kpiStats, setKpiStats] = useState<{
+    total: number;
+    pending: number;
+    overdue: number;
+    receiving: number;
+    completed: number;
+  } | null>(null);
+
+  const totalCount = kpiStats?.total ?? bookings.length;
+  const pendingCount = kpiStats?.pending ?? bookings.filter((b) => b.status === 'Pending').length;
+  const overdueCount = kpiStats?.overdue ?? systemOverdueCount;
+  const receivingCount = kpiStats?.receiving ?? bookings.filter((b) => b.status === 'Receiving' || b.status === 'CheckedIn').length;
+  const completedCount = kpiStats?.completed ?? bookings.filter((b) => b.status === 'Completed').length;
+
   // Settings state (Capacity & Blocked dates)
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
@@ -413,6 +428,9 @@ export default function AdminDashboardPage() {
       const res = await authFetch(url);
       const data = await res.json();
       setBookings(data.bookings || []);
+      if (data.stats) {
+        setKpiStats(data.stats);
+      }
     } catch (err: any) {
       if (err.message !== 'Unauthorized') {
         showToast('ไม่สามารถโหลดข้อมูลคิวได้', 'error');
@@ -1705,47 +1723,78 @@ export default function AdminDashboardPage() {
         {/* 🌟 TAB 1: QUEUES MANAGEMENT */}
         {activeTab === 'queues' && (
           <div className="space-y-6">
-            {/* Real-Time Operational KPI Metrics */}
+            {/* Real-Time Operational KPI Metrics (Clickable Filter Cards) */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 no-print">
-              <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs">
-                <div className="flex justify-between items-start">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">คิวในตัวกรองทั้งหมด</span>
-                  <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 font-bold text-2xs">รวม</span>
-                </div>
-                <div className="mt-2.5">
-                  <span className="text-2xl sm:text-3xl font-black text-slate-900 font-mono">{bookings.length}</span>
-                  <span className="text-xs text-slate-400 ml-1">คิว</span>
-                </div>
-                <div className="mt-1 text-2xs text-emerald-600 font-semibold">● ข้อมูล Real-time</div>
-              </div>
-
-              <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs">
-                <div className="flex justify-between items-start">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">รอตรวจสอบ (Pending)</span>
-                  <span className="px-2 py-0.5 rounded-lg bg-amber-100 text-amber-800 font-bold text-2xs">รออนุมัติ</span>
-                </div>
-                <div className="mt-2.5">
-                  <span className="text-2xl sm:text-3xl font-black text-amber-500 font-mono">
-                    {bookings.filter(b => b.status === 'Pending').length}
-                  </span>
-                  <span className="text-xs text-slate-400 ml-1">คิว</span>
-                </div>
-                <div className="mt-1 text-2xs text-amber-600 font-semibold">● รอเจ้าหน้าที่กดรับรอง</div>
-              </div>
-
-              {/* Overdue KPI Card */}
+              {/* Card 1: All / Total */}
               <button
                 type="button"
-                onClick={() => {
-                  setFilterDate('All');
-                  setFilterStatus('Overdue');
-                }}
-                className={`p-4 sm:p-5 rounded-3xl border text-left transition ${
+                onClick={() => setFilterStatus('All')}
+                className={`p-4 sm:p-5 rounded-3xl border text-left transition cursor-pointer active:scale-98 ${
+                  filterStatus === 'All'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-800 ring-offset-2'
+                    : 'bg-white hover:bg-slate-50 border-slate-200/80 text-slate-900 shadow-xs hover:border-slate-300'
+                }`}
+                title="คลิกเพื่อดูรายการคิวทั้งหมด"
+              >
+                <div className="flex justify-between items-start">
+                  <span className={`text-xs font-bold uppercase tracking-wider ${filterStatus === 'All' ? 'text-slate-300' : 'text-slate-500'}`}>
+                    คิวในตัวกรองทั้งหมด
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-lg font-bold text-2xs ${filterStatus === 'All' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                    รวม
+                  </span>
+                </div>
+                <div className="mt-2.5">
+                  <span className={`text-2xl sm:text-3xl font-black font-mono ${filterStatus === 'All' ? 'text-white' : 'text-slate-900'}`}>
+                    {totalCount}
+                  </span>
+                  <span className={`text-xs ml-1 ${filterStatus === 'All' ? 'text-slate-300' : 'text-slate-400'}`}>คิว</span>
+                </div>
+                <div className={`mt-1 text-2xs font-semibold ${filterStatus === 'All' ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                  {filterStatus === 'All' ? '● กำลังแสดงทุกสถานะ' : '● คลิกเพื่อดูทั้งหมด'}
+                </div>
+              </button>
+
+              {/* Card 2: Pending Approval */}
+              <button
+                type="button"
+                onClick={() => setFilterStatus(filterStatus === 'Pending' ? 'All' : 'Pending')}
+                className={`p-4 sm:p-5 rounded-3xl border text-left transition cursor-pointer active:scale-98 ${
+                  filterStatus === 'Pending'
+                    ? 'bg-amber-500 text-white border-amber-500 shadow-md ring-2 ring-amber-400 ring-offset-2'
+                    : 'bg-white hover:bg-amber-50/60 border-slate-200/80 text-slate-900 shadow-xs hover:border-amber-300'
+                }`}
+                title="คลิกเพื่อดูเฉพาะคิวรอตรวจสอบ (Pending)"
+              >
+                <div className="flex justify-between items-start">
+                  <span className={`text-xs font-bold uppercase tracking-wider ${filterStatus === 'Pending' ? 'text-amber-100' : 'text-slate-500'}`}>
+                    รอตรวจสอบ (Pending)
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-lg font-bold text-2xs ${filterStatus === 'Pending' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'}`}>
+                    รออนุมัติ
+                  </span>
+                </div>
+                <div className="mt-2.5">
+                  <span className={`text-2xl sm:text-3xl font-black font-mono ${filterStatus === 'Pending' ? 'text-white' : 'text-amber-500'}`}>
+                    {pendingCount}
+                  </span>
+                  <span className={`text-xs ml-1 ${filterStatus === 'Pending' ? 'text-amber-100' : 'text-slate-400'}`}>คิว</span>
+                </div>
+                <div className={`mt-1 text-2xs font-semibold ${filterStatus === 'Pending' ? 'text-amber-100' : 'text-amber-600'}`}>
+                  {filterStatus === 'Pending' ? '● กำลังแสดงเฉพาะรอตรวจสอบ' : '● รอเจ้าหน้าที่กดรับรอง'}
+                </div>
+              </button>
+
+              {/* Card 3: Overdue */}
+              <button
+                type="button"
+                onClick={() => setFilterStatus(filterStatus === 'Overdue' ? 'All' : 'Overdue')}
+                className={`p-4 sm:p-5 rounded-3xl border text-left transition cursor-pointer active:scale-98 ${
                   filterStatus === 'Overdue'
                     ? 'bg-amber-600 text-white border-amber-600 shadow-md ring-2 ring-amber-500 ring-offset-2'
-                    : 'bg-white hover:bg-amber-50/50 border-slate-200/80 text-slate-900 shadow-xs'
+                    : 'bg-white hover:bg-amber-50/60 border-slate-200/80 text-slate-900 shadow-xs hover:border-amber-300'
                 }`}
-                title="คลิกเพื่อดูเฉพาะรายการคิวที่เลยกำหนดเวลานัด"
+                title="คลิกเพื่อดูเฉพาะรายการคิวที่เลยกำหนดเวลานัด (Overdue)"
               >
                 <div className="flex justify-between items-start">
                   <span className={`text-xs font-bold uppercase tracking-wider ${filterStatus === 'Overdue' ? 'text-amber-100' : 'text-slate-500'}`}>
@@ -1756,43 +1805,75 @@ export default function AdminDashboardPage() {
                   </span>
                 </div>
                 <div className="mt-2.5">
-                  <span className={`text-2xl sm:text-3xl font-black font-mono ${filterStatus === 'Overdue' ? 'text-white' : systemOverdueCount > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
-                    {systemOverdueCount}
+                  <span className={`text-2xl sm:text-3xl font-black font-mono ${filterStatus === 'Overdue' ? 'text-white' : overdueCount > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+                    {overdueCount}
                   </span>
                   <span className={`text-xs ml-1 ${filterStatus === 'Overdue' ? 'text-amber-100' : 'text-slate-400'}`}>คิว</span>
                 </div>
                 <div className={`mt-1 text-2xs font-semibold ${filterStatus === 'Overdue' ? 'text-amber-100' : 'text-amber-700'}`}>
-                  ● ไม่ปฏิเสธคิวอัตโนมัติ
+                  {filterStatus === 'Overdue' ? '● กำลังแสดงเฉพาะคิวเลยเวลา' : '● ไม่ปฏิเสธคิวอัตโนมัติ'}
                 </div>
               </button>
 
-              <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+              {/* Card 4: Dock / Receiving */}
+              <button
+                type="button"
+                onClick={() => setFilterStatus(filterStatus === 'Receiving' ? 'All' : 'Receiving')}
+                className={`p-4 sm:p-5 rounded-3xl border text-left transition cursor-pointer active:scale-98 ${
+                  filterStatus === 'Receiving'
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-500 ring-offset-2'
+                    : 'bg-white hover:bg-indigo-50/60 border-slate-200/80 text-slate-900 shadow-xs hover:border-indigo-300'
+                }`}
+                title="คลิกเพื่อดูเฉพาะคิวที่กำลังลงสินค้า (Dock)"
+              >
                 <div className="flex justify-between items-start">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">กำลังลงสินค้า (Dock)</span>
-                  <span className="px-2 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 font-bold text-2xs">หน้าท่า</span>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${filterStatus === 'Receiving' ? 'text-indigo-100' : 'text-slate-500'}`}>
+                    กำลังลงสินค้า (Dock)
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-lg font-bold text-2xs ${filterStatus === 'Receiving' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-800'}`}>
+                    หน้าท่า
+                  </span>
                 </div>
                 <div className="mt-2.5">
-                  <span className="text-2xl sm:text-3xl font-black text-indigo-600 font-mono">
-                    {bookings.filter(b => b.status === 'Receiving' || b.status === 'CheckedIn').length}
+                  <span className={`text-2xl sm:text-3xl font-black font-mono ${filterStatus === 'Receiving' ? 'text-white' : 'text-indigo-600'}`}>
+                    {receivingCount}
                   </span>
-                  <span className="text-xs text-slate-400 ml-1">คิว</span>
+                  <span className={`text-xs ml-1 ${filterStatus === 'Receiving' ? 'text-indigo-100' : 'text-slate-400'}`}>คิว</span>
                 </div>
-                <div className="mt-1 text-2xs text-indigo-600 font-semibold">● เทียบท่า / ตรวจนับสินค้า</div>
-              </div>
+                <div className={`mt-1 text-2xs font-semibold ${filterStatus === 'Receiving' ? 'text-indigo-100' : 'text-indigo-600'}`}>
+                  {filterStatus === 'Receiving' ? '● กำลังแสดงเฉพาะคิวหน้าท่า' : '● เทียบท่า / ตรวจนับสินค้า'}
+                </div>
+              </button>
 
-              <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+              {/* Card 5: Completed */}
+              <button
+                type="button"
+                onClick={() => setFilterStatus(filterStatus === 'Completed' ? 'All' : 'Completed')}
+                className={`p-4 sm:p-5 rounded-3xl border text-left transition cursor-pointer active:scale-98 ${
+                  filterStatus === 'Completed'
+                    ? 'bg-teal-600 text-white border-teal-600 shadow-md ring-2 ring-teal-500 ring-offset-2'
+                    : 'bg-white hover:bg-teal-50/60 border-slate-200/80 text-slate-900 shadow-xs hover:border-teal-300'
+                }`}
+                title="คลิกเพื่อดูเฉพาะคิวที่ตรวจรับเสร็จสมบูรณ์ (Completed)"
+              >
                 <div className="flex justify-between items-start">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">ตรวจรับเสร็จสมบูรณ์</span>
-                  <span className="px-2 py-0.5 rounded-lg bg-teal-100 text-teal-800 font-bold text-2xs">สำเร็จ</span>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${filterStatus === 'Completed' ? 'text-teal-100' : 'text-slate-500'}`}>
+                    ตรวจรับเสร็จสมบูรณ์
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-lg font-bold text-2xs ${filterStatus === 'Completed' ? 'bg-white/20 text-white' : 'bg-teal-100 text-teal-800'}`}>
+                    สำเร็จ
+                  </span>
                 </div>
                 <div className="mt-2.5">
-                  <span className="text-2xl sm:text-3xl font-black text-teal-600 font-mono">
-                    {bookings.filter(b => b.status === 'Completed').length}
+                  <span className={`text-2xl sm:text-3xl font-black font-mono ${filterStatus === 'Completed' ? 'text-white' : 'text-teal-600'}`}>
+                    {completedCount}
                   </span>
-                  <span className="text-xs text-slate-400 ml-1">คิว</span>
+                  <span className={`text-xs ml-1 ${filterStatus === 'Completed' ? 'text-teal-100' : 'text-slate-400'}`}>คิว</span>
                 </div>
-                <div className="mt-1 text-2xs text-teal-600 font-semibold">● ปิดงานเข้าคลังเรียบร้อย</div>
-              </div>
+                <div className={`mt-1 text-2xs font-semibold ${filterStatus === 'Completed' ? 'text-teal-100' : 'text-teal-600'}`}>
+                  {filterStatus === 'Completed' ? '● กำลังแสดงเฉพาะตรวจรับแล้ว' : '● ปิดงานเข้าคลังเรียบร้อย'}
+                </div>
+              </button>
             </div>
 
             {/* ⚠️ Overdue Queues Alert Banner */}

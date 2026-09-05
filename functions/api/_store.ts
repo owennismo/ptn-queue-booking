@@ -1280,7 +1280,20 @@ export class DataStore {
     return [];
   }
 
-  async getAdminBookings(date?: string | null, status?: string | null, search?: string | null): Promise<Booking[]> {
+  async getAdminBookingsWithStats(
+    date?: string | null,
+    status?: string | null,
+    search?: string | null
+  ): Promise<{
+    bookings: Booking[];
+    stats: {
+      total: number;
+      pending: number;
+      overdue: number;
+      receiving: number;
+      completed: number;
+    };
+  }> {
     const bookings = await this.getAllBookings();
     const { todayStr, currentTimeStr } = getBangkokDateTime();
 
@@ -1302,14 +1315,36 @@ export class DataStore {
       return false;
     };
 
-    let results = bookings.map((b: Booking) => ({
+    const allDecorated = bookings.map((b: Booking) => ({
       ...b,
       is_overdue: isBookingOverdue(b),
     }));
 
+    let dateScoped = allDecorated;
     if (date && date !== 'All' && date !== 'all') {
-      results = results.filter((b: any) => b.requested_date === date);
+      dateScoped = dateScoped.filter((b: any) => b.requested_date === date);
     }
+    if (search) {
+      const s = search.toLowerCase();
+      dateScoped = dateScoped.filter((b: Booking) =>
+        b.booking_id.toLowerCase().includes(s) ||
+        b.carrier_name.toLowerCase().includes(s) ||
+        b.client_name.toLowerCase().includes(s) ||
+        b.user_phone.includes(s) ||
+        (b.driver_name && b.driver_name.toLowerCase().includes(s)) ||
+        (b.license_plate && b.license_plate.toLowerCase().includes(s))
+      );
+    }
+
+    const stats = {
+      total: dateScoped.length,
+      pending: dateScoped.filter((b: any) => b.status === 'Pending').length,
+      overdue: dateScoped.filter((b: any) => b.is_overdue).length,
+      receiving: dateScoped.filter((b: any) => b.status === 'Receiving' || b.status === 'CheckedIn').length,
+      completed: dateScoped.filter((b: any) => b.status === 'Completed').length,
+    };
+
+    let results = dateScoped;
     if (status && status !== 'All') {
       if (status === 'Overdue') {
         results = results.filter((b: any) => b.is_overdue);
@@ -1324,18 +1359,13 @@ export class DataStore {
         results = results.filter((b: Booking) => b.status === status);
       }
     }
-    if (search) {
-      const s = search.toLowerCase();
-      results = results.filter((b: Booking) =>
-        b.booking_id.toLowerCase().includes(s) ||
-        b.carrier_name.toLowerCase().includes(s) ||
-        b.client_name.toLowerCase().includes(s) ||
-        b.user_phone.includes(s) ||
-        (b.driver_name && b.driver_name.toLowerCase().includes(s)) ||
-        (b.license_plate && b.license_plate.toLowerCase().includes(s))
-      );
-    }
-    return results;
+
+    return { bookings: results, stats };
+  }
+
+  async getAdminBookings(date?: string | null, status?: string | null, search?: string | null): Promise<Booking[]> {
+    const res = await this.getAdminBookingsWithStats(date, status, search);
+    return res.bookings;
   }
 
   async updateBookingStatus(
