@@ -3060,15 +3060,6 @@ export default function AdminDashboardPage() {
                           <span className="flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> ตรวจสอบสล็อตว่าง Real-time</span>
                           <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-emerald-400" /> รับบัตรคิวพร้อม QR Code ทันที</span>
                         </div>
-                        <div className="pt-2.5 border-t border-white/15 flex flex-wrap items-center gap-2 text-2xs">
-                          <span className="text-emerald-200">{systemSettings.contact_phone_label ? `${systemSettings.contact_phone_label}:` : 'ติดต่อฝ่ายรับสินค้า:'}</span>
-                          <span className="inline-flex items-center gap-1 bg-white/15 px-2.5 py-1 rounded-lg border border-white/20 font-bold">
-                            <Phone className="w-3 h-3 text-emerald-300" /> {systemSettings.contact_phone}
-                          </span>
-                          <span className="inline-flex items-center gap-1 bg-[#06C755]/30 px-2.5 py-1 rounded-lg border border-[#06C755]/40 font-bold">
-                            LINE ID: {systemSettings.contact_line_id}
-                          </span>
-                        </div>
                       </div>
                     </div>
                   </div>

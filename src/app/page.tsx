@@ -442,36 +442,6 @@ export default function BookingPage() {
                   <FileText className="w-4 h-4 text-emerald-400" /> รับบัตรคิวพร้อม QR Code ทันที
                 </span>
               </div>
-
-              {/* Direct Hero Contact Strip */}
-              <div className="pt-3 border-t border-white/15 flex flex-wrap items-center gap-2.5 text-xs sm:text-sm">
-                <span className="text-emerald-200 text-xs sm:text-sm font-medium">ติดต่อฝ่ายรับสินค้า:</span>
-                <a
-                  href={`tel:${systemSettings.contact_phone.replace(/[^0-9]/g, '')}`}
-                  className="inline-flex items-center gap-1.5 bg-white/15 hover:bg-white/25 px-3.5 py-1.5 rounded-xl border border-white/20 text-white font-bold transition backdrop-blur-sm shadow-xs"
-                >
-                  <Phone className="w-4 h-4 text-emerald-300" />
-                  <span>{systemSettings.contact_phone_label ? `${systemSettings.contact_phone_label}: ` : 'โทร: '}{systemSettings.contact_phone}</span>
-                </a>
-                {systemSettings.contact_phone_sub && (
-                  <a
-                    href={`tel:${systemSettings.contact_phone_sub.replace(/[^0-9]/g, '')}`}
-                    className="inline-flex items-center gap-1.5 bg-white/15 hover:bg-white/25 px-3.5 py-1.5 rounded-xl border border-white/20 text-white font-bold transition backdrop-blur-sm shadow-xs"
-                  >
-                    <Phone className="w-4 h-4 text-emerald-300" />
-                    <span>{systemSettings.contact_phone_sub_label ? `${systemSettings.contact_phone_sub_label}: ` : ''}{systemSettings.contact_phone_sub}</span>
-                  </a>
-                )}
-                <a
-                  href={systemSettings.contact_line_url || `https://line.me/ti/p/~${systemSettings.contact_line_id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 bg-[#06C755]/30 hover:bg-[#06C755]/40 px-3.5 py-1.5 rounded-xl border border-[#06C755]/40 text-white font-bold transition backdrop-blur-sm shadow-xs"
-                >
-                  <MessageCircle className="w-4 h-4 text-[#42ff84]" />
-                  <span>LINE ID: {systemSettings.contact_line_id}</span>
-                </a>
-              </div>
             </div>
             {/* Subtle Background Art */}
             <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
