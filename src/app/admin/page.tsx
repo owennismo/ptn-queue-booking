@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Calendar,
@@ -79,23 +79,49 @@ const IDLE_TIMEOUT_SECONDS = 60 * 60; // 1 hour (3600 seconds)
 export default function AdminDashboardPage() {
   const router = useRouter();
 
-  // Helper date
-  const getTodayStr = () => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+  // Helper date in Thai Timezone (UTC+7)
+  const getTodayStr = useCallback(() => {
+    const bangkokDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+    const year = bangkokDate.getFullYear();
+    const month = String(bangkokDate.getMonth() + 1).padStart(2, '0');
+    const day = String(bangkokDate.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
-  };
+  }, []);
 
-  const getTomorrowStr = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+  const getTomorrowStr = useCallback(() => {
+    const bangkokDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+    bangkokDate.setDate(bangkokDate.getDate() + 1);
+    const year = bangkokDate.getFullYear();
+    const month = String(bangkokDate.getMonth() + 1).padStart(2, '0');
+    const day = String(bangkokDate.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
-  };
+  }, []);
+
+  // Helper to check if a booking is overdue (เลยเวลานัด)
+  const isBookingOverdue = useCallback((b: Booking): boolean => {
+    if (b.status === 'Completed' || b.status === 'Cancelled' || b.status === 'Rejected') {
+      return false;
+    }
+    const bangkokDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+    const y = bangkokDate.getFullYear();
+    const m = String(bangkokDate.getMonth() + 1).padStart(2, '0');
+    const d = String(bangkokDate.getDate()).padStart(2, '0');
+    const today = `${y}-${m}-${d}`;
+    const hh = String(bangkokDate.getHours()).padStart(2, '0');
+    const mm = String(bangkokDate.getMinutes()).padStart(2, '0');
+    const currentTime = `${hh}:${mm}`;
+
+    if (b.requested_date < today) return true;
+    if (b.requested_date === today) {
+      let startTime = '17:00';
+      if (b.requested_time) {
+        const parts = b.requested_time.split('-');
+        if (parts[0]) startTime = parts[0].trim();
+      }
+      return currentTime >= startTime;
+    }
+    return false;
+  }, []);
 
   // Auth & Token & Role
   const [token, setToken] = useState<string>('');
@@ -116,6 +142,14 @@ export default function AdminDashboardPage() {
 
   // Forecast state
   const [forecast, setForecast] = useState<DailyForecast | null>(null);
+
+  // Overdue bookings count
+  const systemOverdueCount = useMemo(() => {
+    if (typeof forecast?.overdue_count === 'number' && forecast.overdue_count >= 0) {
+      return forecast.overdue_count;
+    }
+    return bookings.filter(isBookingOverdue).length;
+  }, [forecast?.overdue_count, bookings, isBookingOverdue]);
 
   // Settings state (Capacity & Blocked dates)
   const [slots, setSlots] = useState<TimeSlot[]>([]);
@@ -1667,7 +1701,7 @@ export default function AdminDashboardPage() {
         {activeTab === 'queues' && (
           <div className="space-y-6">
             {/* Real-Time Operational KPI Metrics */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 no-print">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 no-print">
               <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs">
                 <div className="flex justify-between items-start">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">คิวในตัวกรองทั้งหมด</span>
@@ -1693,6 +1727,39 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className="mt-1 text-2xs text-amber-600 font-semibold">● รอเจ้าหน้าที่กดรับรอง</div>
               </div>
+
+              {/* Overdue KPI Card */}
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterDate('All');
+                  setFilterStatus('Overdue');
+                }}
+                className={`p-4 sm:p-5 rounded-3xl border text-left transition ${
+                  filterStatus === 'Overdue'
+                    ? 'bg-amber-600 text-white border-amber-600 shadow-md ring-2 ring-amber-500 ring-offset-2'
+                    : 'bg-white hover:bg-amber-50/50 border-slate-200/80 text-slate-900 shadow-xs'
+                }`}
+                title="คลิกเพื่อดูเฉพาะรายการคิวที่เลยกำหนดเวลานัด"
+              >
+                <div className="flex justify-between items-start">
+                  <span className={`text-xs font-bold uppercase tracking-wider ${filterStatus === 'Overdue' ? 'text-amber-100' : 'text-slate-500'}`}>
+                    เลยเวลานัดหมาย
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-lg font-bold text-2xs ${filterStatus === 'Overdue' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-900'}`}>
+                    ค้างส่ง
+                  </span>
+                </div>
+                <div className="mt-2.5">
+                  <span className={`text-2xl sm:text-3xl font-black font-mono ${filterStatus === 'Overdue' ? 'text-white' : systemOverdueCount > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+                    {systemOverdueCount}
+                  </span>
+                  <span className={`text-xs ml-1 ${filterStatus === 'Overdue' ? 'text-amber-100' : 'text-slate-400'}`}>คิว</span>
+                </div>
+                <div className={`mt-1 text-2xs font-semibold ${filterStatus === 'Overdue' ? 'text-amber-100' : 'text-amber-700'}`}>
+                  ● ไม่ปฏิเสธคิวอัตโนมัติ
+                </div>
+              </button>
 
               <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs">
                 <div className="flex justify-between items-start">
@@ -1722,6 +1789,48 @@ export default function AdminDashboardPage() {
                 <div className="mt-1 text-2xs text-teal-600 font-semibold">● ปิดงานเข้าคลังเรียบร้อย</div>
               </div>
             </div>
+
+            {/* ⚠️ Overdue Queues Alert Banner */}
+            {systemOverdueCount > 0 && (
+              <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 p-0.5 rounded-3xl shadow-md no-print animate-in fade-in duration-200">
+                <div className="bg-amber-50/95 backdrop-blur-sm rounded-[22px] p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm animate-pulse">
+                      <AlertTriangle className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 bg-amber-200 text-amber-900 rounded-md text-2xs font-extrabold tracking-wide uppercase">
+                          แจ้งเตือนด่วน
+                        </span>
+                        <span className="text-xs text-amber-900 font-bold">
+                          คิวเลยกำหนดเวลา ({systemOverdueCount} คิว)
+                        </span>
+                      </div>
+                      <h4 className="text-sm sm:text-base font-extrabold text-amber-950 mt-0.5">
+                        มีรายการจองคิวที่เลยกำหนดเวลาส่งแล้ว แต่ยังไม่เสร็จสิ้น
+                      </h4>
+                      <p className="text-xs text-amber-800">
+                        ระบบยังคงรักษาสถานะคิวไว้ตามเดิม (ไม่ปฏิเสธคิวอัตโนมัติ) เพื่อให้เจ้าหน้าที่ตรวจสอบหรือรับสินค้าได้ตามความเหมาะสม
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilterDate('All');
+                        setFilterStatus('Overdue');
+                      }}
+                      className="w-full md:w-auto px-4 py-2.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-sm flex items-center justify-center gap-2"
+                    >
+                      <Filter className="w-4 h-4" />
+                      <span>ดูคิวที่เลยเวลา ({systemOverdueCount})</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Filters & Actions Bar */}
             <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-sm flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 sm:gap-4 no-print">
@@ -1781,6 +1890,7 @@ export default function AdminDashboardPage() {
                     className="bg-transparent text-xs sm:text-sm font-bold text-slate-800 focus:outline-none w-full"
                   >
                     <option value="All">ทุกสถานะ</option>
+                    <option value="Overdue">⚠️ คิวเลยเวลานัด {systemOverdueCount > 0 ? `(${systemOverdueCount})` : ''}</option>
                     <option value="Pending">⏳ รอตรวจสอบ (Pending)</option>
                     <option value="Approved">✅ อนุมัติแล้ว (Approved)</option>
                     <option value="Receiving">📦 กำลังลงสินค้า (Receiving)</option>
@@ -2020,6 +2130,14 @@ export default function AdminDashboardPage() {
                               <Clock className="w-3.5 h-3.5 text-slate-400" />
                               <span>{item.requested_time}</span>
                             </div>
+                            {isBookingOverdue(item) && (
+                              <div className="mt-1">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-extrabold bg-amber-100 border border-amber-300 text-amber-900 animate-pulse">
+                                  <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                                  <span>เลยเวลานัด</span>
+                                </span>
+                              </div>
+                            )}
                           </td>
                           <td className="py-4 px-4">
                             <span className="font-bold text-slate-900 block text-sm sm:text-base">{item.carrier_name}</span>
@@ -3845,6 +3963,18 @@ export default function AdminDashboardPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {isBookingOverdue(selectedBooking) && (
+              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3 text-xs text-amber-900">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                <div>
+                  <span className="font-bold block text-amber-950">⚠️ รายการนี้เลยกำหนดเวลานัดหมายแล้ว</span>
+                  <span className="text-2xs text-amber-800 leading-relaxed">
+                    ระบบยังคงรักษาสถานะคิวไว้ตามเดิม (ไม่ปฏิเสธคิวอัตโนมัติ) เพื่อให้เจ้าหน้าที่ตรวจสอบและรับสินค้าได้ตามความเหมาะสม
+                  </span>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="p-3 bg-slate-50 rounded-xl">

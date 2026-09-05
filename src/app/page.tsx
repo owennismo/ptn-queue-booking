@@ -48,6 +48,7 @@ interface Slot {
   booked_count: number;
   available_slots: number;
   is_available: boolean;
+  is_past?: boolean;
 }
 
 export default function BookingPage() {
@@ -71,13 +72,28 @@ export default function BookingPage() {
     };
   }, []);
 
-  // Today string YYYY-MM-DD
+  // Today string YYYY-MM-DD in Thai Timezone (UTC+7)
   const getTodayStr = () => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+    const bangkokDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+    const year = bangkokDate.getFullYear();
+    const month = String(bangkokDate.getMonth() + 1).padStart(2, '0');
+    const day = String(bangkokDate.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  };
+
+  const isSlotTimePast = (date: string, startTime: string) => {
+    const bangkokDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+    const y = bangkokDate.getFullYear();
+    const m = String(bangkokDate.getMonth() + 1).padStart(2, '0');
+    const d = String(bangkokDate.getDate()).padStart(2, '0');
+    const today = `${y}-${m}-${d}`;
+    const hh = String(bangkokDate.getHours()).padStart(2, '0');
+    const mm = String(bangkokDate.getMinutes()).padStart(2, '0');
+    const currentTime = `${hh}:${mm}`;
+
+    if (date < today) return true;
+    if (date === today && currentTime >= startTime) return true;
+    return false;
   };
 
   const [requestedDate, setRequestedDate] = useState<string>(getTodayStr());
@@ -605,7 +621,8 @@ export default function BookingPage() {
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                         {slots.map((slot) => {
                           const isSelected = selectedSlot === slot.slot_name;
-                          const isAvailable = slot.is_available;
+                          const isPast = Boolean(slot.is_past || isSlotTimePast(requestedDate, slot.start_time));
+                          const isAvailable = slot.is_available && !isPast;
 
                           return (
                             <button
@@ -616,23 +633,27 @@ export default function BookingPage() {
                               className={`relative p-3.5 sm:p-4 rounded-2xl border text-left transition-all duration-150 flex flex-col justify-between ${
                                 isSelected
                                   ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-200 ring-2 ring-emerald-600 ring-offset-2'
+                                  : isPast
+                                  ? 'bg-slate-100/90 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
                                   : isAvailable
                                   ? 'bg-white hover:bg-emerald-50/50 border-slate-200 text-slate-800 hover:border-emerald-300'
                                   : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
                               }`}
                             >
                               <div className="flex items-center justify-between">
-                                <Clock className={`w-4 h-4 ${isSelected ? 'text-white' : isAvailable ? 'text-emerald-600' : 'text-slate-400'}`} />
+                                <Clock className={`w-4 h-4 ${isSelected ? 'text-white' : isPast ? 'text-amber-500' : isAvailable ? 'text-emerald-600' : 'text-slate-400'}`} />
                                 <span
                                   className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
                                     isSelected
                                       ? 'bg-white/20 text-white'
+                                      : isPast
+                                      ? 'bg-amber-100 text-amber-800 border border-amber-200'
                                       : isAvailable
                                       ? 'bg-emerald-100 text-emerald-800'
                                       : 'bg-slate-200 text-slate-600'
                                   }`}
                                 >
-                                  {isAvailable ? `ว่าง ${slot.available_slots}/${slot.max_capacity}` : 'เต็ม'}
+                                  {isPast ? 'เลยเวลาจอง' : isAvailable ? `ว่าง ${slot.available_slots}/${slot.max_capacity}` : 'เต็ม'}
                                 </span>
                               </div>
                               <div className="mt-2 font-bold text-base sm:text-lg tracking-tight">

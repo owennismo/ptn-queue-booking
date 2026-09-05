@@ -138,6 +138,27 @@ function getRoleName(role: StaffRole): string {
   }
 }
 
+export function getBangkokDateTime(): { todayStr: string; currentTimeStr: string; tomorrowStr: string } {
+  const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+
+  const todayStr = `${year}-${month}-${day}`;
+  const currentTimeStr = `${hours}:${minutes}`;
+
+  const tomorrow = new Date(d);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomYear = tomorrow.getFullYear();
+  const tomMonth = String(tomorrow.getMonth() + 1).padStart(2, '0');
+  const tomDay = String(tomorrow.getDate()).padStart(2, '0');
+  const tomorrowStr = `${tomYear}-${tomMonth}-${tomDay}`;
+
+  return { todayStr, currentTimeStr, tomorrowStr };
+}
+
 const DEFAULT_SLOTS: TimeSlot[] = [
   { id: 1, slot_name: '08:30 - 09:30', start_time: '08:30', end_time: '09:30', max_capacity: 3, is_active: 1, order_index: 1 },
   { id: 2, slot_name: '09:30 - 10:30', start_time: '09:30', end_time: '10:30', max_capacity: 4, is_active: 1, order_index: 2 },
@@ -764,9 +785,16 @@ export class DataStore {
     const slots = await this.getTimeSlots();
     const blockedDates = await this.getBlockedDates();
     const bookings = await this.getAllBookings();
+    const { todayStr, currentTimeStr } = getBangkokDateTime();
 
     let isBlocked = false;
     let blockReason: string | null = null;
+
+    // Check if date is in the past
+    if (date && date < todayStr) {
+      isBlocked = true;
+      blockReason = 'วันที่เลือกได้ผ่านพ้นไปแล้ว ไม่สามารถจองคิวย้อนหลังได้';
+    }
 
     // Check if date is Sunday (Default Blocked)
     if (date) {
@@ -798,6 +826,10 @@ export class DataStore {
     const computedSlots = activeSlots.map((s: TimeSlot) => {
       const booked = countMap.get(s.slot_name) || 0;
       const available = Math.max(0, s.max_capacity - booked);
+
+      // Slot is past if selected date is in the past, or if today and currentTime >= slot start_time
+      const isPast = date < todayStr || (date === todayStr && currentTimeStr >= s.start_time);
+
       return {
         id: s.id,
         slot_name: s.slot_name,
@@ -806,7 +838,8 @@ export class DataStore {
         max_capacity: s.max_capacity,
         booked_count: booked,
         available_slots: available,
-        is_available: !isBlocked && available > 0,
+        is_available: !isBlocked && !isPast && available > 0,
+        is_past: isPast,
         is_active: s.is_active,
       };
     });
@@ -1138,6 +1171,12 @@ export class DataStore {
   async createBooking(data: any): Promise<Booking> {
     const blockedDates = await this.getBlockedDates();
     const slots = await this.getTimeSlots();
+    const { todayStr, currentTimeStr } = getBangkokDateTime();
+
+    // Check if date is in the past
+    if (data.requested_date && data.requested_date < todayStr) {
+      throw new Error('ไม่อนุญาตให้จองคิวย้อนหลัง กรุณาเลือกวันปัจจุบันหรือล่วงหน้า');
+    }
 
     // Check if date is Sunday (Default Blocked)
     if (data.requested_date) {
@@ -1156,10 +1195,15 @@ export class DataStore {
       throw new Error(`วันที่ ${data.requested_date} ปิดรับจองคิวส่งของ`);
     }
 
-    // Check if slot is active
+    // Check if slot is active and not past
     const slotObj = slots.find((s: TimeSlot) => s.slot_name === data.requested_time);
-    if (slotObj && slotObj.is_active === 0) {
-      throw new Error(`รอบเวลา ${data.requested_time} ปิดรับจองแล้ว กรุณาเลือกรอบเวลาอื่น`);
+    if (slotObj) {
+      if (slotObj.is_active === 0) {
+        throw new Error(`รอบเวลา ${data.requested_time} ปิดรับจองแล้ว กรุณาเลือกรอบเวลาอื่น`);
+      }
+      if (data.requested_date === todayStr && currentTimeStr >= slotObj.start_time) {
+        throw new Error(`รอบเวลา ${data.requested_time} เลยกำหนดเวลาจองแล้ว กรุณาเลือกรอบเวลาอื่น`);
+      }
     }
 
     const cleanDate = data.requested_date.replace(/-/g, '');
@@ -1227,13 +1271,38 @@ export class DataStore {
 
   async getAdminBookings(date?: string | null, status?: string | null, search?: string | null): Promise<Booking[]> {
     const bookings = await this.getAllBookings();
-    let results = [...bookings];
+    const { todayStr, currentTimeStr } = getBangkokDateTime();
+
+    const isBookingOverdue = (b: Booking): boolean => {
+      if (b.status === 'Completed' || b.status === 'Cancelled' || b.status === 'Rejected') {
+        return false;
+      }
+      if (b.requested_date < todayStr) {
+        return true;
+      }
+      if (b.requested_date === todayStr) {
+        let startTime = '17:00';
+        if (b.requested_time) {
+          const parts = b.requested_time.split('-');
+          if (parts[0]) startTime = parts[0].trim();
+        }
+        return currentTimeStr >= startTime;
+      }
+      return false;
+    };
+
+    let results = bookings.map((b: Booking) => ({
+      ...b,
+      is_overdue: isBookingOverdue(b),
+    }));
 
     if (date && date !== 'All' && date !== 'all') {
-      results = results.filter((b: Booking) => b.requested_date === date);
+      results = results.filter((b: any) => b.requested_date === date);
     }
     if (status && status !== 'All') {
-      if (status === 'Partial') {
+      if (status === 'Overdue') {
+        results = results.filter((b: any) => b.is_overdue);
+      } else if (status === 'Partial') {
         results = results.filter(
           (b: Booking) =>
             b.actual_pallet_count !== undefined &&

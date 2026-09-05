@@ -1,4 +1,4 @@
-import { DataStore } from '../_store';
+import { DataStore, getBangkokDateTime } from '../_store';
 import { checkAuthHeader } from '../_jwt';
 
 export async function onRequestGet(context: { request: Request; env: any }) {
@@ -12,18 +12,14 @@ export async function onRequestGet(context: { request: Request; env: any }) {
     }
 
     const store = new DataStore(env);
-
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    const { todayStr, tomorrowStr } = getBangkokDateTime();
 
     const allBookings = await store.getAdminBookings();
 
     const todayBookings = allBookings.filter((b) => b.requested_date === todayStr);
     const tomorrowBookings = allBookings.filter((b) => b.requested_date === tomorrowStr);
     const totalPending = allBookings.filter((b) => b.status === 'Pending').length;
+    const overdueCount = allBookings.filter((b: any) => Boolean(b.is_overdue)).length;
 
     const todayTotal = todayBookings.length;
     const todayPending = todayBookings.filter((b) => b.status === 'Pending').length;
@@ -55,6 +51,7 @@ export async function onRequestGet(context: { request: Request; env: any }) {
         tomorrow_pending: tomorrowPending,
         tomorrow_approved: tomorrowApproved,
         total_pending_all: totalPending,
+        overdue_count: overdueCount,
         notification_message: `พรุ่งนี้ (${tomorrowThai}) มีคิวที่ต้องรับการจัดการทั้งหมด ${tomorrowTotal} รายการ (อนุมัติแล้ว ${tomorrowApproved} รายการ, รอตรวจสอบ ${tomorrowPending} รายการ)`,
       }),
       { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }

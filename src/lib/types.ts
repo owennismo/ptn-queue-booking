@@ -59,6 +59,7 @@ export interface AvailabilityResponse {
     booked_count: number;
     available_slots: number;
     is_available: boolean;
+    is_past?: boolean;
     is_active?: number;
   }>;
 }
@@ -73,6 +74,7 @@ export interface DailyForecast {
   tomorrow_pending: number;
   tomorrow_approved: number;
   total_pending_all: number;
+  overdue_count?: number;
   notification_message?: string;
 }
 
