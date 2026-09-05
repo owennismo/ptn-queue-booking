@@ -15,15 +15,12 @@ export async function onRequestGet(context: { request: Request; env: any }) {
     const store = new DataStore(env);
     let logs = await store.getAuditLogs(100);
 
-    // If not super_admin, filter out all super_admin traces and staff management events
+    // Strict Access Control: Super Admin ONLY
     if (role !== 'super_admin' && role !== 'admin') {
-      logs = logs.filter((log) => {
-        const isStaffAction = ['ADD_STAFF', 'UPDATE_STAFF', 'DELETE_STAFF', 'RESET_PIN'].includes(log.action);
-        const hasSuperAdmin =
-          (log.operator && (log.operator.includes('Super Admin') || log.operator.includes('ผู้ดูแลระบบสูงสุด') || log.operator.toLowerCase() === 'admin')) ||
-          (log.details && (log.details.includes('Super Admin') || log.details.includes('ผู้ดูแลระบบสูงสุด') || log.details.toLowerCase().includes('admin')));
-        return !isStaffAction && !hasSuperAdmin;
-      });
+      return new Response(
+        JSON.stringify({ error: 'คุณไม่มีสิทธิ์ในการดูประวัติการใช้งาน (สงวนสิทธิ์เฉพาะ Super Admin เท่านั้น)' }),
+        { status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+      );
     }
 
     return new Response(JSON.stringify({ logs }), {

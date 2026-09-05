@@ -436,6 +436,7 @@ export default function AdminDashboardPage() {
   // 7. Load Audit Logs
   const fetchAuditLogs = useCallback(async () => {
     if (!token && !sessionStorage.getItem('ptn_admin_jwt')) return;
+    if (userRole && userRole !== 'super_admin') return;
     setLoadingAudit(true);
     try {
       const res = await authFetch('/api/admin/audit-logs');
@@ -445,7 +446,7 @@ export default function AdminDashboardPage() {
     } finally {
       setLoadingAudit(false);
     }
-  }, [authFetch, token]);
+  }, [authFetch, token, userRole]);
 
   useEffect(() => {
     if (token) {
@@ -467,10 +468,10 @@ export default function AdminDashboardPage() {
     if (activeTab === 'staff' && token) {
       fetchStaff();
     }
-    if (activeTab === 'audit' && token) {
+    if (activeTab === 'audit' && token && userRole === 'super_admin') {
       fetchAuditLogs();
     }
-  }, [activeTab, token, fetchStaff, fetchAuditLogs]);
+  }, [activeTab, token, userRole, fetchStaff, fetchAuditLogs]);
 
   // Live QR Code Scanner Success Handler
   const handleQRScanned = async (scannedId: string) => {
@@ -1425,15 +1426,17 @@ export default function AdminDashboardPage() {
             </button>
           )}
 
-          <button
-            onClick={() => setActiveTab('audit')}
-            className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
-              activeTab === 'audit' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>Audit Logs</span>
-          </button>
+          {isSuperAdmin && (
+            <button
+              onClick={() => setActiveTab('audit')}
+              className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+                activeTab === 'audit' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Audit Logs</span>
+            </button>
+          )}
 
           {/* Direct Link to High-Res Poster / Standee Page */}
           <a
@@ -2417,8 +2420,8 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* 🌟 TAB 5: AUDIT LOGS (ประวัติความปลอดภัย) */}
-        {activeTab === 'audit' && (
+        {/* 🌟 TAB 5: AUDIT LOGS (ประวัติความปลอดภัย - เฉพาะ Super Admin) */}
+        {isSuperAdmin && activeTab === 'audit' && (
           <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div>
