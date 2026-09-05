@@ -48,7 +48,7 @@ export interface BlockedDate {
 
 export interface AuditLog {
   id: number;
-  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'CHECKIN_QUEUE' | 'RECEIVING_QUEUE' | 'COMPLETE_QUEUE' | 'UPDATE_SLOT' | 'REORDER_SLOTS' | 'BLOCK_DATE' | 'UNBLOCK_DATE' | 'ADD_STAFF' | 'UPDATE_STAFF' | 'DELETE_STAFF' | 'RESET_PIN' | 'DELETE_QUEUE';
+  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'CHECKIN_QUEUE' | 'RECEIVING_QUEUE' | 'COMPLETE_QUEUE' | 'UPDATE_SLOT' | 'REORDER_SLOTS' | 'BLOCK_DATE' | 'UNBLOCK_DATE' | 'ADD_STAFF' | 'UPDATE_STAFF' | 'DELETE_STAFF' | 'RESET_PIN' | 'DELETE_QUEUE' | 'BACKUP_DATA' | 'RESTORE_DATA';
   details: string;
   operator: string;
   ip_address: string;
@@ -535,6 +535,15 @@ export class DataStore {
     }));
   }
 
+  async getRawStaffList(): Promise<StaffUser[]> {
+    let staffList = globalStore.staffUsers;
+    if (this.kv) {
+      staffList = await this.getKV<StaffUser[]>('staff_users', globalStore.staffUsers);
+      globalStore.staffUsers = staffList;
+    }
+    return staffList;
+  }
+
   async authenticateStaff(usernameOrPin: string, pinInput?: string): Promise<StaffUser | null> {
     let staffList: StaffUser[] = globalStore.staffUsers;
     if (this.kv) {
@@ -896,6 +905,184 @@ export class DataStore {
     }
 
     return { deleted_count: toDelete.length, not_found: notFound };
+  }
+
+  async getSystemBackupData(operator = 'Super Admin', ip = '127.0.0.1') {
+    const bookings = await this.getAllBookings();
+    const timeSlots = await this.getTimeSlots();
+    const blockedDates = await this.getBlockedDates();
+    const staffList = await this.getRawStaffList();
+    const auditLogs = await this.getAuditLogs(1000);
+
+    const nowIso = new Date().toISOString();
+
+    const backupPayload = {
+      version: '1.0.0',
+      system: 'PTN Pharma Center Queue Booking System',
+      exported_at: nowIso,
+      exported_by: operator,
+      summary: {
+        total_bookings: bookings.length,
+        total_time_slots: timeSlots.length,
+        total_blocked_dates: blockedDates.length,
+        total_staff_users: staffList.length,
+        total_audit_logs: auditLogs.length,
+      },
+      data: {
+        bookings,
+        time_slots: timeSlots,
+        blocked_dates: blockedDates,
+        staff_users: staffList,
+        audit_logs: auditLogs,
+      },
+    };
+
+    await this.addAuditLog(
+      'BACKUP_DATA',
+      `ส่งออกและดาวน์โหลดไฟล์สำรองข้อมูลระบบ (Backup JSON) สำเร็จ (คิวจอง ${bookings.length} รายการ, เจ้าหน้าที่ ${staffList.length} ท่าน)`,
+      operator,
+      ip
+    );
+
+    return backupPayload;
+  }
+
+  async restoreSystemData(
+    backupPayload: any,
+    mode: 'merge' | 'replace' = 'merge',
+    operator = 'Super Admin',
+    ip = '127.0.0.1'
+  ): Promise<{
+    success: boolean;
+    restored: {
+      bookings: number;
+      time_slots: number;
+      blocked_dates: number;
+      staff_users: number;
+    };
+    error?: string;
+  }> {
+    if (!backupPayload || typeof backupPayload !== 'object' || !backupPayload.data) {
+      throw new Error('รูปแบบไฟล์สำรองข้อมูลไม่ถูกต้อง (ไม่พบ data section)');
+    }
+
+    const { data } = backupPayload;
+    const incomingBookings: Booking[] = Array.isArray(data.bookings) ? data.bookings : [];
+    const incomingSlots: TimeSlot[] = Array.isArray(data.time_slots) ? data.time_slots : [];
+    const incomingBlocked: BlockedDate[] = Array.isArray(data.blocked_dates) ? data.blocked_dates : [];
+    const incomingStaff: StaffUser[] = Array.isArray(data.staff_users) ? data.staff_users : [];
+
+    let finalBookings: Booking[] = [];
+    let finalSlots: TimeSlot[] = [];
+    let finalBlocked: BlockedDate[] = [];
+    let finalStaff: StaffUser[] = [];
+
+    if (mode === 'replace') {
+      finalBookings = incomingBookings;
+      finalSlots = incomingSlots.length > 0 ? incomingSlots : await this.getTimeSlots();
+      finalBlocked = incomingBlocked;
+
+      const currentStaff = await this.getRawStaffList();
+      if (incomingStaff.length > 0) {
+        finalStaff = incomingStaff;
+        const hasSuperAdmin = finalStaff.some((s) => s.role === 'super_admin');
+        if (!hasSuperAdmin) {
+          const existingSuper = currentStaff.find((s) => s.role === 'super_admin');
+          if (existingSuper) finalStaff.unshift(existingSuper);
+        }
+      } else {
+        finalStaff = currentStaff;
+      }
+    } else {
+      // Merge mode
+      const currentBookings = await this.getAllBookings();
+      const bookingMap = new Map<string, Booking>();
+      currentBookings.forEach((b) => bookingMap.set(b.booking_id.toUpperCase(), b));
+      incomingBookings.forEach((b) => bookingMap.set(b.booking_id.toUpperCase(), b));
+      finalBookings = Array.from(bookingMap.values());
+
+      if (incomingSlots.length > 0) {
+        const currentSlots = await this.getTimeSlots();
+        const slotMap = new Map<string, TimeSlot>();
+        currentSlots.forEach((s) => slotMap.set(`${s.start_time}-${s.end_time}`, s));
+        incomingSlots.forEach((s) => slotMap.set(`${s.start_time}-${s.end_time}`, s));
+        finalSlots = Array.from(slotMap.values());
+      } else {
+        finalSlots = await this.getTimeSlots();
+      }
+
+      const currentBlocked = await this.getBlockedDates();
+      const blockedMap = new Map<string, BlockedDate>();
+      currentBlocked.forEach((b) => blockedMap.set(b.blocked_date, b));
+      incomingBlocked.forEach((b) => blockedMap.set(b.blocked_date, b));
+      finalBlocked = Array.from(blockedMap.values());
+
+      const currentStaff = await this.getRawStaffList();
+      const staffMap = new Map<string, StaffUser>();
+      currentStaff.forEach((s) => staffMap.set(s.username.toLowerCase(), s));
+      incomingStaff.forEach((s) => staffMap.set(s.username.toLowerCase(), s));
+      finalStaff = Array.from(staffMap.values());
+    }
+
+    globalStore.bookings = finalBookings;
+    await this.putKV('bookings', finalBookings);
+
+    globalStore.timeSlots = finalSlots;
+    await this.putKV('time_slots', finalSlots);
+
+    globalStore.blockedDates = finalBlocked;
+    await this.putKV('blocked_dates', finalBlocked);
+
+    globalStore.staffUsers = finalStaff;
+    await this.putKV('staff_users', finalStaff);
+
+    if (this.d1) {
+      try {
+        if (mode === 'replace') {
+          await this.d1.prepare('DELETE FROM bookings').run();
+        }
+        for (const b of finalBookings) {
+          await this.d1
+            .prepare(
+              `INSERT OR REPLACE INTO bookings (
+                booking_id, user_phone, carrier_name, client_name, pallet_count, vehicle_count,
+                requested_date, requested_time, driver_name, license_plate, vehicle_type,
+                cargo_type, notes, photo_url, receiving_photo_url, status, admin_reason,
+                admin_action_date, admin_action_by, actual_pallet_count, receiving_notes,
+                received_by, receiving_completed_at, created_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            )
+            .bind(
+              b.booking_id, b.user_phone, b.carrier_name, b.client_name, b.pallet_count, b.vehicle_count,
+              b.requested_date, b.requested_time, b.driver_name, b.license_plate, b.vehicle_type,
+              b.cargo_type, b.notes, b.photo_url, b.receiving_photo_url, b.status, b.admin_reason,
+              b.admin_action_date, b.admin_action_by, b.actual_pallet_count, b.receiving_notes,
+              b.received_by, b.receiving_completed_at, b.created_at
+            )
+            .run();
+        }
+      } catch (d1Err) {
+        console.error('D1 sync during restore error:', d1Err);
+      }
+    }
+
+    const modeText = mode === 'replace' ? 'แทนที่ทั้งหมด (Full Replace)' : 'ผสานข้อมูล (Merge)';
+    await this.addAuditLog(
+      'RESTORE_DATA',
+      `กู้คืนข้อมูลระบบจากไฟล์สำรองแบบ ${modeText} สำเร็จ (คิวจอง ${finalBookings.length} รายการ, เจ้าหน้าที่ ${finalStaff.length} ท่าน, รอบเวลา ${finalSlots.length} รอบ)`,
+      operator,
+      ip
+    );
+
+    return {
+      success: true,
+      restored: {
+        bookings: finalBookings.length,
+        time_slots: finalSlots.length,
+        blocked_dates: finalBlocked.length,
+        staff_users: finalStaff.length,
+      },
+    };
   }
 
   async createBooking(data: any): Promise<Booking> {

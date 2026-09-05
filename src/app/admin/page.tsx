@@ -54,6 +54,7 @@ import {
   Image as ImageIcon,
   Maximize2,
   UploadCloud,
+  Database,
 } from 'lucide-react';
 import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole, BookingStatus } from '@/lib/types';
 import QRScannerModal from '@/components/QRScannerModal';
@@ -710,6 +711,109 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Super Admin Full System Backup & Restore (JSON)
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [restoreModalOpen, setRestoreModalOpen] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoreData, setRestoreData] = useState<any | null>(null);
+  const [restoreMode, setRestoreMode] = useState<'merge' | 'replace'>('merge');
+  const [restoreConfirmCode, setRestoreConfirmCode] = useState('');
+  const [isRestoring, setIsRestoring] = useState(false);
+  const restoreFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // 1. Download Backup JSON
+  const handleDownloadBackup = async () => {
+    setIsBackingUp(true);
+    try {
+      const res = await authFetch('/api/admin/backup');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'ดาวน์โหลดไฟล์สำรองไม่สำเร็จ');
+      }
+      const blob = await res.blob();
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+      const filename = `ptn-backup-${dateStr}.json`;
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      showToast('ดาวน์โหลดไฟล์สำรองข้อมูล (Backup JSON) สำเร็จ', 'success');
+      fetchAuditLogs();
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการสำรองข้อมูล', 'error');
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  // 2. Select file to restore
+  const handleSelectRestoreFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const json = JSON.parse(content);
+        if (!json || typeof json !== 'object' || !json.data) {
+          throw new Error('โครงสร้างไฟล์ไม่ถูกต้อง (ต้องมี data section)');
+        }
+        setRestoreFile(file);
+        setRestoreData(json);
+        setRestoreMode('merge');
+        setRestoreConfirmCode('');
+        setRestoreModalOpen(true);
+      } catch (err: any) {
+        showToast(`ไฟล์ไม่ถูกต้อง: ${err.message}`, 'error');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // 3. Submit Restore
+  const handleConfirmRestore = async () => {
+    if (!restoreData) return;
+    if (restoreMode === 'replace' && restoreConfirmCode.trim().toUpperCase() !== 'RESTORE') {
+      showToast('กรุณากรอกรหัสยืนยัน "RESTORE" เพื่อดำเนินการแทนที่ทั้งหมด', 'error');
+      return;
+    }
+    setIsRestoring(true);
+    try {
+      const res = await authFetch('/api/admin/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          backup_data: restoreData,
+          mode: restoreMode,
+          confirm_code: restoreConfirmCode.trim().toUpperCase(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'กู้คืนข้อมูลไม่สำเร็จ');
+      showToast(data.message || 'กู้คืนข้อมูลระบบสำเร็จ', 'success');
+      setRestoreModalOpen(false);
+      setRestoreFile(null);
+      setRestoreData(null);
+      fetchBookings();
+      fetchForecast();
+      fetchSettings();
+      fetchStaff();
+      fetchAuditLogs();
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการกู้คืนข้อมูล', 'error');
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
   // Open Edit Queue Status Modal
   const openEditStatusModal = (booking: Booking) => {
     setEditingStatusBooking(booking);
@@ -1280,6 +1384,10 @@ export default function AdminDashboardPage() {
         return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-rose-100 text-rose-800">ลบเจ้าหน้าที่</span>;
       case 'DELETE_QUEUE':
         return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300">ลบคิวถาวร</span>;
+      case 'BACKUP_DATA':
+        return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">สำรองข้อมูล</span>;
+      case 'RESTORE_DATA':
+        return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">กู้คืนระบบ</span>;
       default:
         return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-slate-100 text-slate-700">{action}</span>;
     }
@@ -1703,6 +1811,19 @@ export default function AdminDashboardPage() {
                     <Printer className="w-3.5 h-3.5 text-slate-600" />
                     <span>พิมพ์ใบสรุป</span>
                   </button>
+
+                  {isSuperAdmin && (
+                    <button
+                      type="button"
+                      onClick={handleDownloadBackup}
+                      disabled={isBackingUp}
+                      className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                      title="สำรองข้อมูลระบบทั้งหมดเป็นไฟล์ JSON (เฉพาะ Super Admin)"
+                    >
+                      <Download className={`w-3.5 h-3.5 text-indigo-600 ${isBackingUp ? 'animate-bounce' : ''}`} />
+                      <span>{isBackingUp ? 'กำลังสำรอง...' : 'สำรองข้อมูล'}</span>
+                    </button>
+                  )}
 
                   {isSuperAdmin && bookings.length > 0 && (
                     <button
@@ -2432,14 +2553,42 @@ export default function AdminDashboardPage() {
                 <p className="text-xs text-slate-500">บันทึกการเข้าสู่ระบบ, การอนุมัติคิว, ปฏิเสธคิว และการตั้งค่าระบบ</p>
               </div>
 
-              <button
-                onClick={fetchAuditLogs}
-                disabled={loadingAudit}
-                className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${loadingAudit ? 'animate-spin text-emerald-600' : ''}`} />
-                <span>รีเฟรชประวัติ</span>
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="file"
+                  ref={restoreFileInputRef}
+                  accept=".json,application/json"
+                  onChange={handleSelectRestoreFile}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => restoreFileInputRef.current?.click()}
+                  className="px-3.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
+                  title="นำเข้าไฟล์สำรองเพื่อกู้คืนระบบ (Restore JSON)"
+                >
+                  <UploadCloud className="w-3.5 h-3.5 text-amber-700" />
+                  <span>นำเข้ากู้คืนข้อมูล (Restore)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadBackup}
+                  disabled={isBackingUp}
+                  className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs disabled:opacity-50"
+                  title="ดาวน์โหลดไฟล์สำรองข้อมูลระบบทั้งหมด (Backup JSON)"
+                >
+                  <Download className={`w-3.5 h-3.5 text-indigo-600 ${isBackingUp ? 'animate-bounce' : ''}`} />
+                  <span>{isBackingUp ? 'กำลังสำรอง...' : 'สำรองข้อมูล (Backup JSON)'}</span>
+                </button>
+                <button
+                  onClick={fetchAuditLogs}
+                  disabled={loadingAudit}
+                  className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingAudit ? 'animate-spin text-emerald-600' : ''}`} />
+                  <span>รีเฟรชประวัติ</span>
+                </button>
+              </div>
             </div>
 
             {loadingAudit ? (
@@ -3521,6 +3670,171 @@ export default function AdminDashboardPage() {
                   <>
                     <Trash2 className="w-4 h-4" />
                     <span>ยืนยันลบถาวร ({bookingsToDelete.length})</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📥 RESTORE BACKUP MODAL (Super Admin) */}
+      {restoreModalOpen && restoreData && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 border border-amber-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5 text-amber-600">
+                <div className="p-2 bg-amber-100 rounded-2xl">
+                  <Database className="w-5 h-5 text-amber-700" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">นำเข้าและกู้คืนข้อมูลระบบ (System Restore)</h3>
+                  <span className="text-[11px] text-amber-700 font-semibold">ไฟล์: {restoreFile?.name}</span>
+                </div>
+              </div>
+              <button
+                disabled={isRestoring}
+                onClick={() => setRestoreModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700 disabled:opacity-50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Summary Preview Box */}
+            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2.5 text-xs">
+              <span className="font-bold text-slate-700 block">📊 สรุปข้อมูลที่พบในไฟล์สำรอง:</span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                <div className="p-2.5 bg-white rounded-xl border border-slate-200">
+                  <span className="text-[10px] text-slate-400 block">คิวจอง</span>
+                  <strong className="text-sm font-bold text-slate-900 font-mono">
+                    {restoreData.data?.bookings?.length || 0}
+                  </strong>
+                </div>
+                <div className="p-2.5 bg-white rounded-xl border border-slate-200">
+                  <span className="text-[10px] text-slate-400 block">รอบเวลา</span>
+                  <strong className="text-sm font-bold text-slate-900 font-mono">
+                    {restoreData.data?.time_slots?.length || 0}
+                  </strong>
+                </div>
+                <div className="p-2.5 bg-white rounded-xl border border-slate-200">
+                  <span className="text-[10px] text-slate-400 block">วันปิดรับ</span>
+                  <strong className="text-sm font-bold text-slate-900 font-mono">
+                    {restoreData.data?.blocked_dates?.length || 0}
+                  </strong>
+                </div>
+                <div className="p-2.5 bg-white rounded-xl border border-slate-200">
+                  <span className="text-[10px] text-slate-400 block">เจ้าหน้าที่</span>
+                  <strong className="text-sm font-bold text-slate-900 font-mono">
+                    {restoreData.data?.staff_users?.length || 0}
+                  </strong>
+                </div>
+              </div>
+              {restoreData.exported_at && (
+                <p className="text-[10px] text-slate-400 pt-1">
+                  สำรองไว้เมื่อ: {formatThaiDateTime(restoreData.exported_at)} โดย {restoreData.exported_by || 'Super Admin'}
+                </p>
+              )}
+            </div>
+
+            {/* Mode Selection */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-800 block">เลือกรูปแบบการกู้คืนข้อมูล:</label>
+              <div className="grid grid-cols-1 gap-2.5">
+                <label
+                  className={`p-3 rounded-2xl border-2 transition cursor-pointer flex items-start gap-3 ${
+                    restoreMode === 'merge'
+                      ? 'border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="restoreMode"
+                    value="merge"
+                    checked={restoreMode === 'merge'}
+                    onChange={() => setRestoreMode('merge')}
+                    className="mt-1 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <div>
+                    <strong className="text-xs font-bold text-slate-900 block">แบบที่ 1: ผสานข้อมูล (Merge Data - ปลอดภัย แนะนำ)</strong>
+                    <span className="text-[11px] text-slate-500 leading-relaxed block mt-0.5">
+                      อัปเดตและเพิ่มรายการที่ยังไม่มีในระบบ โดยไม่ลบรายการคิวหรือการตั้งค่าที่มีอยู่เดิม
+                    </span>
+                  </div>
+                </label>
+
+                <label
+                  className={`p-3 rounded-2xl border-2 transition cursor-pointer flex items-start gap-3 ${
+                    restoreMode === 'replace'
+                      ? 'border-rose-500 bg-rose-50/50 ring-2 ring-rose-500/20'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="restoreMode"
+                    value="replace"
+                    checked={restoreMode === 'replace'}
+                    onChange={() => setRestoreMode('replace')}
+                    className="mt-1 text-rose-600 focus:ring-rose-500"
+                  />
+                  <div>
+                    <strong className="text-xs font-bold text-rose-900 block">แบบที่ 2: แทนที่ทั้งหมด (Full Replace / Overwrite)</strong>
+                    <span className="text-[11px] text-rose-700 leading-relaxed block mt-0.5">
+                      ล้างข้อมูลคิวจองในระบบเดิมทั้งหมด และแทนที่ด้วยข้อมูลจากไฟล์ Backup 100%
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* If Replace mode is selected: Double Confirmation Input */}
+            {restoreMode === 'replace' && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl space-y-2 animate-in fade-in duration-150">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-rose-800">
+                  <AlertTriangle className="w-4 h-4 text-rose-600" />
+                  <span>มาตรการป้องกันความปลอดภัย (Safety Check)</span>
+                </div>
+                <p className="text-[11px] text-rose-700">
+                  กรุณากรอกคำว่า <strong className="font-mono underline font-bold">RESTORE</strong> ลงในช่องด้านล่างเพื่อยืนยันการแทนที่ข้อมูลทั้งหมด:
+                </p>
+                <input
+                  type="text"
+                  value={restoreConfirmCode}
+                  onChange={(e) => setRestoreConfirmCode(e.target.value)}
+                  placeholder="พิมพ์ RESTORE"
+                  className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl text-xs font-bold font-mono text-rose-900 tracking-wider focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isRestoring}
+                onClick={() => setRestoreModalOpen(false)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={isRestoring || (restoreMode === 'replace' && restoreConfirmCode.trim().toUpperCase() !== 'RESTORE')}
+                onClick={handleConfirmRestore}
+                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm disabled:opacity-50 text-white ${
+                  restoreMode === 'replace' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                }`}
+              >
+                {isRestoring ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>กำลังกู้คืนข้อมูล...</span>
+                  </>
+                ) : (
+                  <>
+                    <Database className="w-4 h-4" />
+                    <span>ยืนยันกู้คืนระบบ ({restoreMode === 'replace' ? 'แทนที่ทั้งหมด' : 'ผสานข้อมูล'})</span>
                   </>
                 )}
               </button>
