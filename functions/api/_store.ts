@@ -159,6 +159,15 @@ export function getBangkokDateTime(): { todayStr: string; currentTimeStr: string
   return { todayStr, currentTimeStr, tomorrowStr };
 }
 
+export function timeStrToMinutes(timeStr: string): number {
+  if (!timeStr) return 0;
+  const cleaned = timeStr.trim().replace('.', ':');
+  const [h, m] = cleaned.split(':');
+  const hours = parseInt(h || '0', 10);
+  const minutes = parseInt(m || '0', 10);
+  return hours * 60 + minutes;
+}
+
 const DEFAULT_SLOTS: TimeSlot[] = [
   { id: 1, slot_name: '08:30 - 09:30', start_time: '08:30', end_time: '09:30', max_capacity: 3, is_active: 1, order_index: 1 },
   { id: 2, slot_name: '09:30 - 10:30', start_time: '09:30', end_time: '10:30', max_capacity: 4, is_active: 1, order_index: 2 },
@@ -828,7 +837,9 @@ export class DataStore {
       const available = Math.max(0, s.max_capacity - booked);
 
       // Slot is past if selected date is in the past, or if today and currentTime >= slot start_time
-      const isPast = date < todayStr || (date === todayStr && currentTimeStr >= s.start_time);
+      const currentMinutes = timeStrToMinutes(currentTimeStr);
+      const slotStartMinutes = timeStrToMinutes(s.start_time);
+      const isPast = date < todayStr || (date === todayStr && currentMinutes >= slotStartMinutes);
 
       return {
         id: s.id,
@@ -1201,7 +1212,7 @@ export class DataStore {
       if (slotObj.is_active === 0) {
         throw new Error(`รอบเวลา ${data.requested_time} ปิดรับจองแล้ว กรุณาเลือกรอบเวลาอื่น`);
       }
-      if (data.requested_date === todayStr && currentTimeStr >= slotObj.start_time) {
+      if (data.requested_date === todayStr && timeStrToMinutes(currentTimeStr) >= timeStrToMinutes(slotObj.start_time)) {
         throw new Error(`รอบเวลา ${data.requested_time} เลยกำหนดเวลาจองแล้ว กรุณาเลือกรอบเวลาอื่น`);
       }
     }
@@ -1286,7 +1297,7 @@ export class DataStore {
           const parts = b.requested_time.split('-');
           if (parts[0]) startTime = parts[0].trim();
         }
-        return currentTimeStr >= startTime;
+        return timeStrToMinutes(currentTimeStr) >= timeStrToMinutes(startTime);
       }
       return false;
     };

@@ -92,7 +92,14 @@ export default function BookingPage() {
     const currentTime = `${hh}:${mm}`;
 
     if (date < today) return true;
-    if (date === today && currentTime >= startTime) return true;
+    if (date === today) {
+      const toMinutes = (t: string) => {
+        if (!t) return 0;
+        const [h, min] = t.trim().replace('.', ':').split(':');
+        return parseInt(h || '0', 10) * 60 + parseInt(min || '0', 10);
+      };
+      return toMinutes(currentTime) >= toMinutes(startTime);
+    }
     return false;
   };
 

@@ -118,7 +118,12 @@ export default function AdminDashboardPage() {
         const parts = b.requested_time.split('-');
         if (parts[0]) startTime = parts[0].trim();
       }
-      return currentTime >= startTime;
+      const toMinutes = (t: string) => {
+        if (!t) return 0;
+        const [h, min] = t.trim().replace('.', ':').split(':');
+        return parseInt(h || '0', 10) * 60 + parseInt(min || '0', 10);
+      };
+      return toMinutes(currentTime) >= toMinutes(startTime);
     }
     return false;
   }, []);
