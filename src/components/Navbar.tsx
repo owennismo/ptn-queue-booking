@@ -6,15 +6,16 @@ import { usePathname } from 'next/navigation';
 import { CalendarClock, Search, Phone, MessageCircle } from 'lucide-react';
 
 export default function Navbar() {
-  const pathname = usePathname();
+  const pathname = usePathname() || '';
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
 
   // Hide public navbar on admin pages, poster page, and preview prototype
-  if (pathname.startsWith('/admin') || pathname === '/poster' || pathname === '/preview') {
+  if (normalizedPath.startsWith('/admin') || normalizedPath === '/poster' || normalizedPath === '/preview') {
     return null;
   }
 
-  const isBookingActive = pathname === '/';
-  const isTrackActive = pathname === '/track' || pathname.startsWith('/booking');
+  const isBookingActive = normalizedPath === '/';
+  const isTrackActive = normalizedPath === '/track' || normalizedPath.startsWith('/track/') || normalizedPath.startsWith('/booking');
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-xs no-print">

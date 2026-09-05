@@ -6,11 +6,12 @@ import { usePathname } from 'next/navigation';
 import { CalendarClock, Search } from 'lucide-react';
 
 export default function MobileBottomNav() {
-  const pathname = usePathname();
+  const pathname = usePathname() || '';
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
   const [deviceBookingCount, setDeviceBookingCount] = useState<number>(0);
 
   // Hide on admin, poster, and preview pages
-  if (pathname.startsWith('/admin') || pathname === '/poster' || pathname === '/preview') {
+  if (normalizedPath.startsWith('/admin') || normalizedPath === '/poster' || normalizedPath === '/preview') {
     return null;
   }
 
@@ -27,8 +28,8 @@ export default function MobileBottomNav() {
     }
   }, [pathname]);
 
-  const isBookingActive = pathname === '/';
-  const isTrackActive = pathname === '/track' || pathname.startsWith('/booking');
+  const isBookingActive = normalizedPath === '/';
+  const isTrackActive = normalizedPath === '/track' || normalizedPath.startsWith('/track/') || normalizedPath.startsWith('/booking');
 
   return (
     <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-3 py-1.5 pb-[max(env(safe-area-inset-bottom),0.5rem)] no-print">
