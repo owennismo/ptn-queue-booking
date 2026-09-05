@@ -623,6 +623,92 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Super Admin Delete Queue Bookings (Single & Batch)
+  const [selectedBookingIds, setSelectedBookingIds] = useState<string[]>([]);
+  const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
+  const [bookingsToDelete, setBookingsToDelete] = useState<Booking[]>([]);
+  const [isDeletingBookings, setIsDeletingBookings] = useState(false);
+
+  // Toggle single selection
+  const handleToggleSelectBooking = (id: string) => {
+    setSelectedBookingIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  // Toggle select all currently visible bookings
+  const handleToggleSelectAll = () => {
+    if (bookings.length === 0) return;
+    const allVisibleSelected = bookings.every((b) => selectedBookingIds.includes(b.booking_id));
+    if (allVisibleSelected) {
+      // Unselect all visible
+      const visibleIds = bookings.map((b) => b.booking_id);
+      setSelectedBookingIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+    } else {
+      // Select all visible
+      const visibleIds = bookings.map((b) => b.booking_id);
+      setSelectedBookingIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
+
+  // Open single delete confirmation modal
+  const openSingleDeleteModal = (booking: Booking) => {
+    setBookingsToDelete([booking]);
+    setDeleteConfirmModalOpen(true);
+  };
+
+  // Open batch delete confirmation modal
+  const openBatchDeleteModal = () => {
+    const toDelete = bookings.filter((b) => selectedBookingIds.includes(b.booking_id));
+    if (toDelete.length === 0) return;
+    setBookingsToDelete(toDelete);
+    setDeleteConfirmModalOpen(true);
+  };
+
+  // Confirm delete handler
+  const handleConfirmDelete = async () => {
+    if (bookingsToDelete.length === 0) return;
+    setIsDeletingBookings(true);
+    try {
+      if (bookingsToDelete.length === 1) {
+        // Single delete
+        const target = bookingsToDelete[0];
+        const res = await authFetch(`/api/admin/bookings/${target.booking_id}`, {
+          method: 'DELETE',
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'ลบรายการจองคิวไม่สำเร็จ');
+        showToast(data.message || `ลบรายการคิว ${target.booking_id} เรียบร้อยแล้ว`, 'success');
+      } else {
+        // Batch delete
+        const ids = bookingsToDelete.map((b) => b.booking_id);
+        const res = await authFetch('/api/admin/bookings', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'ลบรายการที่เลือกไม่สำเร็จ');
+        showToast(data.message || `ลบรายการคิวที่เลือกจำนวน ${data.deleted_count} รายการเรียบร้อยแล้ว`, 'success');
+      }
+
+      const deletedIds = bookingsToDelete.map((b) => b.booking_id);
+      setBookings((prev) => prev.filter((b) => !deletedIds.includes(b.booking_id)));
+      setSelectedBookingIds((prev) => prev.filter((id) => !deletedIds.includes(id)));
+      if (selectedBooking && deletedIds.includes(selectedBooking.booking_id)) {
+        setSelectedBooking(null);
+      }
+      setDeleteConfirmModalOpen(false);
+      setBookingsToDelete([]);
+      fetchForecast();
+      fetchAuditLogs();
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการลบรายการจองคิว', 'error');
+    } finally {
+      setIsDeletingBookings(false);
+    }
+  };
+
   // Open Edit Queue Status Modal
   const openEditStatusModal = (booking: Booking) => {
     setEditingStatusBooking(booking);
@@ -1191,6 +1277,8 @@ export default function AdminDashboardPage() {
         return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-cyan-100 text-cyan-800">แก้ไขเจ้าหน้าที่</span>;
       case 'DELETE_STAFF':
         return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-rose-100 text-rose-800">ลบเจ้าหน้าที่</span>;
+      case 'DELETE_QUEUE':
+        return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300">ลบคิวถาวร</span>;
       default:
         return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-slate-100 text-slate-700">{action}</span>;
     }
@@ -1640,23 +1728,79 @@ export default function AdminDashboardPage() {
                   <p className="text-xs text-slate-400">สามารถคลิกปุ่ม &quot;📅 ทุกวันที่&quot; หรือเลือกดูทุกสถานะได้ที่แถบตัวกรอง</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-sm sm:text-base">
-                    <thead>
-                      <tr className="bg-slate-100/90 text-slate-800 font-bold border-b border-slate-200 text-xs sm:text-sm">
-                        <th className="py-4 px-4">Booking ID</th>
-                        <th className="py-4 px-4">วันที่ & รอบเวลานัดหมาย</th>
-                        <th className="py-4 px-4">บริษัทขนส่ง</th>
-                        <th className="py-4 px-4">เจ้าของสินค้า / ผู้ส่ง</th>
-                        <th className="py-4 px-4 text-center">จำนวนลัง</th>
-                        <th className="py-4 px-4">สถานะ</th>
-                        <th className="py-4 px-4 text-center no-print">การจัดการ</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {bookings.map((item) => (
-                        <tr key={item.booking_id} className="hover:bg-slate-50/80 transition">
-                          <td className="py-4 px-4 font-mono font-extrabold text-slate-900 text-sm sm:text-base">
+                <div className="space-y-3">
+                  {/* Batch Action Bar for Super Admin */}
+                  {isSuperAdmin && selectedBookingIds.length > 0 && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-3 shadow-xs animate-in fade-in slide-in-from-top-2 duration-150 no-print">
+                      <div className="flex items-center gap-2 text-amber-900 text-xs font-bold">
+                        <span className="w-6 h-6 rounded-full bg-amber-200 text-amber-950 flex items-center justify-center font-mono text-xs font-extrabold">
+                          {selectedBookingIds.length}
+                        </span>
+                        <span>เลือกรายการจองอยู่ {selectedBookingIds.length} รายการ</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedBookingIds([])}
+                          className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition"
+                        >
+                          ยกเลิกการเลือก
+                        </button>
+                        <button
+                          type="button"
+                          onClick={openBatchDeleteModal}
+                          className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>ลบรายการที่เลือก ({selectedBookingIds.length})</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-sm sm:text-base">
+                      <thead>
+                        <tr className="bg-slate-100/90 text-slate-800 font-bold border-b border-slate-200 text-xs sm:text-sm">
+                          {isSuperAdmin && (
+                            <th className="py-4 px-3 text-center w-10 no-print">
+                              <input
+                                type="checkbox"
+                                checked={bookings.length > 0 && bookings.every((b) => selectedBookingIds.includes(b.booking_id))}
+                                onChange={handleToggleSelectAll}
+                                className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                                title="เลือกทั้งหมด / ยกเลิกทั้งหมด"
+                              />
+                            </th>
+                          )}
+                          <th className="py-4 px-4">Booking ID</th>
+                          <th className="py-4 px-4">วันที่ & รอบเวลานัดหมาย</th>
+                          <th className="py-4 px-4">บริษัทขนส่ง</th>
+                          <th className="py-4 px-4">เจ้าของสินค้า / ผู้ส่ง</th>
+                          <th className="py-4 px-4 text-center">จำนวนลัง</th>
+                          <th className="py-4 px-4">สถานะ</th>
+                          <th className="py-4 px-4 text-center no-print">การจัดการ</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {bookings.map((item) => (
+                          <tr
+                            key={item.booking_id}
+                            className={`hover:bg-slate-50/80 transition ${
+                              selectedBookingIds.includes(item.booking_id) ? 'bg-amber-50/50' : ''
+                            }`}
+                          >
+                            {isSuperAdmin && (
+                              <td className="py-4 px-3 text-center no-print" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedBookingIds.includes(item.booking_id)}
+                                  onChange={() => handleToggleSelectBooking(item.booking_id)}
+                                  className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                                />
+                              </td>
+                            )}
+                            <td className="py-4 px-4 font-mono font-extrabold text-slate-900 text-sm sm:text-base">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span>{item.booking_id}</span>
                               {(item.photo_url || item.receiving_photo_url) && (
@@ -1826,6 +1970,18 @@ export default function AdminDashboardPage() {
                               >
                                 <Eye className="w-4 h-4" />
                               </button>
+
+                              {/* Delete Booking (Super Admin Only) */}
+                              {isSuperAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={() => openSingleDeleteModal(item)}
+                                  className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition shrink-0"
+                                  title="ลบรายการจองคิวนี้ (เฉพาะ Super Admin)"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1833,8 +1989,9 @@ export default function AdminDashboardPage() {
                     </tbody>
                   </table>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+          </div>
           </div>
         )}
 
@@ -3195,6 +3352,19 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="pt-2 flex items-center gap-2">
+              {isSuperAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    openSingleDeleteModal(selectedBooking);
+                  }}
+                  className="py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs shrink-0"
+                  title="ลบรายการจองนี้ออกจากระบบ (เฉพาะ Super Admin)"
+                >
+                  <Trash2 className="w-4 h-4 text-rose-600" />
+                  <span>ลบคิวนี้</span>
+                </button>
+              )}
               {!isSecurityOnly && (
                 <button
                   type="button"
@@ -3258,6 +3428,100 @@ export default function AdminDashboardPage() {
               alt={lightboxTitle || 'รูปภาพขยาย'}
               className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-white/10"
             />
+          </div>
+        </div>
+      )}
+
+      {/* 🗑️ DELETE QUEUE CONFIRMATION MODAL (Super Admin) */}
+      {deleteConfirmModalOpen && bookingsToDelete.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-rose-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5 text-rose-600">
+                <div className="p-2 bg-rose-100 rounded-2xl">
+                  <AlertTriangle className="w-5 h-5 text-rose-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">ยืนยันการลบรายการจองคิว</h3>
+                  <span className="text-[11px] text-rose-600 font-semibold">เฉพาะสิทธิ์ Super Admin เท่านั้น</span>
+                </div>
+              </div>
+              <button
+                disabled={isDeletingBookings}
+                onClick={() => setDeleteConfirmModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700 disabled:opacity-50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                คุณแน่ใจหรือไม่ว่าต้องการลบรายการจองคิวจำนวน <strong className="text-rose-600 font-bold font-mono">{bookingsToDelete.length}</strong> รายการนี้ออกจากระบบอย่างถาวร?
+                การกระทำนี้จะลบข้อมูลออกจากฐานข้อมูลและไม่สามารถกู้คืนได้
+              </p>
+
+              {/* List of items to delete (up to 5 previews) */}
+              <div className="bg-slate-50 rounded-2xl p-3 max-h-48 overflow-y-auto space-y-2 border border-slate-200/80">
+                {bookingsToDelete.slice(0, 5).map((b) => (
+                  <div key={b.booking_id} className="p-2 bg-white rounded-xl border border-slate-200 text-xs flex items-center justify-between">
+                    <div>
+                      <span className="font-mono font-bold text-slate-900 block">{b.booking_id}</span>
+                      <span className="text-[10px] text-slate-500">
+                        {b.carrier_name} • {formatThaiDate(b.requested_date)} ({b.requested_time})
+                      </span>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-700">
+                      {b.status}
+                    </span>
+                  </div>
+                ))}
+                {bookingsToDelete.length > 5 && (
+                  <p className="text-[11px] text-center text-slate-400 pt-1 font-medium">
+                    ...และอีก {bookingsToDelete.length - 5} รายการ
+                  </p>
+                )}
+              </div>
+
+              <div className="p-3 bg-rose-50/70 border border-rose-200/80 rounded-2xl text-[11px] text-rose-800 space-y-1">
+                <div className="font-bold flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-rose-600" />
+                  <span>บันทึกความปลอดภัย (Audit Log)</span>
+                </div>
+                <p className="text-slate-600">
+                  ระบบจะบันทึกประวัติการลบคิวนี้ใน Audit Log พร้อมชื่อผู้ดำเนินการ ({operatorName}) ไว้อย่างชัดเจน
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isDeletingBookings}
+                onClick={() => setDeleteConfirmModalOpen(false)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingBookings}
+                onClick={handleConfirmDelete}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+              >
+                {isDeletingBookings ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>กำลังลบข้อมูล...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>ยืนยันลบถาวร ({bookingsToDelete.length})</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

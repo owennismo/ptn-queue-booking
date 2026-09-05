@@ -48,7 +48,7 @@ export interface BlockedDate {
 
 export interface AuditLog {
   id: number;
-  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'CHECKIN_QUEUE' | 'RECEIVING_QUEUE' | 'COMPLETE_QUEUE' | 'UPDATE_SLOT' | 'REORDER_SLOTS' | 'BLOCK_DATE' | 'UNBLOCK_DATE' | 'ADD_STAFF' | 'UPDATE_STAFF' | 'DELETE_STAFF' | 'RESET_PIN';
+  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'CHECKIN_QUEUE' | 'RECEIVING_QUEUE' | 'COMPLETE_QUEUE' | 'UPDATE_SLOT' | 'REORDER_SLOTS' | 'BLOCK_DATE' | 'UNBLOCK_DATE' | 'ADD_STAFF' | 'UPDATE_STAFF' | 'DELETE_STAFF' | 'RESET_PIN' | 'DELETE_QUEUE';
   details: string;
   operator: string;
   ip_address: string;
@@ -793,13 +793,109 @@ export class DataStore {
     }
 
     await this.addAuditLog(
-      'DELETE_STAFF',
+      'DELETE_QUEUE',
       `ล้างข้อมูลคิวจองทั้งหมดในระบบเรียบร้อยแล้ว (${previousCount} รายการ)`,
       operator,
       ip
     );
 
     return previousCount;
+  }
+
+  async deleteBooking(id: string, operator = 'Super Admin', ip = '127.0.0.1'): Promise<boolean> {
+    const cleanId = id.trim().toUpperCase();
+    const bookings = await this.getAllBookings();
+    const index = bookings.findIndex((b: Booking) => b.booking_id.toUpperCase() === cleanId);
+    if (index === -1) {
+      return false;
+    }
+    const target = bookings[index];
+    bookings.splice(index, 1);
+    globalStore.bookings = bookings;
+    await this.putKV('bookings', bookings);
+
+    if (this.d1) {
+      try {
+        await this.d1.prepare('DELETE FROM bookings WHERE booking_id = ?').bind(target.booking_id).run();
+      } catch (e) {
+        console.error('D1 delete booking error:', e);
+      }
+    }
+
+    // Cleanup push subscriptions for this booking
+    try {
+      const subs = (await this.getKV<PushSubscriptionRecord[]>('push_subscriptions', [])) || globalStore.pushSubscriptions || [];
+      const remainingSubs = subs.filter((s: PushSubscriptionRecord) => s.booking_id.toUpperCase() !== cleanId);
+      globalStore.pushSubscriptions = remainingSubs;
+      await this.putKV('push_subscriptions', remainingSubs);
+    } catch (e) {
+      console.warn('Error clearing push subs for deleted booking:', e);
+    }
+
+    await this.addAuditLog(
+      'DELETE_QUEUE',
+      `ลบรายการจองคิว ${target.booking_id} (${target.carrier_name} - วันที่ ${target.requested_date} เวลา ${target.requested_time}) ออกจากระบบ`,
+      operator,
+      ip
+    );
+
+    return true;
+  }
+
+  async deleteBookings(ids: string[], operator = 'Super Admin', ip = '127.0.0.1'): Promise<{ deleted_count: number; not_found: string[] }> {
+    if (!ids || ids.length === 0) {
+      return { deleted_count: 0, not_found: [] };
+    }
+    const cleanIds = ids.map((id) => id.trim().toUpperCase());
+    const bookings = await this.getAllBookings();
+
+    const notFound: string[] = [];
+    const toDelete: Booking[] = [];
+
+    cleanIds.forEach((id) => {
+      const found = bookings.find((b) => b.booking_id.toUpperCase() === id);
+      if (found) {
+        toDelete.push(found);
+      } else {
+        notFound.push(id);
+      }
+    });
+
+    if (toDelete.length > 0) {
+      const remaining = bookings.filter((b) => !cleanIds.includes(b.booking_id.toUpperCase()));
+      globalStore.bookings = remaining;
+      await this.putKV('bookings', remaining);
+
+      if (this.d1) {
+        try {
+          for (const b of toDelete) {
+            await this.d1.prepare('DELETE FROM bookings WHERE booking_id = ?').bind(b.booking_id).run();
+          }
+        } catch (e) {
+          console.error('D1 delete bookings error:', e);
+        }
+      }
+
+      // Cleanup push subscriptions
+      try {
+        const subs = (await this.getKV<PushSubscriptionRecord[]>('push_subscriptions', [])) || globalStore.pushSubscriptions || [];
+        const remainingSubs = subs.filter((s: PushSubscriptionRecord) => !cleanIds.includes(s.booking_id.toUpperCase()));
+        globalStore.pushSubscriptions = remainingSubs;
+        await this.putKV('push_subscriptions', remainingSubs);
+      } catch (e) {
+        console.warn('Error clearing push subs for deleted bookings:', e);
+      }
+
+      const idListStr = toDelete.map((b) => b.booking_id).join(', ');
+      await this.addAuditLog(
+        'DELETE_QUEUE',
+        `ลบรายการจองคิวจำนวน ${toDelete.length} รายการ (${idListStr}) ออกจากระบบ`,
+        operator,
+        ip
+      );
+    }
+
+    return { deleted_count: toDelete.length, not_found: notFound };
   }
 
   async createBooking(data: any): Promise<Booking> {

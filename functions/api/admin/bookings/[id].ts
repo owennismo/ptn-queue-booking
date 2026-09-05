@@ -189,3 +189,58 @@ export async function onRequestPost(context: { params: any; request: Request; en
     });
   }
 }
+
+export async function onRequestDelete(context: { params: any; request: Request; env: any }) {
+  try {
+    const { params, request, env } = context;
+
+    // Verify JWT Token
+    const auth = await checkAuthHeader(request);
+    if (!auth.authorized) {
+      return auth.errorResponse!;
+    }
+
+    // Strict Authorization: ONLY Super Admin can delete bookings
+    const userRole = auth.payload?.role;
+    if (userRole !== 'super_admin' && userRole !== 'admin') {
+      return new Response(
+        JSON.stringify({ error: 'คุณไม่มีสิทธิ์ในการลบรายการจองคิว (สงวนสิทธิ์เฉพาะ Super Admin เท่านั้น)' }),
+        { status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+      );
+    }
+
+    const id = params.id;
+    if (!id) {
+      return new Response(JSON.stringify({ error: 'Missing booking ID' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      });
+    }
+
+    const operatorName = auth.payload?.operator || auth.payload?.full_name || 'Super Admin';
+    const clientIp = request.headers.get('CF-Connecting-IP') || request.headers.get('x-forwarded-for') || '127.0.0.1';
+
+    const store = new DataStore(env);
+    const success = await store.deleteBooking(id, operatorName, clientIp);
+
+    if (!success) {
+      return new Response(JSON.stringify({ error: 'ไม่พบรายการจองนี้ หรือถูกลบไปแล้ว' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      });
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: `ลบรายการจองคิว ${id} ออกจากระบบเรียบร้อยแล้ว`,
+      }),
+      { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+    );
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: error.message || 'Error occurred' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    });
+  }
+}
