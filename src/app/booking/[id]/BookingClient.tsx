@@ -613,63 +613,7 @@ ${url}`;
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* 🌟 TOP GLOBAL TRUST & DIRECT CONTACT HEADER */}
-      <header className="bg-white/95 backdrop-blur border-b border-slate-200/80 sticky top-0 z-40 shadow-xs no-print">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
-          {/* Company Brand */}
-          <Link href="/" className="flex items-center gap-3 self-start sm:self-auto group">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white flex items-center justify-center font-black text-lg shadow-md shadow-emerald-900/20 group-hover:scale-105 transition">
-              P
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
-                  PTN PHARMA CENTER
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  พัฒนาเภสัช
-                </span>
-              </div>
-              <span className="text-xs text-slate-600 font-medium block">
-                ระบบนัดหมายจองคิวส่งสินค้าคลังยาและเวชภัณฑ์
-              </span>
-            </div>
-          </Link>
-
-          {/* Contact Badges (Phone & LINE) */}
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-start sm:justify-end flex-wrap">
-            <a
-              href="tel:0993787463"
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-sm font-bold transition shadow-2xs group"
-              title="โทรติดต่อแผนกรับสินค้าโดยตรง"
-            >
-              <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center group-hover:scale-110 transition shadow-xs">
-                <Phone className="w-3.5 h-3.5" />
-              </div>
-              <span>
-                แผนกรับสินค้า: <strong className="text-emerald-700 font-mono">099-378-7463</strong>
-              </span>
-            </a>
-
-            <a
-              href="https://line.me/ti/p/~ptnexpress"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#06C755]/10 hover:bg-[#06C755]/20 text-[#048737] border border-[#06C755]/30 text-sm font-bold transition shadow-2xs group"
-              title="เพิ่มเพื่อนทาง LINE"
-            >
-              <div className="w-6 h-6 rounded-lg bg-[#06C755] text-white flex items-center justify-center group-hover:scale-110 transition shadow-xs">
-                <MessageCircle className="w-4 h-4" />
-              </div>
-              <span>
-                LINE ID: <strong className="text-[#036d2c] font-mono">ptnexpress</strong>
-              </span>
-            </a>
-          </div>
-        </div>
-      </header>
-
-      <div className="py-8 px-4 sm:px-6 lg:px-8">
+      <div className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8 pb-24 sm:pb-12">
         <div className="max-w-2xl mx-auto space-y-6">
           {/* Top Actions Bar */}
           <div className="flex flex-wrap items-center justify-between gap-2 no-print">

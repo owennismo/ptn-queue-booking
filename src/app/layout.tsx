@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import Navbar from '@/components/Navbar';
+import MobileBottomNav from '@/components/MobileBottomNav';
 import PWAInstallAndOffline from '@/components/PWAInstallAndOffline';
 
 export const metadata: Metadata = {
@@ -49,7 +50,8 @@ export default function RootLayout({
         <main className="flex-1">
           {children}
         </main>
-        <footer className="bg-white border-t border-slate-200 py-6 text-center text-sm text-slate-600 no-print">
+        <MobileBottomNav />
+        <footer className="bg-white border-t border-slate-200 py-6 text-center text-sm text-slate-600 no-print pb-20 sm:pb-6">
           <div className="max-w-7xl mx-auto px-4">
             <p className="font-semibold text-slate-800 text-sm">บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)</p>
             <p className="mt-1 text-xs text-slate-500">ระบบจองคิวรับ-ส่งสินค้าอัจฉริยะ Serverless Platform • รองรับ PWA</p>
