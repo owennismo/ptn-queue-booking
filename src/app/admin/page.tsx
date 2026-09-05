@@ -475,7 +475,7 @@ export default function AdminDashboardPage() {
   }, [activeTab, token, userRole, fetchStaff, fetchAuditLogs]);
 
   // Live QR Code Scanner Success Handler
-  const handleQRScanned = async (scannedId: string) => {
+  const handleQRScanned = useCallback(async (scannedId: string) => {
     setScannerOpen(false);
     setSearchQuery(scannedId);
     try {
@@ -490,7 +490,7 @@ export default function AdminDashboardPage() {
     } catch (e) {
       showToast(`ค้นหาคิว ${scannedId}`);
     }
-  };
+  }, []);
 
   // 1-Click Approve Action
   const handleApprove = async (booking: Booking) => {

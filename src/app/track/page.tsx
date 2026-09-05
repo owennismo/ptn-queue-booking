@@ -143,7 +143,7 @@ export default function TrackPage() {
     handleSearch();
   };
 
-  const handleQRScanned = (scannedId: string) => {
+  const handleQRScanned = useCallback((scannedId: string) => {
     setScannerOpen(false);
     setQuery(scannedId);
     if (scannedId.startsWith('PTN-')) {
@@ -151,7 +151,7 @@ export default function TrackPage() {
     } else {
       handleSearch(scannedId);
     }
-  };
+  }, [router, handleSearch]);
 
   const handleClearSearch = () => {
     setQuery('');
