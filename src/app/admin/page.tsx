@@ -55,8 +55,9 @@ import {
   Maximize2,
   UploadCloud,
   Database,
+  Settings,
 } from 'lucide-react';
-import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole, BookingStatus } from '@/lib/types';
+import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole, BookingStatus, SystemSettings, DEFAULT_SYSTEM_SETTINGS } from '@/lib/types';
 import QRScannerModal from '@/components/QRScannerModal';
 import ThaiDatePicker from '@/components/ThaiDatePicker';
 import { formatThaiDate, formatThaiShortDate, formatThaiNumericDate, formatThaiDateTime } from '@/lib/dateUtils';
@@ -103,7 +104,7 @@ export default function AdminDashboardPage() {
   const [idleSecondsRemaining, setIdleSecondsRemaining] = useState<number>(IDLE_TIMEOUT_SECONDS);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'queues' | 'capacity' | 'blocking' | 'staff' | 'audit'>('queues');
+  const [activeTab, setActiveTab] = useState<'queues' | 'capacity' | 'blocking' | 'staff' | 'audit' | 'settings'>('queues');
 
   // Queues state (Default to 'All' to show all incoming bookings)
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -120,6 +121,10 @@ export default function AdminDashboardPage() {
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
   const [newBlockedDate, setNewBlockedDate] = useState('');
   const [newBlockedReason, setNewBlockedReason] = useState('');
+
+  // System Settings state (Contact info & Announcements)
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(DEFAULT_SYSTEM_SETTINGS);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   // Staff Management state
   const [staffList, setStaffList] = useState<StaffUser[]>([]);
@@ -415,6 +420,9 @@ export default function AdminDashboardPage() {
       const data = await res.json();
       setSlots(data.slots || []);
       setBlockedDates(data.blockedDates || []);
+      if (data.settings) {
+        setSystemSettings(data.settings);
+      }
     } catch (err) {}
   }, [authFetch, token]);
 
@@ -472,7 +480,10 @@ export default function AdminDashboardPage() {
     if (activeTab === 'audit' && token && userRole === 'super_admin') {
       fetchAuditLogs();
     }
-  }, [activeTab, token, userRole, fetchStaff, fetchAuditLogs]);
+    if (activeTab === 'settings' && token && userRole === 'super_admin') {
+      fetchSettings();
+    }
+  }, [activeTab, token, userRole, fetchStaff, fetchAuditLogs, fetchSettings]);
 
   // Live QR Code Scanner Success Handler
   const handleQRScanned = useCallback(async (scannedId: string) => {
@@ -1351,6 +1362,32 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isSuperAdmin) {
+      showToast('เฉพาะ Super Admin เท่านั้นที่มีสิทธิ์แก้ไขข้อมูลระบบ', 'error');
+      return;
+    }
+    setIsSavingSettings(true);
+    try {
+      const res = await authFetch('/api/admin/settings', {
+        method: 'PUT',
+        body: JSON.stringify(systemSettings),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSystemSettings(data.settings);
+        showToast('บันทึกข้อมูลติดต่อและประกาศสำเร็จ มีผลใช้งานทันที');
+      } else {
+        showToast(data.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
+      }
+    } catch (err: any) {
+      showToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
   const getRoleBadge = (role: StaffRole) => {
     switch (role) {
       case 'super_admin':
@@ -1388,6 +1425,8 @@ export default function AdminDashboardPage() {
         return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">สำรองข้อมูล</span>;
       case 'RESTORE_DATA':
         return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">กู้คืนระบบ</span>;
+      case 'UPDATE_SETTINGS':
+        return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-teal-100 text-teal-800 border border-teal-200">แก้ไขข้อมูลระบบ/ติดต่อ</span>;
       default:
         return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-slate-100 text-slate-700">{action}</span>;
     }
@@ -1546,6 +1585,18 @@ export default function AdminDashboardPage() {
             </button>
           )}
 
+          {isSuperAdmin && (
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+                activeTab === 'settings' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <Settings className="w-4 h-4 text-cyan-300" />
+              <span>ข้อมูลติดต่อและประกาศ</span>
+            </button>
+          )}
+
           {/* Direct Link to High-Res Poster / Standee Page */}
           <a
             href="/poster"
@@ -1561,6 +1612,17 @@ export default function AdminDashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+        {/* Admin Internal Announcement Banner */}
+        {systemSettings.admin_announcement_active && systemSettings.admin_announcement && (
+          <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-orange-500/15 border border-amber-500/40 text-amber-950 px-5 py-3.5 rounded-2xl flex items-start sm:items-center gap-3 shadow-xs no-print">
+            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+            <div className="flex-1 text-xs sm:text-sm">
+              <span className="font-extrabold text-amber-800 mr-2">[ประกาศภายในคลังสินค้า]:</span>
+              <span className="font-medium text-amber-950 leading-relaxed">{systemSettings.admin_announcement}</span>
+            </div>
+          </div>
+        )}
+
         {/* Inspection Officer Notice */}
         {isSecurityOnly && (
           <div className="bg-blue-50 border border-blue-200 text-blue-900 px-4 py-3 rounded-2xl flex items-center gap-3 text-xs no-print">
@@ -2624,6 +2686,384 @@ export default function AdminDashboardPage() {
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {/* 🌟 TAB 6: DYNAMIC SYSTEM SETTINGS & CONTACTS (SUPER ADMIN ONLY) */}
+        {isSuperAdmin && activeTab === 'settings' && (
+          <div className="space-y-6">
+            {/* Header Banner */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-cyan-50 border border-cyan-200 text-cyan-600 flex items-center justify-center shrink-0 shadow-2xs">
+                  <Settings className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-black text-slate-900">จัดการข้อมูลติดต่อและประกาศระบบ</h2>
+                    <span className="px-2 py-0.5 rounded-full text-2xs font-extrabold bg-amber-100 text-amber-900 border border-amber-300">👑 Super Admin เท่านั้น</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    แก้ไขหมายเลขโทรศัพท์, บัญชี LINE, ข้อความชี้แจงหน้าจองคิว, คำแนะนำบนบัตรคิว และแถบประกาศแจ้งเตือน โดยมีผลใช้งานทันทีทั่วทั้งระบบ
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={fetchSettings}
+                  disabled={isSavingSettings}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>คืนค่าล่าสุด</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Main Form */}
+            <form onSubmit={handleSaveSettings} className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                {/* 1. ข้อมูลการติดต่อหน้าบ้าน */}
+                <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+                  <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 text-slate-900">
+                    <Phone className="w-5 h-5 text-emerald-600" />
+                    <div>
+                      <h3 className="text-sm font-black">1. ข้อมูลการติดต่อหลัก (Public Contact)</h3>
+                      <p className="text-2xs text-slate-400">แสดงบนแถบเมนูด้านบนและส่วนหัวของหน้าจองคิว</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="space-y-1 sm:col-span-2">
+                      <label className="text-xs font-bold text-slate-700">
+                        ป้ายกำกับเบอร์โทรหลัก <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={systemSettings.contact_phone_label}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, contact_phone_label: e.target.value })}
+                        placeholder="เช่น ติดต่อคลังสินค้า / สอบถามคิว"
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-2">
+                      <label className="text-xs font-bold text-slate-700">
+                        เบอร์โทรศัพท์หลัก <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={systemSettings.contact_phone}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, contact_phone: e.target.value })}
+                        placeholder="เช่น 02-123-4567 หรือ 081-234-5678"
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">
+                        ป้ายกำกับเบอร์สำรอง (ถ้ามี)
+                      </label>
+                      <input
+                        type="text"
+                        value={systemSettings.contact_phone_sub_label || ''}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, contact_phone_sub_label: e.target.value })}
+                        placeholder="เช่น สอบถามคิวเร่งด่วน"
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">
+                        เบอร์โทรศัพท์สำรอง (ถ้ามี)
+                      </label>
+                      <input
+                        type="text"
+                        value={systemSettings.contact_phone_sub || ''}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, contact_phone_sub: e.target.value })}
+                        placeholder="เช่น 089-999-8888"
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-800 focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">
+                        LINE Official ID <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={systemSettings.contact_line_id}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, contact_line_id: e.target.value })}
+                        placeholder="เช่น @ptnpharma"
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-emerald-800 focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">
+                        ลิงก์ LINE (Add Friend URL) <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="url"
+                        required
+                        value={systemSettings.contact_line_url}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, contact_line_url: e.target.value })}
+                        placeholder="เช่น https://line.me/R/ti/p/@ptnpharma"
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-700 focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. ประกาศและข้อความชี้แจงหน้าจองคิว */}
+                <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+                  <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 text-slate-900">
+                    <Bell className="w-5 h-5 text-amber-500" />
+                    <div>
+                      <h3 className="text-sm font-black">2. ประกาศและข้อตกลงหน้าจองคิว (Booking Page)</h3>
+                      <p className="text-2xs text-slate-400">ควบคุมแถบประกาศด่วนสีส้มและข้อกำหนดขั้นตอนที่ 1</p>
+                    </div>
+                  </div>
+
+                  {/* แถบประกาศด่วน */}
+                  <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-600" />
+                        <label className="text-xs font-extrabold text-amber-950">
+                          แถบประกาศด่วน / ฉุกเฉิน หน้าจองคิว
+                        </label>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={systemSettings.booking_announcement_active}
+                          onChange={(e) => setSystemSettings({ ...systemSettings, booking_announcement_active: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+                        <span className="ml-2 text-2xs font-bold text-amber-900">
+                          {systemSettings.booking_announcement_active ? 'เปิดแสดงผล' : 'ปิดการแสดง'}
+                        </span>
+                      </label>
+                    </div>
+
+                    <textarea
+                      rows={2}
+                      value={systemSettings.booking_announcement || ''}
+                      onChange={(e) => setSystemSettings({ ...systemSettings, booking_announcement: e.target.value })}
+                      placeholder="ตัวอย่าง: คลังปิดทำการช่วงเทศกาลสงกรานต์ 12-16 เม.ย. จะเปิดรับส่งของปกติวันที่ 17 เม.ย. เป็นต้นไป"
+                      className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs text-amber-950 focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+
+                  {/* ข้อกำหนดและเงื่อนไขหน้าจองคิว */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">
+                      ข้อกำหนด/เงื่อนไขการส่งสินค้า (แสดงขั้นตอนที่ 1) <span className="text-rose-500">*</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      required
+                      value={systemSettings.booking_notice_text}
+                      onChange={(e) => setSystemSettings({ ...systemSettings, booking_notice_text: e.target.value })}
+                      placeholder="เช่น กรุณามาถึงก่อนเวลา 15 นาที และเตรียมเอกสารใบส่งของให้พร้อม..."
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. ข้อมูลบัตรคิวและที่ตั้งคลังสินค้า */}
+                <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+                  <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 text-slate-900">
+                    <Building2 className="w-5 h-5 text-indigo-600" />
+                    <div>
+                      <h3 className="text-sm font-black">3. บัตรคิวและข้อมูลคลังสินค้า (Ticket & Warehouse)</h3>
+                      <p className="text-2xs text-slate-400">แสดงบนบัตรคิวของผู้ขับรถและเอกสารสรุป</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3.5">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">
+                        ชื่อบริษัท / สถานที่ <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={systemSettings.company_name}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, company_name: e.target.value })}
+                        placeholder="เช่น บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด"
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">
+                        คำแนะนำสำหรับคนขับรถบนบัตรคิว (Ticket Instructions)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={systemSettings.ticket_instruction || ''}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, ticket_instruction: e.target.value })}
+                        placeholder="เช่น กรุณาแสดง QR Code นี้แก่เจ้าหน้าที่ตรวจสอบคิวส่ง ณ จุดคัดกรองหน้าประตูทางเข้า"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">
+                        ที่อยู่คลังสินค้า
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={systemSettings.warehouse_address}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, warehouse_address: e.target.value })}
+                        placeholder="เช่น คลังสินค้า บจก. พีทีเอ็น ฟาร์มาเซ็นเตอร์..."
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. ประกาศภายในสำหรับเจ้าหน้าที่ */}
+                <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+                  <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 text-slate-900">
+                    <ShieldCheck className="w-5 h-5 text-cyan-600" />
+                    <div>
+                      <h3 className="text-sm font-black">4. ประกาศภายในสำหรับเจ้าหน้าที่ (Admin Dashboard)</h3>
+                      <p className="text-2xs text-slate-400">แสดงแถบเตือนสีส้มด้านบนของหน้า Admin นี้ ให้เจ้าหน้าที่ทุกคนเห็น</p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-cyan-50/60 border border-cyan-200/80 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-cyan-700" />
+                        <label className="text-xs font-extrabold text-cyan-950">
+                          แถบประกาศภายในสำหรับทีมงานคลัง
+                        </label>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={systemSettings.admin_announcement_active}
+                          onChange={(e) => setSystemSettings({ ...systemSettings, admin_announcement_active: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-600"></div>
+                        <span className="ml-2 text-2xs font-bold text-cyan-900">
+                          {systemSettings.admin_announcement_active ? 'เปิดแสดงผล' : 'ปิดการแสดง'}
+                        </span>
+                      </label>
+                    </div>
+
+                    <textarea
+                      rows={3}
+                      value={systemSettings.admin_announcement || ''}
+                      onChange={(e) => setSystemSettings({ ...systemSettings, admin_announcement: e.target.value })}
+                      placeholder="ตัวอย่าง: ประกาศเจ้าหน้าที่: สัปดาห์นี้มีตรวจนับสต็อกใหญ่ รถส่งของอาจมีความล่าช้าในการขึ้นของ 10-15 นาที"
+                      className="w-full px-3 py-2 bg-white border border-cyan-300 rounded-xl text-xs text-cyan-950 focus:ring-2 focus:ring-cyan-500"
+                    />
+                  </div>
+                </div>
+
+              </div>
+
+              {/* 5. LIVE PREVIEW PANEL */}
+              <div className="bg-slate-900 text-white p-6 rounded-3xl border border-slate-800 shadow-md space-y-4">
+                <div className="flex items-center gap-2 text-emerald-400">
+                  <Sparkles className="w-5 h-5" />
+                  <h3 className="text-sm font-extrabold tracking-wide">ตัวอย่างการแสดงผลจริง (Real-Time Live Preview)</h3>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  {/* Emergency Banner Preview */}
+                  {systemSettings.booking_announcement_active && systemSettings.booking_announcement && (
+                    <div>
+                      <span className="text-2xs text-slate-400 block mb-1">ตัวอย่างแถบประกาศฉุกเฉินบนหน้าจองคิว (Public Banner):</span>
+                      <div className="bg-amber-500/20 border border-amber-500/50 text-amber-200 px-4 py-2.5 rounded-xl flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span className="font-semibold">{systemSettings.booking_announcement}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Public Contact Strip Preview */}
+                  <div>
+                    <span className="text-2xs text-slate-400 block mb-1">ตัวอย่างแถบข้อมูลติดต่อในหน้าจองคิว (Hero Contact Strip):</span>
+                    <div className="bg-slate-800/80 p-3 rounded-2xl border border-slate-700/80 flex flex-wrap items-center gap-3">
+                      <div className="flex items-center gap-2 bg-slate-700/60 px-3 py-1.5 rounded-xl border border-slate-600/60 text-slate-200">
+                        <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>{systemSettings.contact_phone_label}: <strong className="text-white font-mono">{systemSettings.contact_phone}</strong></span>
+                      </div>
+                      {systemSettings.contact_phone_sub && (
+                        <div className="flex items-center gap-2 bg-slate-700/60 px-3 py-1.5 rounded-xl border border-slate-600/60 text-slate-200">
+                          <Phone className="w-3.5 h-3.5 text-amber-400" />
+                          <span>{systemSettings.contact_phone_sub_label || 'เบอร์สำรอง'}: <strong className="text-white font-mono">{systemSettings.contact_phone_sub}</strong></span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1.5 bg-[#06C755]/20 text-[#06C755] px-3 py-1.5 rounded-xl border border-[#06C755]/30 font-bold">
+                        <span>LINE: {systemSettings.contact_line_id}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Admin Banner Preview */}
+                  {systemSettings.admin_announcement_active && systemSettings.admin_announcement && (
+                    <div>
+                      <span className="text-2xs text-slate-400 block mb-1">ตัวอย่างแถบประกาศภายในสำหรับเจ้าหน้าที่ (Admin Banner):</span>
+                      <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/40 text-amber-200 px-4 py-2.5 rounded-xl flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span><strong className="text-amber-300 mr-1">[ประกาศภายใน]:</strong> {systemSettings.admin_announcement}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Bar */}
+              <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-xs text-slate-500">
+                  ⚠️ เมื่อคลิกบันทึก ข้อมูลจะถูกอัปเดตลงระบบและบันทึกประวัติการเปลี่ยนแปลงลงใน <strong className="text-slate-700">Audit Logs</strong>
+                </div>
+
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={fetchSettings}
+                    disabled={isSavingSettings}
+                    className="flex-1 sm:flex-none px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
+                  >
+                    ยกเลิกการแก้ไข
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isSavingSettings}
+                    className="flex-1 sm:flex-none px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+                  >
+                    {isSavingSettings ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>กำลังบันทึกข้อมูล...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>บันทึกการเปลี่ยนแปลงทั้งหมด</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
         )}
       </main>

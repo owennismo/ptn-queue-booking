@@ -48,12 +48,46 @@ export interface BlockedDate {
 
 export interface AuditLog {
   id: number;
-  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'CHECKIN_QUEUE' | 'RECEIVING_QUEUE' | 'COMPLETE_QUEUE' | 'UPDATE_SLOT' | 'REORDER_SLOTS' | 'BLOCK_DATE' | 'UNBLOCK_DATE' | 'ADD_STAFF' | 'UPDATE_STAFF' | 'DELETE_STAFF' | 'RESET_PIN' | 'DELETE_QUEUE' | 'BACKUP_DATA' | 'RESTORE_DATA';
+  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'CHECKIN_QUEUE' | 'RECEIVING_QUEUE' | 'COMPLETE_QUEUE' | 'UPDATE_SLOT' | 'REORDER_SLOTS' | 'BLOCK_DATE' | 'UNBLOCK_DATE' | 'ADD_STAFF' | 'UPDATE_STAFF' | 'DELETE_STAFF' | 'RESET_PIN' | 'DELETE_QUEUE' | 'BACKUP_DATA' | 'RESTORE_DATA' | 'UPDATE_SETTINGS';
   details: string;
   operator: string;
   ip_address: string;
   created_at: string;
 }
+
+export interface SystemSettings {
+  company_name: string;
+  contact_phone: string;
+  contact_phone_label: string;
+  contact_phone_sub?: string;
+  contact_phone_sub_label?: string;
+  contact_line_id: string;
+  contact_line_url: string;
+  booking_notice_text: string;
+  booking_announcement?: string;
+  booking_announcement_active: boolean;
+  warehouse_address: string;
+  ticket_instruction?: string;
+  admin_announcement?: string;
+  admin_announcement_active: boolean;
+}
+
+export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
+  company_name: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
+  contact_phone: '099-378-7463',
+  contact_phone_label: 'แผนกรับสินค้า',
+  contact_phone_sub: '',
+  contact_phone_sub_label: 'ติดต่อเพิ่มเติม',
+  contact_line_id: 'ptnexpress',
+  contact_line_url: 'https://line.me/ti/p/~ptnexpress',
+  booking_notice_text: 'คลังเปิดรับสินค้าจันทร์ - เสาร์ (หยุดวันอาทิตย์) ล่วงหน้าได้ 14 วัน',
+  booking_announcement: '',
+  booking_announcement_active: false,
+  warehouse_address: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
+  ticket_instruction: 'กรุณานำรถและสินค้าเข้าส่งตามวันและเวลาที่ระบุ พร้อมแสดงบัตรคิวและ QR Code นี้ต่อเจ้าหน้าที่รักษาความปลอดภัยและฝ่ายรับสินค้า',
+  admin_announcement: '',
+  admin_announcement_active: false,
+};
 
 export interface PushSubscriptionRecord {
   endpoint: string;
@@ -165,6 +199,7 @@ const globalStore = (globalThis as any).__PTN_STORE__ || {
     company_name: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
     admin_pin: 'otello',
   } as Record<string, string>,
+  systemSettings: { ...DEFAULT_SYSTEM_SETTINGS } as SystemSettings,
   pushSubscriptions: [] as PushSubscriptionRecord[],
 };
 (globalThis as any).__PTN_STORE__ = globalStore;
@@ -934,6 +969,7 @@ export class DataStore {
         blocked_dates: blockedDates,
         staff_users: staffList,
         audit_logs: auditLogs,
+        settings: await this.getPublicSettings(),
       },
     };
 
@@ -1063,6 +1099,14 @@ export class DataStore {
         }
       } catch (d1Err) {
         console.error('D1 sync during restore error:', d1Err);
+      }
+    }
+
+    if (backupPayload.data?.settings) {
+      try {
+        await this.updateSettings(backupPayload.data.settings, operator, ip);
+      } catch (e) {
+        console.error('Restore settings error:', e);
       }
     }
 
@@ -1325,6 +1369,54 @@ export class DataStore {
     let settings = { ...globalStore.settings };
 
     return { slots, blockedDates, settings };
+  }
+
+  // --- SYSTEM SETTINGS (CONTACTS & ANNOUNCEMENTS) ---
+  async getPublicSettings(): Promise<SystemSettings> {
+    if (this.kv) {
+      const stored = await this.getKV<SystemSettings>('system_settings', globalStore.systemSettings);
+      if (stored) {
+        return { ...DEFAULT_SYSTEM_SETTINGS, ...stored };
+      }
+    }
+    return { ...DEFAULT_SYSTEM_SETTINGS, ...(globalStore.systemSettings || {}) };
+  }
+
+  async updateSettings(newSettings: Partial<SystemSettings>, operator = 'Super Admin', ip = '127.0.0.1'): Promise<SystemSettings> {
+    const current = await this.getPublicSettings();
+    const updated: SystemSettings = {
+      ...current,
+      ...newSettings,
+    };
+
+    globalStore.systemSettings = updated;
+
+    if (this.kv) {
+      await this.putKV('system_settings', updated);
+    }
+
+    const changedFields: string[] = [];
+    if (newSettings.contact_phone && newSettings.contact_phone !== current.contact_phone) changedFields.push(`เบอร์โทร: ${newSettings.contact_phone}`);
+    if (newSettings.contact_phone_label && newSettings.contact_phone_label !== current.contact_phone_label) changedFields.push(`ป้ายกำกับเบอร์: ${newSettings.contact_phone_label}`);
+    if (newSettings.contact_phone_sub !== undefined && newSettings.contact_phone_sub !== current.contact_phone_sub) changedFields.push(`เบอร์สำรอง: ${newSettings.contact_phone_sub || 'ลบออก'}`);
+    if (newSettings.contact_line_id && newSettings.contact_line_id !== current.contact_line_id) changedFields.push(`LINE: ${newSettings.contact_line_id}`);
+    if (newSettings.booking_announcement_active !== undefined && newSettings.booking_announcement_active !== current.booking_announcement_active) {
+      changedFields.push(`ประกาศหน้าแรก: ${newSettings.booking_announcement_active ? 'เปิด' : 'ปิด'}`);
+    }
+    if (newSettings.booking_notice_text && newSettings.booking_notice_text !== current.booking_notice_text) {
+      changedFields.push(`คำแนะนำเวลาคลัง`);
+    }
+    if (newSettings.admin_announcement_active !== undefined && newSettings.admin_announcement_active !== current.admin_announcement_active) {
+      changedFields.push(`ประกาศใน Admin: ${newSettings.admin_announcement_active ? 'เปิด' : 'ปิด'}`);
+    }
+
+    const detailMsg = changedFields.length > 0
+      ? `แก้ไขการตั้งค่าระบบ (${changedFields.join(', ')})`
+      : 'แก้ไขข้อมูลติดต่อและการตั้งค่าระบบ';
+
+    await this.addAuditLog('UPDATE_SETTINGS', detailMsg, operator, ip);
+
+    return updated;
   }
 
   // --- AUDIT LOGS PERSISTENCE ---

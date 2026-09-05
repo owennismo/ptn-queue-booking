@@ -37,6 +37,7 @@ import confetti from 'canvas-confetti';
 import { formatThaiDate, formatThaiShortDate, formatPhoneMask } from '@/lib/dateUtils';
 import ThaiDatePicker from '@/components/ThaiDatePicker';
 import { compressImage, formatFileSize } from '@/lib/imageCompressor';
+import { DEFAULT_SYSTEM_SETTINGS, SystemSettings } from '@/lib/types';
 
 interface Slot {
   id: number;
@@ -52,8 +53,23 @@ interface Slot {
 export default function BookingPage() {
   const router = useRouter();
 
-  // Stepped Form Navigation State (1: วัน-เวลา, 2: ข้อมูลผู้ส่ง-รถ, 3: จำนวนสินค้า-รูป, 4: ตรวจสอบ-ยืนยัน)
   const [currentStep, setCurrentStep] = useState<number>(1);
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(DEFAULT_SYSTEM_SETTINGS);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((d) => {
+        if (isMounted && d.success && d.settings) {
+          setSystemSettings(d.settings);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Today string YYYY-MM-DD
   const getTodayStr = () => {
@@ -427,26 +443,53 @@ export default function BookingPage() {
               <div className="pt-3 border-t border-white/15 flex flex-wrap items-center gap-2.5 text-xs sm:text-sm">
                 <span className="text-emerald-200 text-xs sm:text-sm font-medium">ติดต่อฝ่ายรับสินค้า:</span>
                 <a
-                  href="tel:0993787463"
+                  href={`tel:${systemSettings.contact_phone.replace(/[^0-9]/g, '')}`}
                   className="inline-flex items-center gap-1.5 bg-white/15 hover:bg-white/25 px-3.5 py-1.5 rounded-xl border border-white/20 text-white font-bold transition backdrop-blur-sm shadow-xs"
                 >
                   <Phone className="w-4 h-4 text-emerald-300" />
-                  <span>โทร: 099-378-7463</span>
+                  <span>{systemSettings.contact_phone_label ? `${systemSettings.contact_phone_label}: ` : 'โทร: '}{systemSettings.contact_phone}</span>
                 </a>
+                {systemSettings.contact_phone_sub && (
+                  <a
+                    href={`tel:${systemSettings.contact_phone_sub.replace(/[^0-9]/g, '')}`}
+                    className="inline-flex items-center gap-1.5 bg-white/15 hover:bg-white/25 px-3.5 py-1.5 rounded-xl border border-white/20 text-white font-bold transition backdrop-blur-sm shadow-xs"
+                  >
+                    <Phone className="w-4 h-4 text-emerald-300" />
+                    <span>{systemSettings.contact_phone_sub_label ? `${systemSettings.contact_phone_sub_label}: ` : ''}{systemSettings.contact_phone_sub}</span>
+                  </a>
+                )}
                 <a
-                  href="https://line.me/ti/p/~ptnexpress"
+                  href={systemSettings.contact_line_url || `https://line.me/ti/p/~${systemSettings.contact_line_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 bg-[#06C755]/30 hover:bg-[#06C755]/40 px-3.5 py-1.5 rounded-xl border border-[#06C755]/40 text-white font-bold transition backdrop-blur-sm shadow-xs"
                 >
                   <MessageCircle className="w-4 h-4 text-[#42ff84]" />
-                  <span>LINE ID: ptnexpress</span>
+                  <span>LINE ID: {systemSettings.contact_line_id}</span>
                 </a>
               </div>
             </div>
             {/* Subtle Background Art */}
             <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
           </div>
+
+          {/* 📢 Emergency Announcement Banner (Controlled by Super Admin) */}
+          {systemSettings.booking_announcement_active && systemSettings.booking_announcement && (
+            <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-orange-500/15 border-2 border-amber-400/60 rounded-3xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm text-amber-950 animate-in fade-in duration-300">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/30 mt-0.5">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <div className="font-extrabold text-sm sm:text-base text-amber-900 flex items-center gap-2">
+                  <span>ประกาศสำคัญจากคลังสินค้า</span>
+                  <span className="text-[10px] bg-amber-200 text-amber-900 px-2.5 py-0.5 rounded-full font-bold">แจ้งเตือน</span>
+                </div>
+                <p className="text-xs sm:text-sm text-amber-900/90 whitespace-pre-line leading-relaxed font-medium">
+                  {systemSettings.booking_announcement}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* ⚡ Quick Action Shortcut Banner: สำหรับคนที่มีคิวแล้ว */}
           <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border border-emerald-200/90 rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm hover:border-emerald-300 transition">
@@ -531,7 +574,7 @@ export default function BookingPage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold">เลือกวันและรอบเวลาที่ต้องการเข้าส่ง</h2>
-                  <p className="text-xs text-slate-500">คลังเปิดรับสินค้าจันทร์ - เสาร์ (หยุดวันอาทิตย์) ล่วงหน้าได้ 14 วัน</p>
+                  <p className="text-xs text-slate-500">{systemSettings.booking_notice_text || 'คลังเปิดรับสินค้าจันทร์ - เสาร์ (หยุดวันอาทิตย์) ล่วงหน้าได้ 14 วัน'}</p>
                 </div>
               </div>
 

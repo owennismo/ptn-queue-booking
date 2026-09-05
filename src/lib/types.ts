@@ -89,3 +89,37 @@ export interface StaffUser {
   created_at: string;
   last_login?: string | null;
 }
+
+export interface SystemSettings {
+  company_name: string;
+  contact_phone: string;
+  contact_phone_label: string;
+  contact_phone_sub?: string;
+  contact_phone_sub_label?: string;
+  contact_line_id: string;
+  contact_line_url: string;
+  booking_notice_text: string;
+  booking_announcement?: string;
+  booking_announcement_active: boolean;
+  warehouse_address: string;
+  ticket_instruction?: string;
+  admin_announcement?: string;
+  admin_announcement_active: boolean;
+}
+
+export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
+  company_name: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
+  contact_phone: '099-378-7463',
+  contact_phone_label: 'แผนกรับสินค้า',
+  contact_phone_sub: '',
+  contact_phone_sub_label: 'ติดต่อเพิ่มเติม',
+  contact_line_id: 'ptnexpress',
+  contact_line_url: 'https://line.me/ti/p/~ptnexpress',
+  booking_notice_text: 'คลังเปิดรับสินค้าจันทร์ - เสาร์ (หยุดวันอาทิตย์) ล่วงหน้าได้ 14 วัน',
+  booking_announcement: '',
+  booking_announcement_active: false,
+  warehouse_address: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
+  ticket_instruction: 'กรุณานำรถและสินค้าเข้าส่งตามวันและเวลาที่ระบุ พร้อมแสดงบัตรคิวและ QR Code นี้ต่อเจ้าหน้าที่รักษาความปลอดภัยและฝ่ายรับสินค้า',
+  admin_announcement: '',
+  admin_announcement_active: false,
+};

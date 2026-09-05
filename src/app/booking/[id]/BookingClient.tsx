@@ -31,7 +31,7 @@ import {
   Eye,
   X,
 } from 'lucide-react';
-import { Booking } from '@/lib/types';
+import { Booking, DEFAULT_SYSTEM_SETTINGS, SystemSettings } from '@/lib/types';
 import { toPng } from 'html-to-image';
 import { formatThaiDate, formatThaiShortDate } from '@/lib/dateUtils';
 import NotificationPrompt from '@/components/NotificationPrompt';
@@ -59,7 +59,23 @@ export default function BookingDetailPage({
   const [isCreatorDevice, setIsCreatorDevice] = useState<boolean>(false);
   const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
   const [imageModalTitle, setImageModalTitle] = useState<string>('รูปภาพเอกสารแนบ');
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(DEFAULT_SYSTEM_SETTINGS);
   const prevStatusRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((d) => {
+        if (isMounted && d.success && d.settings) {
+          setSystemSettings(d.settings);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && booking?.booking_id) {
@@ -946,7 +962,7 @@ ${url}`;
               <p className="font-bold flex items-center justify-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" /> คำแนะนำสำหรับผู้ส่งสินค้า:
               </p>
-              <p>กรุณาเดินทางมาถึงก่อนเวลานัดหมาย 10-15 นาที และแสดงบัตรคิวนี้ให้เจ้าหน้าที่ตรวจสอบคิวส่งเมื่อเดินทางมาถึง</p>
+              <p>{systemSettings.ticket_instruction || 'กรุณาเดินทางมาถึงก่อนเวลานัดหมาย 10-15 นาที และแสดงบัตรคิวนี้ให้เจ้าหน้าที่ตรวจสอบคิวส่งเมื่อเดินทางมาถึง'}</p>
             </div>
 
             {/* Notice & Cancellation Section */}
@@ -959,12 +975,12 @@ ${url}`;
                     📌 หมายเหตุ: หากต้องการยกเลิกหรือแก้ไขรอบเวลาเข้าส่ง
                   </p>
                   <p className="text-amber-800 leading-relaxed">
-                    กรุณาติดต่อเจ้าหน้าที่ฝ่ายตรวจรับสินค้า โทร.{' '}
+                    กรุณาติดต่อเจ้าหน้าที่{systemSettings.contact_phone_label || 'ฝ่ายตรวจรับสินค้า'} โทร.{' '}
                     <a
-                      href="tel:0993787463"
+                      href={`tel:${systemSettings.contact_phone.replace(/[^0-9]/g, '')}`}
                       className="font-bold underline text-emerald-800 hover:text-emerald-950"
                     >
-                      099-378-7463
+                      {systemSettings.contact_phone}
                     </a>{' '}
                     ก่อนเวลานัดหมายอย่างน้อย 1 ชั่วโมง
                   </p>
