@@ -56,6 +56,7 @@ import {
   UploadCloud,
   Database,
   Settings,
+  FileText,
 } from 'lucide-react';
 import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole, BookingStatus, SystemSettings, DEFAULT_SYSTEM_SETTINGS } from '@/lib/types';
 import QRScannerModal from '@/components/QRScannerModal';
@@ -2726,12 +2727,65 @@ export default function AdminDashboardPage() {
             <form onSubmit={handleSaveSettings} className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
-                {/* 1. ข้อมูลการติดต่อหน้าบ้าน */}
+                {/* 1. ข้อความหัวเรื่องและแบรนด์หน้าแรก */}
+                <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+                  <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 text-slate-900">
+                    <Sparkles className="w-5 h-5 text-emerald-600" />
+                    <div>
+                      <h3 className="text-sm font-black">1. ข้อความหัวเรื่องและแบรนด์หน้าแรก (Hero Banner)</h3>
+                      <p className="text-2xs text-slate-400">แก้ไขข้อความบนป้ายเขียวส่วนหัวของหน้าจองคิว</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3.5">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">
+                        ป้ายข้อความเล็กด้านบน (Badge)
+                      </label>
+                      <input
+                        type="text"
+                        value={systemSettings.hero_badge || ''}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, hero_badge: e.target.value })}
+                        placeholder="เช่น ระบบจองคิวออนไลน์ Serverless • สะดวก รวดเร็ว"
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">
+                        หัวข้อหลักหน้าจองคิว (Title) <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={systemSettings.hero_title || ''}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, hero_title: e.target.value })}
+                        placeholder="เช่น จองคิวเข้าส่งสินค้า"
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">
+                        คำบรรยายใต้หัวข้อ / ชื่อบริษัท (Subtitle)
+                      </label>
+                      <input
+                        type="text"
+                        value={systemSettings.hero_subtitle || ''}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, hero_subtitle: e.target.value })}
+                        placeholder="เช่น บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)"
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. ข้อมูลการติดต่อหน้าบ้าน */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
                   <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 text-slate-900">
                     <Phone className="w-5 h-5 text-emerald-600" />
                     <div>
-                      <h3 className="text-sm font-black">1. ข้อมูลการติดต่อหลัก (Public Contact)</h3>
+                      <h3 className="text-sm font-black">2. ข้อมูลการติดต่อหลัก (Public Contact)</h3>
                       <p className="text-2xs text-slate-400">แสดงบนแถบเมนูด้านบนและส่วนหัวของหน้าจองคิว</p>
                     </div>
                   </div>
@@ -2826,7 +2880,7 @@ export default function AdminDashboardPage() {
                   <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 text-slate-900">
                     <Bell className="w-5 h-5 text-amber-500" />
                     <div>
-                      <h3 className="text-sm font-black">2. ประกาศและข้อตกลงหน้าจองคิว (Booking Page)</h3>
+                      <h3 className="text-sm font-black">3. ประกาศและข้อตกลงหน้าจองคิว (Booking Page)</h3>
                       <p className="text-2xs text-slate-400">ควบคุมแถบประกาศด่วนสีส้มและข้อกำหนดขั้นตอนที่ 1</p>
                     </div>
                   </div>
@@ -2879,12 +2933,12 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                {/* 3. ข้อมูลบัตรคิวและที่ตั้งคลังสินค้า */}
+                {/* 4. ข้อมูลบัตรคิวและที่ตั้งคลังสินค้า */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
                   <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 text-slate-900">
                     <Building2 className="w-5 h-5 text-indigo-600" />
                     <div>
-                      <h3 className="text-sm font-black">3. บัตรคิวและข้อมูลคลังสินค้า (Ticket & Warehouse)</h3>
+                      <h3 className="text-sm font-black">4. บัตรคิวและข้อมูลคลังสินค้า (Ticket & Warehouse)</h3>
                       <p className="text-2xs text-slate-400">แสดงบนบัตรคิวของผู้ขับรถและเอกสารสรุป</p>
                     </div>
                   </div>
@@ -2932,12 +2986,12 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                {/* 4. ประกาศภายในสำหรับเจ้าหน้าที่ */}
+                {/* 5. ประกาศภายในสำหรับเจ้าหน้าที่ */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
                   <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 text-slate-900">
                     <ShieldCheck className="w-5 h-5 text-cyan-600" />
                     <div>
-                      <h3 className="text-sm font-black">4. ประกาศภายในสำหรับเจ้าหน้าที่ (Admin Dashboard)</h3>
+                      <h3 className="text-sm font-black">5. ประกาศภายในสำหรับเจ้าหน้าที่ (Admin Dashboard)</h3>
                       <p className="text-2xs text-slate-400">แสดงแถบเตือนสีส้มด้านบนของหน้า Admin นี้ ให้เจ้าหน้าที่ทุกคนเห็น</p>
                     </div>
                   </div>
@@ -2976,14 +3030,48 @@ export default function AdminDashboardPage() {
 
               </div>
 
-              {/* 5. LIVE PREVIEW PANEL */}
+              {/* 6. LIVE PREVIEW PANEL */}
               <div className="bg-slate-900 text-white p-6 rounded-3xl border border-slate-800 shadow-md space-y-4">
                 <div className="flex items-center gap-2 text-emerald-400">
                   <Sparkles className="w-5 h-5" />
                   <h3 className="text-sm font-extrabold tracking-wide">ตัวอย่างการแสดงผลจริง (Real-Time Live Preview)</h3>
                 </div>
 
-                <div className="space-y-3 text-xs">
+                <div className="space-y-4 text-xs">
+                  {/* Hero Banner Live Preview */}
+                  <div>
+                    <span className="text-2xs text-slate-400 block mb-1.5 font-bold">ตัวอย่างส่วนหัวของหน้าจองคิว (Hero Banner Preview):</span>
+                    <div className="relative overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-800 to-slate-900 rounded-2xl p-5 text-white shadow-md border border-emerald-600/40">
+                      <div className="relative z-10 space-y-3">
+                        <div className="inline-flex items-center gap-1.5 bg-emerald-500/30 border border-emerald-400/40 rounded-full px-3 py-0.5 text-xs font-semibold text-emerald-100 backdrop-blur">
+                          <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
+                          <span>{systemSettings.hero_badge || 'ระบบจองคิวออนไลน์ Serverless • สะดวก รวดเร็ว'}</span>
+                        </div>
+                        <div>
+                          <h4 className="text-lg sm:text-xl font-extrabold tracking-tight">
+                            {systemSettings.hero_title || 'จองคิวเข้าส่งสินค้า'}
+                          </h4>
+                          <p className="text-emerald-100/90 text-xs mt-0.5 font-normal">
+                            {systemSettings.hero_subtitle || systemSettings.company_name || 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)'}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-3 text-xs text-emerald-200/90">
+                          <span className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> ไม่ต้องสมัครสมาชิก</span>
+                          <span className="flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> ตรวจสอบสล็อตว่าง Real-time</span>
+                          <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-emerald-400" /> รับบัตรคิวพร้อม QR Code ทันที</span>
+                        </div>
+                        <div className="pt-2.5 border-t border-white/15 flex flex-wrap items-center gap-2 text-2xs">
+                          <span className="text-emerald-200">{systemSettings.contact_phone_label ? `${systemSettings.contact_phone_label}:` : 'ติดต่อฝ่ายรับสินค้า:'}</span>
+                          <span className="inline-flex items-center gap-1 bg-white/15 px-2.5 py-1 rounded-lg border border-white/20 font-bold">
+                            <Phone className="w-3 h-3 text-emerald-300" /> {systemSettings.contact_phone}
+                          </span>
+                          <span className="inline-flex items-center gap-1 bg-[#06C755]/30 px-2.5 py-1 rounded-lg border border-[#06C755]/40 font-bold">
+                            LINE ID: {systemSettings.contact_line_id}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                   {/* Emergency Banner Preview */}
                   {systemSettings.booking_announcement_active && systemSettings.booking_announcement && (
                     <div>

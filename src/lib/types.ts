@@ -92,6 +92,9 @@ export interface StaffUser {
 
 export interface SystemSettings {
   company_name: string;
+  hero_badge?: string;
+  hero_title?: string;
+  hero_subtitle?: string;
   contact_phone: string;
   contact_phone_label: string;
   contact_phone_sub?: string;
@@ -109,6 +112,9 @@ export interface SystemSettings {
 
 export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   company_name: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
+  hero_badge: 'ระบบจองคิวออนไลน์ Serverless • สะดวก รวดเร็ว',
+  hero_title: 'จองคิวเข้าส่งสินค้า',
+  hero_subtitle: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
   contact_phone: '099-378-7463',
   contact_phone_label: 'แผนกรับสินค้า',
   contact_phone_sub: '',

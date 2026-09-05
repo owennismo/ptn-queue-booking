@@ -420,14 +420,14 @@ export default function BookingPage() {
             <div className="relative z-10 max-w-2xl space-y-4">
               <div className="inline-flex items-center gap-2 bg-emerald-500/30 border border-emerald-400/40 rounded-full px-3.5 py-1 text-xs sm:text-sm font-semibold text-emerald-100 backdrop-blur">
                 <Sparkles className="w-4 h-4 text-emerald-300" />
-                <span>ระบบจองคิวออนไลน์ Serverless • สะดวก รวดเร็ว</span>
+                <span>{systemSettings.hero_badge || 'ระบบจองคิวออนไลน์ Serverless • สะดวก รวดเร็ว'}</span>
               </div>
               <div>
                 <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight">
-                  จองคิวเข้าส่งสินค้า
+                  {systemSettings.hero_title || 'จองคิวเข้าส่งสินค้า'}
                 </h1>
                 <p className="text-emerald-100/90 text-sm sm:text-base mt-1.5 font-normal">
-                  บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)
+                  {systemSettings.hero_subtitle || systemSettings.company_name || 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)'}
                 </p>
               </div>
 
