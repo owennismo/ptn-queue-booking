@@ -55,6 +55,16 @@ export interface AuditLog {
   created_at: string;
 }
 
+export interface PushSubscriptionRecord {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  booking_id: string;
+  created_at: string;
+}
+
 export type StaffRole = 'super_admin' | 'warehouse_officer' | 'security_gate';
 
 export interface StaffUser {
@@ -155,6 +165,7 @@ const globalStore = (globalThis as any).__PTN_STORE__ || {
     company_name: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
     admin_pin: 'otello',
   } as Record<string, string>,
+  pushSubscriptions: [] as PushSubscriptionRecord[],
 };
 (globalThis as any).__PTN_STORE__ = globalStore;
 
@@ -1122,5 +1133,45 @@ export class DataStore {
   recordSuccessfulLogin(identifier: string, ip: string, staffName: string, roleName: string) {
     globalStore.loginAttempts.delete(identifier);
     this.addAuditLog('LOGIN_SUCCESS', `เข้าสู่ระบบสำเร็จ: ${staffName} (${roleName})`, staffName, ip);
+  }
+
+  // --- WEB PUSH SUBSCRIPTION STORAGE METHODS ---
+  async savePushSubscription(bookingId: string, subscription: any): Promise<boolean> {
+    if (!bookingId || !subscription || !subscription.endpoint || !subscription.keys) {
+      return false;
+    }
+    const cleanBookingId = bookingId.trim().toUpperCase();
+    const subs: PushSubscriptionRecord[] = (await this.getKV<PushSubscriptionRecord[]>('push_subscriptions', [])) || globalStore.pushSubscriptions || [];
+    
+    // Filter out existing subscription with identical endpoint to prevent duplicate alerts
+    const filtered = subs.filter((s: PushSubscriptionRecord) => s.endpoint !== subscription.endpoint);
+    
+    const newRecord: PushSubscriptionRecord = {
+      endpoint: subscription.endpoint,
+      keys: {
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth,
+      },
+      booking_id: cleanBookingId,
+      created_at: new Date().toISOString(),
+    };
+
+    filtered.push(newRecord);
+    globalStore.pushSubscriptions = filtered;
+    await this.putKV('push_subscriptions', filtered);
+    return true;
+  }
+
+  async getPushSubscriptions(bookingId: string): Promise<PushSubscriptionRecord[]> {
+    const cleanBookingId = bookingId.trim().toUpperCase();
+    const subs: PushSubscriptionRecord[] = (await this.getKV<PushSubscriptionRecord[]>('push_subscriptions', [])) || globalStore.pushSubscriptions || [];
+    return subs.filter((s: PushSubscriptionRecord) => s.booking_id.toUpperCase() === cleanBookingId);
+  }
+
+  async removePushSubscription(endpoint: string): Promise<void> {
+    const subs: PushSubscriptionRecord[] = (await this.getKV<PushSubscriptionRecord[]>('push_subscriptions', [])) || globalStore.pushSubscriptions || [];
+    const filtered = subs.filter((s: PushSubscriptionRecord) => s.endpoint !== endpoint);
+    globalStore.pushSubscriptions = filtered;
+    await this.putKV('push_subscriptions', filtered);
   }
 }

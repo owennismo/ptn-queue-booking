@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@block65/webcrypto-web-push": "^2.0.0",
     "better-sqlite3": "^11.8.1",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",

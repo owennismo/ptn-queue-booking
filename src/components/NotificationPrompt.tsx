@@ -5,8 +5,9 @@ import { Bell, BellRing, BellOff, CheckCircle2, Volume2, Sparkles } from 'lucide
 import {
   isNotificationSupported,
   getNotificationPermission,
-  requestNotificationPermission,
   sendQueueNotification,
+  subscribeDeviceToPush,
+  checkIsPushSubscribed,
 } from '@/lib/pushNotifications';
 import { Booking } from '@/lib/types';
 
@@ -19,34 +20,39 @@ export default function NotificationPrompt({ booking }: NotificationPromptProps)
   const [permission, setPermission] = useState<NotificationPermission>('denied');
   const [requesting, setRequesting] = useState<boolean>(false);
   const [testSent, setTestSent] = useState<boolean>(false);
+  const [isServerSubscribed, setIsServerSubscribed] = useState<boolean>(false);
+  const [isIOS, setIsIOS] = useState<boolean>(false);
+  const [isStandalone, setIsStandalone] = useState<boolean>(false);
 
   useEffect(() => {
     const isSup = isNotificationSupported();
     setSupported(isSup);
     if (isSup) {
       setPermission(getNotificationPermission());
+      checkIsPushSubscribed().then(setIsServerSubscribed);
+    }
+    if (typeof navigator !== 'undefined') {
+      setIsIOS(/iPhone|iPad|iPod/i.test(navigator.userAgent));
+      setIsStandalone(window.matchMedia('(display-mode: standalone)').matches || !!(navigator as any).standalone);
     }
   }, []);
 
   if (!supported) return null;
 
   const handleEnableNotifications = async () => {
+    if (!booking?.booking_id) return;
     setRequesting(true);
     try {
-      const perm = await requestNotificationPermission();
-      setPermission(perm);
-      if (perm === 'granted') {
-        // Send a welcome notification
-        await sendQueueNotification({
-          title: '🔔 เปิดรับการแจ้งเตือนคิวส่งสินค้าสำเร็จ!',
-          body: booking
-            ? `ระบบจะแจ้งเตือนทันทีเมื่อคิว ${booking.booking_id} มีการเปลี่ยนสถานะ`
-            : 'ระบบจะแจ้งเตือนทันทีเมื่อคิวของท่านมีการเปลี่ยนสถานะ',
-          booking_id: booking?.booking_id,
-          url: booking ? `/booking/${booking.booking_id}` : '/',
-        });
+      // 1. Subscribe this device to Server-Side Web Push (VAPID)
+      const res = await subscribeDeviceToPush(booking.booking_id);
+      setPermission(getNotificationPermission());
+
+      if (res.success) {
+        setIsServerSubscribed(true);
+      } else if (res.error && res.error !== 'permission_denied') {
+        alert(`การเปิดรับแจ้งเตือน: ${res.error}`);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Notification error:', e);
     } finally {
       setRequesting(false);
@@ -67,7 +73,7 @@ export default function NotificationPrompt({ booking }: NotificationPromptProps)
   };
 
   return (
-    <div className="no-print">
+    <div className="no-print space-y-2">
       {permission === 'granted' ? (
         <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-3">
@@ -75,16 +81,17 @@ export default function NotificationPrompt({ booking }: NotificationPromptProps)
               <BellRing className="w-4 h-4 animate-pulse" />
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <h4 className="font-bold text-xs sm:text-sm text-emerald-950">
                   เปิดรับการแจ้งเตือนบนอุปกรณ์นี้แล้ว
                 </h4>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-900">
-                  Active
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-900 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+                  {isServerSubscribed ? 'เชื่อมต่อเซิร์ฟเวอร์เรียบร้อย' : 'พร้อมรับแจ้งเตือน'}
                 </span>
               </div>
               <p className="text-[11px] text-emerald-800 mt-0.5">
-                ระบบจะส่ง Notification และเสียงเตือนเมื่อเจ้าหน้าที่เปลี่ยนสถานะคิว
+                ระบบจะส่ง Web Push Notification และเสียงเตือนเข้าเครื่องทันทีเมื่อเจ้าหน้าที่อนุมัติหรือเปลี่ยนสถานะคิว
               </p>
             </div>
           </div>
@@ -143,8 +150,21 @@ export default function NotificationPrompt({ booking }: NotificationPromptProps)
             ) : (
               <Bell className="w-3.5 h-3.5 text-slate-950" />
             )}
-            <span>เปิดรับการแจ้งเตือน</span>
+            <span>{requesting ? 'กำลังเชื่อมต่อ...' : 'เปิดรับการแจ้งเตือน'}</span>
           </button>
+        </div>
+      )}
+
+      {/* iOS Safari Home Screen Tip */}
+      {isIOS && !isStandalone && (
+        <div className="p-3 rounded-xl bg-amber-50/90 border border-amber-200 text-amber-900 text-xs flex items-start gap-2 shadow-2xs">
+          <span className="text-sm shrink-0 mt-0.5">💡</span>
+          <div>
+            <strong className="font-bold text-amber-950 block">คำแนะนำสำหรับผู้ใช้ iPhone:</strong>
+            <p className="text-[11px] text-amber-800 leading-relaxed mt-0.5">
+              เพื่อให้ระบบแจ้งเตือนมีเสียงเด้งเตือนขณะล็อกหน้าจอ กรุณาแตะปุ่มแชร์ <strong>⎋ (Share)</strong> ของ Safari แล้วเลือก <strong>&quot;เพิ่มไปยังหน้าจอโฮม (Add to Home Screen)&quot;</strong>
+            </p>
+          </div>
         </div>
       )}
     </div>

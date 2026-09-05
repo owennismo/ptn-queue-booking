@@ -132,3 +132,94 @@ export async function sendQueueNotification(payload: QueueNotificationPayload) {
     return false;
   }
 }
+
+// Convert Base64URL string to Uint8Array for applicationServerKey
+export function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// Check if PushManager and ServiceWorker are available
+export function isPushManagerSupported(): boolean {
+  return typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window;
+}
+
+// Check if this device is already subscribed to PushManager
+export async function checkIsPushSubscribed(): Promise<boolean> {
+  if (!isPushManagerSupported()) return false;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    return sub !== null;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Subscribe current device to Server-Side Web Push (VAPID)
+export async function subscribeDeviceToPush(bookingId: string): Promise<{ success: boolean; error?: string }> {
+  if (!isPushManagerSupported()) {
+    return { success: false, error: 'อุปกรณ์หรือเบราว์เซอร์นี้ไม่รองรับ Web Push Notification' };
+  }
+
+  try {
+    // 1. Register Service Worker if needed
+    let reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) {
+      reg = await navigator.serviceWorker.register('/sw.js');
+    }
+    await navigator.serviceWorker.ready;
+
+    // 2. Request Notification Permission
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      return { success: false, error: 'permission_denied' };
+    }
+
+    // 3. Fetch VAPID Public Key from server
+    const keyRes = await fetch('/api/notifications/vapid-public-key');
+    const keyData = await keyRes.json();
+    if (!keyRes.ok || !keyData.publicKey) {
+      throw new Error(keyData.error || 'ไม่สามารถดึงกุญแจ VAPID จากเซิร์ฟเวอร์ได้');
+    }
+
+    const applicationServerKey = urlBase64ToUint8Array(keyData.publicKey);
+
+    // 4. Subscribe to PushManager
+    const activeReg = await navigator.serviceWorker.ready;
+    let subscription = await activeReg.pushManager.getSubscription();
+
+    if (!subscription) {
+      subscription = await activeReg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: applicationServerKey as any,
+      });
+    }
+
+    // 5. Send subscription payload to server to associate with bookingId
+    const subRes = await fetch('/api/notifications/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        booking_id: bookingId,
+        subscription: subscription.toJSON(),
+      }),
+    });
+
+    const subData = await subRes.json();
+    if (!subRes.ok) {
+      throw new Error(subData.error || 'บันทึกการสมัครรับแจ้งเตือนที่เซิร์ฟเวอร์ไม่สำเร็จ');
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Failed to subscribe to Web Push:', err);
+    return { success: false, error: err.message || 'เกิดข้อผิดพลาดในการเปิดรับแจ้งเตือน' };
+  }
+}

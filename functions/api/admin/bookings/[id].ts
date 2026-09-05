@@ -1,5 +1,6 @@
 import { DataStore } from '../../_store';
 import { checkAuthHeader } from '../../_jwt';
+import { sendWebPushNotification } from '../../_vapid';
 
 export async function onRequestPatch(context: { params: any; request: Request; env: any }) {
   try {
@@ -51,6 +52,55 @@ export async function onRequestPatch(context: { params: any; request: Request; e
         status: 404,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       });
+    }
+
+    // Send Real-Time Web Push Notification to booker device(s)
+    try {
+      const subscriptions = await store.getPushSubscriptions(id);
+      if (subscriptions && subscriptions.length > 0) {
+        let title = '🔔 อัปเดตสถานะคิวส่งสินค้า!';
+        let body = `คิว ${updated.booking_id} (${updated.carrier_name}) เปลี่ยนสถานะเป็น "${status}"`;
+
+        if (status === 'Approved') {
+          title = '🎉 คิวส่งสินค้าได้รับการอนุมัติแล้ว!';
+          body = `คิว ${updated.booking_id} (${updated.requested_date} ${updated.requested_time}) ได้รับการอนุมัติแล้ว พร้อมเข้าส่งสินค้าได้`;
+        } else if (status === 'Rejected') {
+          title = '❌ คิวส่งสินค้าไม่ได้รับการอนุมัติ';
+          body = `คิว ${updated.booking_id}: ${updated.admin_reason || 'กรุณาตรวจสอบสาเหตุบนบัตรคิว'}`;
+        } else if (status === 'CheckedIn') {
+          title = '🚗 รถขนส่งเช็คอินเข้าพื้นที่แล้ว!';
+          body = `คิว ${updated.booking_id} ตรวจสอบเข้าพื้นที่คลังสินค้าแล้ว กรุณารอเรียกเทียบท่า`;
+        } else if (status === 'Receiving') {
+          title = '📦 เริ่มการตรวจนับและลงสินค้า!';
+          body = `คิว ${updated.booking_id} กำลังดำเนินการลงสินค้าที่คลังยา`;
+        } else if (status === 'Completed') {
+          title = '✨ ตรวจรับสินค้าเสร็จสิ้นสมบูรณ์!';
+          body = `คิว ${updated.booking_id} ตรวจรับเสร็จสิ้นแล้ว ${updated.actual_pallet_count !== undefined && updated.actual_pallet_count !== null ? `(รับจริง ${updated.actual_pallet_count} ลัง)` : ''}`;
+        } else if (status === 'Cancelled') {
+          title = '🚫 คิวถูกยกเลิกแล้ว';
+          body = `คิว ${updated.booking_id} ได้รับการยกเลิกเรียบร้อยแล้ว`;
+        }
+
+        const pushPayload = {
+          title,
+          body,
+          booking_id: updated.booking_id,
+          url: `/booking/${updated.booking_id}`,
+        };
+
+        // Fire push to all registered devices concurrently
+        await Promise.allSettled(
+          subscriptions.map(async (sub) => {
+            const pushResult = await sendWebPushNotification(sub, pushPayload);
+            // If subscription has expired (HTTP 410 Gone or 404 Not Found), purge it
+            if (!pushResult.success && (pushResult.status === 410 || pushResult.status === 404)) {
+              await store.removePushSubscription(sub.endpoint);
+            }
+          })
+        );
+      }
+    } catch (pushErr) {
+      console.warn('Web Push trigger notice:', pushErr);
     }
 
     return new Response(

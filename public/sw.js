@@ -112,30 +112,42 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// 4. Push event: Handle incoming Web Push Notifications
+// 4. Push event: Handle incoming Web Push Notifications from server (VAPID)
 self.addEventListener('push', (event) => {
   let data = {
     title: 'PTN Pharma Center แจ้งเตือนคิวส่งของ',
     body: 'มีการอัปเดตสถานะคิวการเข้าส่งสินค้า',
     icon: '/icon-192.png',
     badge: '/favicon.png',
+    tag: 'ptn-queue-alert',
     data: { url: '/' },
   };
 
   if (event.data) {
     try {
-      data = { ...data, ...event.data.json() };
+      const parsed = event.data.json();
+      data = { ...data, ...parsed };
+      if (parsed.data && typeof parsed.data === 'object') {
+        data.data = parsed.data;
+      }
     } catch (e) {
       data.body = event.data.text();
     }
   }
 
+  const targetUrl = (data.data && data.data.url) || data.url || '/';
+
   const options = {
     body: data.body,
     icon: data.icon || '/icon-192.png',
     badge: data.badge || '/favicon.png',
-    vibrate: [200, 100, 200],
-    data: data.data || { url: '/' },
+    vibrate: [250, 100, 250, 100, 250],
+    tag: data.tag || 'ptn-queue-alert',
+    renotify: true,
+    data: {
+      url: targetUrl,
+      booking_id: (data.data && data.data.booking_id) || data.booking_id,
+    },
   };
 
   event.waitUntil(self.registration.showNotification(data.title, options));
@@ -145,19 +157,20 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  const targetPath = (event.notification.data && event.notification.data.url) || '/';
+  const fullTargetUrl = new URL(targetPath, self.location.origin).href;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // If a window is already open, navigate and focus it
+      // If a window is already open with the ticket, navigate and focus it
       for (let client of windowClients) {
-        if (client.url.includes(targetUrl) && 'focus' in client) {
+        if (client.url.includes(targetPath) && 'focus' in client) {
           return client.focus();
         }
       }
-      // Otherwise open new window
+      // Otherwise open a new window
       if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
+        return clients.openWindow(fullTargetUrl);
       }
     })
   );
