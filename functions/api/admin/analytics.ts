@@ -29,13 +29,13 @@ export async function onRequestGet(context: { request: Request; env: any }) {
       return auth.errorResponse!;
     }
 
-    // 2. Strict Super Admin Check
+    // 2. Role Check: Super Admin and Warehouse Officer
     const role = auth.payload?.role;
-    if (role !== 'super_admin' && role !== 'admin') {
+    if (role !== 'super_admin' && role !== 'admin' && role !== 'warehouse_officer') {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'ปฏิเสธการเข้าถึง: ฟังก์ชันวิเคราะห์ข้อมูลเชิงลึกสงวนสิทธิ์เฉพาะ Super Admin เท่านั้น',
+          error: 'ปฏิเสธการเข้าถึง: ฟังก์ชันวิเคราะห์ข้อมูลเชิงลึกสงวนสิทธิ์เฉพาะ Super Admin และเจ้าหน้าที่คลังสินค้าเท่านั้น',
         }),
         {
           status: 403,

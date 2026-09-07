@@ -1523,6 +1523,7 @@ export default function AdminDashboardPage() {
   // Permission flags
   const isSuperAdmin = userRole === 'super_admin';
   const isSecurityOnly = userRole === 'security_gate';
+  const canViewAnalytics = isSuperAdmin || userRole === 'warehouse_officer';
 
   if (!token) {
     return (
@@ -1685,7 +1686,7 @@ export default function AdminDashboardPage() {
             </button>
           )}
 
-          {isSuperAdmin && (
+          {canViewAnalytics && (
             <button
               onClick={() => setActiveTab('analytics')}
               className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
@@ -3406,8 +3407,8 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* 🌟 TAB 7: LOGISTICS & WAREHOUSE ANALYTICS (SUPER ADMIN ONLY) */}
-        {isSuperAdmin && activeTab === 'analytics' && token && (
+        {/* 🌟 TAB 7: LOGISTICS & WAREHOUSE ANALYTICS */}
+        {canViewAnalytics && activeTab === 'analytics' && token && (
           <AdminAnalytics token={token} />
         )}
       </main>
