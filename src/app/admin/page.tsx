@@ -561,7 +561,7 @@ export default function AdminDashboardPage() {
     if (activeTab === 'audit' && token && userRole === 'super_admin') {
       fetchAuditLogs();
     }
-    if (activeTab === 'settings' && token && (userRole === 'super_admin' || userRole === 'warehouse_officer')) {
+    if (activeTab === 'settings' && token && userRole === 'super_admin') {
       fetchSettings();
     }
   }, [activeTab, token, userRole, fetchStaff, fetchAuditLogs, fetchSettings]);
@@ -1526,7 +1526,7 @@ export default function AdminDashboardPage() {
   const isSuperAdmin = userRole === 'super_admin';
   const isSecurityOnly = userRole === 'security_gate';
   const canViewAnalytics = isSuperAdmin || userRole === 'warehouse_officer';
-  const canManageSettings = isSuperAdmin || userRole === 'warehouse_officer';
+  const canManageSettings = isSuperAdmin;
 
   if (!token) {
     return (
@@ -2971,6 +2971,9 @@ export default function AdminDashboardPage() {
                     <h2 className="text-lg font-black text-slate-900">ตั้งค่าระบบ ประกาศ และ AI Chatbot</h2>
                     <span className="px-2 py-0.5 rounded-full text-2xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
                       ⚡ Google Gemini 1.5 Flash
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-2xs font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
+                      👑 Super Admin เท่านั้น
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">

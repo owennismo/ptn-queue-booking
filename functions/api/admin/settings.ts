@@ -166,13 +166,13 @@ export async function onRequestPut(context: { request: Request; env: any }) {
       return auth.errorResponse!;
     }
 
-    // Strict Authorization: Super Admin and Warehouse Officer can update settings
+    // Strict Authorization: ONLY Super Admin can update settings
     const userRole = auth.payload?.role;
-    if (userRole !== 'super_admin' && userRole !== 'admin' && userRole !== 'warehouse_officer') {
+    if (userRole !== 'super_admin') {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'คุณไม่มีสิทธิ์แก้ไขการตั้งค่าระบบ (สงวนสิทธิ์เฉพาะ Super Admin และเจ้าหน้าที่คลังสินค้า)',
+          error: 'คุณไม่มีสิทธิ์แก้ไขการตั้งค่าระบบ (สงวนสิทธิ์เฉพาะ Super Admin เท่านั้น)',
         }),
         { status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
       );
