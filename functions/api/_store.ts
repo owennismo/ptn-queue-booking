@@ -836,10 +836,15 @@ export class DataStore {
       const booked = countMap.get(s.slot_name) || 0;
       const available = Math.max(0, s.max_capacity - booked);
 
-      // Slot is past if selected date is in the past, or if today and currentTime >= slot start_time
+      // Slot is past if selected date is in the past, or if today and currentTime >= slot end_time
       const currentMinutes = timeStrToMinutes(currentTimeStr);
-      const slotStartMinutes = timeStrToMinutes(s.start_time);
-      const isPast = date < todayStr || (date === todayStr && currentMinutes >= slotStartMinutes);
+      let targetEndTime = s.end_time;
+      if (!targetEndTime && s.slot_name) {
+        const parts = s.slot_name.split('-');
+        if (parts[1]) targetEndTime = parts[1].trim();
+      }
+      const slotEndMinutes = timeStrToMinutes(targetEndTime || s.start_time);
+      const isPast = date < todayStr || (date === todayStr && currentMinutes >= slotEndMinutes);
 
       return {
         id: s.id,
@@ -1212,7 +1217,13 @@ export class DataStore {
       if (slotObj.is_active === 0) {
         throw new Error(`รอบเวลา ${data.requested_time} ปิดรับจองแล้ว กรุณาเลือกรอบเวลาอื่น`);
       }
-      if (data.requested_date === todayStr && timeStrToMinutes(currentTimeStr) >= timeStrToMinutes(slotObj.start_time)) {
+      let targetEndTime = slotObj.end_time;
+      if (!targetEndTime && slotObj.slot_name) {
+        const parts = slotObj.slot_name.split('-');
+        if (parts[1]) targetEndTime = parts[1].trim();
+      }
+      const slotEndMinutes = timeStrToMinutes(targetEndTime || slotObj.start_time);
+      if (data.requested_date === todayStr && timeStrToMinutes(currentTimeStr) >= slotEndMinutes) {
         throw new Error(`รอบเวลา ${data.requested_time} เลยกำหนดเวลาจองแล้ว กรุณาเลือกรอบเวลาอื่น`);
       }
     }
@@ -1395,12 +1406,13 @@ export class DataStore {
         return true;
       }
       if (b.requested_date === todayStr) {
-        let startTime = '17:00';
+        let targetEndTime = '17:00';
         if (b.requested_time) {
           const parts = b.requested_time.split('-');
-          if (parts[0]) startTime = parts[0].trim();
+          if (parts[1]) targetEndTime = parts[1].trim();
+          else if (parts[0]) targetEndTime = parts[0].trim();
         }
-        return timeStrToMinutes(currentTimeStr) >= timeStrToMinutes(startTime);
+        return timeStrToMinutes(currentTimeStr) >= timeStrToMinutes(targetEndTime);
       }
       return false;
     };

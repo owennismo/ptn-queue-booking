@@ -84,7 +84,7 @@ export default function BookingPage() {
     return `${year}-${month}-${day}`;
   };
 
-  const isSlotTimePast = (date: string, startTime: string) => {
+  const isSlotTimePast = (date: string, endTime: string, slotName?: string) => {
     const bangkokDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
     const y = bangkokDate.getFullYear();
     const m = String(bangkokDate.getMonth() + 1).padStart(2, '0');
@@ -101,7 +101,15 @@ export default function BookingPage() {
         const [h, min] = t.trim().replace('.', ':').split(':');
         return parseInt(h || '0', 10) * 60 + parseInt(min || '0', 10);
       };
-      return toMinutes(currentTime) >= toMinutes(startTime);
+
+      let targetTime = endTime;
+      if (!targetTime && slotName) {
+        const parts = slotName.split('-');
+        if (parts[1]) targetTime = parts[1].trim();
+        else if (parts[0]) targetTime = parts[0].trim();
+      }
+
+      return toMinutes(currentTime) >= toMinutes(targetTime);
     }
     return false;
   };
@@ -763,7 +771,7 @@ export default function BookingPage() {
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                         {slots.map((slot) => {
                           const isSelected = selectedSlot === slot.slot_name;
-                          const isPast = Boolean(slot.is_past || isSlotTimePast(requestedDate, slot.start_time));
+                          const isPast = Boolean(slot.is_past || isSlotTimePast(requestedDate, slot.end_time, slot.slot_name));
                           const isAvailable = slot.is_available && !isPast;
 
                           return (
