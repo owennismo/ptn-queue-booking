@@ -59,6 +59,8 @@ import {
   FileText,
   BarChart3,
   Send,
+  Bot,
+  Cpu,
 } from 'lucide-react';
 import AdminAnalytics from '@/components/AdminAnalytics';
 import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole, BookingStatus, SystemSettings, DEFAULT_SYSTEM_SETTINGS } from '@/lib/types';
@@ -3289,9 +3291,60 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
+                {/* 6. AI CHATBOT SETTINGS (GEMINI 1.5 FLASH) */}
+                <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2.5 text-slate-900">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                        <Bot className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-black">6. ระบบผู้ช่วยอัจฉริยะ AI Chatbot (Google Gemini 1.5 Flash)</h3>
+                          <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            Free Tier 100%
+                          </span>
+                        </div>
+                        <p className="text-2xs text-slate-400">ปุ่มแชทลอย "น้องฟาร์มา" บริการตอบคำถามผู้ส่งของและเช็คสถานะคิว 24 ชม.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/70 space-y-2">
+                      <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs">
+                        <Sparkles className="w-4 h-4 text-emerald-600" />
+                        <span>Google Gemini API Key (ฟรี 1,500 คำขอ/วัน)</span>
+                      </div>
+                      <p className="text-2xs text-emerald-700 leading-relaxed">
+                        คุณสามารถสมัครรับ Free API Key ได้ฟรีทันทีที่{' '}
+                        <a
+                          href="https://aistudio.google.com/app/apikey"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-bold underline text-emerald-900 hover:text-emerald-700"
+                        >
+                          Google AI Studio (คลิกเพื่อขอ Key ฟรี)
+                        </a>{' '}
+                        โดยไม่ต้องผูกบัตรเครดิต
+                      </p>
+                      <input
+                        type="password"
+                        value={systemSettings.gemini_api_key || ''}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, gemini_api_key: e.target.value })}
+                        placeholder="วาง API Key เช่น AIzaSy..."
+                        className="w-full px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-mono text-slate-800 focus:ring-2 focus:ring-emerald-500"
+                      />
+                      <p className="text-[11px] text-slate-500">
+                        💡 <strong>หมายเหตุ:</strong> หากเว้นว่างไว้ ระบบจะใช้ <strong>AI กฎอัจฉริยะ (Smart Fallback)</strong> ค้นหาคิวและตอบคำถามเรื่องรอบเวลาและข้อมูลคลังแทนให้อัตโนมัติ 100%
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
               </div>
 
-              {/* 6. LIVE PREVIEW PANEL */}
+              {/* 7. LIVE PREVIEW PANEL */}
               <div className="bg-slate-900 text-white p-6 rounded-3xl border border-slate-800 shadow-md space-y-4">
                 <div className="flex items-center gap-2 text-emerald-400">
                   <Sparkles className="w-5 h-5" />

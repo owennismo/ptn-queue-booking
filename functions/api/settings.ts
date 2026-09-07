@@ -4,8 +4,10 @@ export async function onRequestGet(context: { request: Request; env: any }) {
   try {
     const store = new DataStore(context.env);
     const settings = await store.getPublicSettings();
+    const publicSettings = { ...settings };
+    delete publicSettings.gemini_api_key;
 
-    return new Response(JSON.stringify({ success: true, settings }), {
+    return new Response(JSON.stringify({ success: true, settings: publicSettings }), {
       status: 200,
       headers: {
         'Content-Type': 'application/json; charset=utf-8',

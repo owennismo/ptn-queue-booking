@@ -3,6 +3,7 @@ import './globals.css';
 import Navbar from '@/components/Navbar';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import PWAInstallAndOffline from '@/components/PWAInstallAndOffline';
+import ChatWidget from '@/components/ChatWidget';
 
 export const metadata: Metadata = {
   title: 'ระบบจองคิวส่งของ - บจก. พีทีเอ็น ฟาร์มาเซ็นเตอร์ (พัฒนาเภสัช)',
@@ -51,6 +52,7 @@ export default function RootLayout({
           {children}
         </main>
         <MobileBottomNav />
+        <ChatWidget />
         <footer className="bg-white border-t border-slate-200 py-6 text-center text-sm text-slate-600 no-print pb-20 sm:pb-6">
           <div className="max-w-7xl mx-auto px-4">
             <p className="font-semibold text-slate-800 text-sm">บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)</p>
