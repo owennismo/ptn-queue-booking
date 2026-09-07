@@ -561,7 +561,7 @@ export default function AdminDashboardPage() {
     if (activeTab === 'audit' && token && userRole === 'super_admin') {
       fetchAuditLogs();
     }
-    if (activeTab === 'settings' && token && userRole === 'super_admin') {
+    if (activeTab === 'settings' && token && (userRole === 'super_admin' || userRole === 'warehouse_officer')) {
       fetchSettings();
     }
   }, [activeTab, token, userRole, fetchStaff, fetchAuditLogs, fetchSettings]);
@@ -1526,6 +1526,7 @@ export default function AdminDashboardPage() {
   const isSuperAdmin = userRole === 'super_admin';
   const isSecurityOnly = userRole === 'security_gate';
   const canViewAnalytics = isSuperAdmin || userRole === 'warehouse_officer';
+  const canManageSettings = isSuperAdmin || userRole === 'warehouse_officer';
 
   if (!token) {
     return (
@@ -1676,15 +1677,18 @@ export default function AdminDashboardPage() {
             </button>
           )}
 
-          {isSuperAdmin && (
+          {canManageSettings && (
             <button
               onClick={() => setActiveTab('settings')}
               className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
-                activeTab === 'settings' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                activeTab === 'settings'
+                  ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400/40'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >
-              <Settings className="w-4 h-4 text-cyan-300" />
-              <span>ข้อมูลติดต่อและประกาศ</span>
+              <Bot className="w-4 h-4 text-emerald-300" />
+              <span>ตั้งค่าระบบ & AI Chatbot</span>
+              <span className="bg-emerald-500/30 text-emerald-200 text-[10px] font-mono px-1.5 py-0.2 rounded-md">Gemini</span>
             </button>
           )}
 
@@ -2953,22 +2957,24 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* 🌟 TAB 6: DYNAMIC SYSTEM SETTINGS & CONTACTS (SUPER ADMIN ONLY) */}
-        {isSuperAdmin && activeTab === 'settings' && (
+        {/* 🌟 TAB 6: DYNAMIC SYSTEM SETTINGS & CONTACTS */}
+        {canManageSettings && activeTab === 'settings' && (
           <div className="space-y-6">
             {/* Header Banner */}
             <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-cyan-50 border border-cyan-200 text-cyan-600 flex items-center justify-center shrink-0 shadow-2xs">
-                  <Settings className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0 shadow-2xs">
+                  <Bot className="w-6 h-6" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-black text-slate-900">จัดการข้อมูลติดต่อและประกาศระบบ</h2>
-                    <span className="px-2 py-0.5 rounded-full text-2xs font-extrabold bg-amber-100 text-amber-900 border border-amber-300">👑 Super Admin เท่านั้น</span>
+                    <h2 className="text-lg font-black text-slate-900">ตั้งค่าระบบ ประกาศ และ AI Chatbot</h2>
+                    <span className="px-2 py-0.5 rounded-full text-2xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      ⚡ Google Gemini 1.5 Flash
+                    </span>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    แก้ไขหมายเลขโทรศัพท์, บัญชี LINE, ข้อความชี้แจงหน้าจองคิว, คำแนะนำบนบัตรคิว และแถบประกาศแจ้งเตือน โดยมีผลใช้งานทันทีทั่วทั้งระบบ
+                    จัดการระบบ AI ผู้ช่วยอัจฉริยะ (น้องฟาร์มา), หมายเลขโทรศัพท์ติดต่อ, บัญชี LINE, ข้อความชี้แจงหน้าจองคิว และแถบประกาศแจ้งเตือน
                   </p>
                 </div>
               </div>
@@ -2989,13 +2995,80 @@ export default function AdminDashboardPage() {
             {/* Main Form */}
             <form onSubmit={handleSaveSettings} className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
-                {/* 1. ข้อความหัวเรื่องและแบรนด์หน้าแรก */}
+
+                {/* 🤖 1. ระบบผู้ช่วยอัจฉริยะ AI CHATBOT (GEMINI 1.5 FLASH) - แสดงบนสุดเด่นชัด */}
+                <div className="lg:col-span-2 bg-gradient-to-br from-emerald-900 via-slate-900 to-teal-950 text-white p-6 sm:p-7 rounded-3xl border-2 border-emerald-500/50 shadow-xl space-y-4 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-emerald-500/30 gap-3 relative z-10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 flex items-center justify-center shadow-inner">
+                        <Bot className="w-7 h-7" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-black text-white">1. ระบบผู้ช่วยอัจฉริยะ AI Chatbot (Google Gemini 1.5 Flash)</h3>
+                          <span className="bg-emerald-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs">
+                            Free Tier 100%
+                          </span>
+                        </div>
+                        <p className="text-xs text-emerald-200/90 mt-0.5">
+                          ปุ่มแชทลอย "น้องฟาร์มา" บริการตอบคำถามผู้ส่งของ, เช็คสถานะคิว และบอกรอบเวลาว่างตลอด 24 ชม.
+                        </p>
+                      </div>
+                    </div>
+
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black rounded-xl transition shadow-md self-start sm:self-auto shrink-0"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>ขอรับ API Key ฟรี (Google AI Studio)</span>
+                    </a>
+                  </div>
+
+                  <div className="space-y-3 relative z-10">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-emerald-200 flex items-center gap-1.5">
+                        <Cpu className="w-4 h-4 text-emerald-400" />
+                        <span>Google Gemini API Key:</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={systemSettings.gemini_api_key || ''}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, gemini_api_key: e.target.value })}
+                        placeholder="วาง API Key เช่น AIzaSy..."
+                        className="w-full px-4 py-2.5 bg-slate-900/90 border border-emerald-400/50 rounded-xl text-xs font-mono text-emerald-200 focus:ring-2 focus:ring-emerald-400 focus:border-emerald-300 shadow-inner"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 text-2xs text-emerald-100/80">
+                      <div className="bg-white/5 border border-white/10 p-3 rounded-xl flex items-start gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="text-white block font-bold">ฟรี 100% ไม่ต้องผูกบัตรเครดิต:</strong>
+                          <span>โควตาฟรีสูงถึง 1,500 คำขอ/วัน ใช้งานได้อย่างมั่นใจไม่มีค่าใช้จ่ายแอบแฝง</span>
+                        </div>
+                      </div>
+                      <div className="bg-white/5 border border-white/10 p-3 rounded-xl flex items-start gap-2">
+                        <ShieldCheck className="w-4 h-4 text-teal-400 shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="text-white block font-bold">ระบบ Smart Fallback อัตโนมัติ:</strong>
+                          <span>หากเว้นว่างไว้ ระบบจะใช้ AI กฎอัจฉริยะ ค้นหาคิวและตอบรอบเวลาว่างให้ทันที 100%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. ข้อความหัวเรื่องและแบรนด์หน้าแรก */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
                   <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 text-slate-900">
                     <Sparkles className="w-5 h-5 text-emerald-600" />
                     <div>
-                      <h3 className="text-sm font-black">1. ข้อความหัวเรื่องและแบรนด์หน้าแรก (Hero Banner)</h3>
+                      <h3 className="text-sm font-black">2. ข้อความหัวเรื่องและแบรนด์หน้าแรก (Hero Banner)</h3>
                       <p className="text-2xs text-slate-400">แก้ไขข้อความบนป้ายเขียวส่วนหัวของหน้าจองคิว</p>
                     </div>
                   </div>
@@ -3288,57 +3361,6 @@ export default function AdminDashboardPage() {
                       placeholder="ตัวอย่าง: ประกาศเจ้าหน้าที่: สัปดาห์นี้มีตรวจนับสต็อกใหญ่ รถส่งของอาจมีความล่าช้าในการขึ้นของ 10-15 นาที"
                       className="w-full px-3 py-2 bg-white border border-cyan-300 rounded-xl text-xs text-cyan-950 focus:ring-2 focus:ring-cyan-500"
                     />
-                  </div>
-                </div>
-
-                {/* 6. AI CHATBOT SETTINGS (GEMINI 1.5 FLASH) */}
-                <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                    <div className="flex items-center gap-2.5 text-slate-900">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                        <Bot className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-black">6. ระบบผู้ช่วยอัจฉริยะ AI Chatbot (Google Gemini 1.5 Flash)</h3>
-                          <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                            Free Tier 100%
-                          </span>
-                        </div>
-                        <p className="text-2xs text-slate-400">ปุ่มแชทลอย "น้องฟาร์มา" บริการตอบคำถามผู้ส่งของและเช็คสถานะคิว 24 ชม.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/70 space-y-2">
-                      <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs">
-                        <Sparkles className="w-4 h-4 text-emerald-600" />
-                        <span>Google Gemini API Key (ฟรี 1,500 คำขอ/วัน)</span>
-                      </div>
-                      <p className="text-2xs text-emerald-700 leading-relaxed">
-                        คุณสามารถสมัครรับ Free API Key ได้ฟรีทันทีที่{' '}
-                        <a
-                          href="https://aistudio.google.com/app/apikey"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-bold underline text-emerald-900 hover:text-emerald-700"
-                        >
-                          Google AI Studio (คลิกเพื่อขอ Key ฟรี)
-                        </a>{' '}
-                        โดยไม่ต้องผูกบัตรเครดิต
-                      </p>
-                      <input
-                        type="password"
-                        value={systemSettings.gemini_api_key || ''}
-                        onChange={(e) => setSystemSettings({ ...systemSettings, gemini_api_key: e.target.value })}
-                        placeholder="วาง API Key เช่น AIzaSy..."
-                        className="w-full px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-mono text-slate-800 focus:ring-2 focus:ring-emerald-500"
-                      />
-                      <p className="text-[11px] text-slate-500">
-                        💡 <strong>หมายเหตุ:</strong> หากเว้นว่างไว้ ระบบจะใช้ <strong>AI กฎอัจฉริยะ (Smart Fallback)</strong> ค้นหาคิวและตอบคำถามเรื่องรอบเวลาและข้อมูลคลังแทนให้อัตโนมัติ 100%
-                      </p>
-                    </div>
                   </div>
                 </div>
 
