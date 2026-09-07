@@ -41,7 +41,31 @@ body {
   margin: 10mm;
 }
 
+/* Print Styling for 100x150mm Thermal Sticker Labels */
+@page pallet-tag {
+  size: 100mm 150mm;
+  margin: 0mm;
+}
+
 @media print {
+  body.printing-pallet-tag-mode {
+    width: 100mm !important;
+    min-width: 100mm !important;
+    max-width: 100mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  body.printing-pallet-tag-mode > *:not(#pallet-tag-print-portal) {
+    display: none !important;
+  }
+
+  body.printing-pallet-tag-mode #pallet-tag-print-portal {
+    display: block !important;
+    width: 100mm !important;
+  }
+
   *,
   *::before,
   *::after {
