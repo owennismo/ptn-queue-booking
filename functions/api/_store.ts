@@ -17,7 +17,9 @@ export interface Booking {
   cargo_type?: string | null;
   notes: string | null;
   photo_url?: string | null;
+  photo_urls?: string[];
   receiving_photo_url?: string | null;
+  receiving_photo_urls?: string[];
   status: 'Pending' | 'Approved' | 'CheckedIn' | 'Receiving' | 'Completed' | 'Rejected' | 'Cancelled';
   admin_reason?: string | null;
   admin_action_date?: string | null;
@@ -1317,8 +1319,12 @@ export class DataStore {
       vehicle_type: data.vehicle_type?.trim() || 'รถกระบะ 4 ล้อ',
       cargo_type: data.cargo_type?.trim() || 'ยาและเวชภัณฑ์ทั่วไป (Room Temp 15-30°C)',
       notes: data.notes?.trim() || null,
-      photo_url: data.photo_url || null,
+      photo_url: data.photo_url || (data.photo_urls && data.photo_urls[0]) || null,
+      photo_urls: Array.isArray(data.photo_urls) && data.photo_urls.length > 0
+        ? data.photo_urls
+        : (data.photo_url ? [data.photo_url] : []),
       receiving_photo_url: null,
+      receiving_photo_urls: [],
       status: 'Pending',
       created_at: nowStr,
     };
@@ -1552,7 +1558,9 @@ export class DataStore {
       receiving_notes?: string | null;
       received_by?: string | null;
       receiving_photo_url?: string | null;
+      receiving_photo_urls?: string[];
       photo_url?: string | null;
+      photo_urls?: string[];
     }
   ): Promise<Booking | null> {
     const cleanId = id.trim().toUpperCase();
@@ -1576,11 +1584,29 @@ export class DataStore {
         if (extra.received_by !== undefined) {
           item.received_by = extra.received_by;
         }
+        if (extra.receiving_photo_urls !== undefined) {
+          item.receiving_photo_urls = extra.receiving_photo_urls;
+          if (!extra.receiving_photo_url && extra.receiving_photo_urls && extra.receiving_photo_urls.length > 0) {
+            item.receiving_photo_url = extra.receiving_photo_urls[0];
+          }
+        }
         if (extra.receiving_photo_url !== undefined) {
           item.receiving_photo_url = extra.receiving_photo_url;
+          if (!item.receiving_photo_urls || item.receiving_photo_urls.length === 0) {
+            item.receiving_photo_urls = extra.receiving_photo_url ? [extra.receiving_photo_url] : [];
+          }
+        }
+        if (extra.photo_urls !== undefined) {
+          item.photo_urls = extra.photo_urls;
+          if (!extra.photo_url && extra.photo_urls && extra.photo_urls.length > 0) {
+            item.photo_url = extra.photo_urls[0];
+          }
         }
         if (extra.photo_url !== undefined) {
           item.photo_url = extra.photo_url;
+          if (!item.photo_urls || item.photo_urls.length === 0) {
+            item.photo_urls = extra.photo_url ? [extra.photo_url] : [];
+          }
         }
         if (status === 'Completed' || status === 'Receiving') {
           item.receiving_completed_at = nowStr;

@@ -24,7 +24,9 @@ export interface Booking {
   received_by?: string | null;
   receiving_completed_at?: string | null;
   photo_url?: string | null;
+  photo_urls?: string[];
   receiving_photo_url?: string | null;
+  receiving_photo_urls?: string[];
 }
 
 export interface TimeSlot {

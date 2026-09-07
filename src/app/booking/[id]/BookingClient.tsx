@@ -36,6 +36,7 @@ import { toPng } from 'html-to-image';
 import { formatThaiDate, formatThaiShortDate } from '@/lib/dateUtils';
 import NotificationPrompt from '@/components/NotificationPrompt';
 import { sendQueueNotification } from '@/lib/pushNotifications';
+import ImageGalleryModal from '@/components/ImageGalleryModal';
 
 export default function BookingDetailPage({
   params,
@@ -57,8 +58,10 @@ export default function BookingDetailPage({
   const [cancelling, setCancelling] = useState<boolean>(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isCreatorDevice, setIsCreatorDevice] = useState<boolean>(false);
-  const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
-  const [imageModalTitle, setImageModalTitle] = useState<string>('รูปภาพเอกสารแนบ');
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [galleryIndex, setGalleryIndex] = useState<number>(0);
+  const [galleryTitle, setGalleryTitle] = useState<string>('รูปภาพเอกสารแนบ');
+  const [galleryOpen, setGalleryOpen] = useState<boolean>(false);
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(DEFAULT_SYSTEM_SETTINGS);
   const prevStatusRef = useRef<string | null>(null);
 
@@ -878,83 +881,125 @@ ${url}`;
                 </div>
               )}
 
-              {/* 📷 Attached Delivery Note / Document Photo */}
-              {booking.photo_url && (
-                <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-150 space-y-2 sm:col-span-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-bold text-emerald-900 flex items-center gap-1.5">
-                      <ImageIcon className="w-4 h-4 text-emerald-600" />
-                      รูปถ่ายใบส่งของ / เอกสารที่แนบมา (Delivery Note / Invoice)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setImageModalUrl(booking.photo_url!);
-                        setImageModalTitle(`ใบส่งสินค้า/เอกสารแนบ - ${booking.booking_id}`);
-                      }}
-                      className="text-xs sm:text-sm font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 shadow-2xs transition"
-                    >
-                      <Eye className="w-3.5 h-3.5" /> ขยายดูรูปเต็ม
-                    </button>
-                  </div>
-                  <div
-                    onClick={() => {
-                      setImageModalUrl(booking.photo_url!);
-                      setImageModalTitle(`ใบส่งสินค้า/เอกสารแนบ - ${booking.booking_id}`);
-                    }}
-                    className="relative w-full max-w-sm h-48 rounded-2xl overflow-hidden border border-emerald-200 bg-slate-900 cursor-pointer group shadow-sm hover:ring-2 hover:ring-emerald-500 transition"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={booking.photo_url}
-                      alt="Delivery Note Document"
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs sm:text-sm font-bold gap-1.5 transition">
-                      <Eye className="w-4 h-4" /> คลิกเพื่อดูขนาดเต็ม
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* 📷 Attached Delivery Note / Document Photos */}
+              {(() => {
+                const userPhotos: string[] = booking.photo_urls && booking.photo_urls.length > 0
+                  ? booking.photo_urls
+                  : (booking.photo_url ? [booking.photo_url] : []);
 
-              {/* 📸 Receiving Inspection Photo (Taken by Warehouse Staff) */}
-              {booking.receiving_photo_url && (
-                <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-150 space-y-2 sm:col-span-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-bold text-indigo-900 flex items-center gap-1.5">
-                      <Camera className="w-4 h-4 text-indigo-600" />
-                      รูปถ่ายตอนตรวจรับสินค้าหน้างาน (Receiving Inspection Photo)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setImageModalUrl(booking.receiving_photo_url!);
-                        setImageModalTitle(`รูปถ่ายตรวจรับสินค้า - ${booking.booking_id}`);
-                      }}
-                      className="text-xs sm:text-sm font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-indigo-200 shadow-2xs transition"
-                    >
-                      <Eye className="w-3.5 h-3.5" /> ขยายดูรูปเต็ม
-                    </button>
-                  </div>
-                  <div
-                    onClick={() => {
-                      setImageModalUrl(booking.receiving_photo_url!);
-                      setImageModalTitle(`รูปถ่ายตรวจรับสินค้า - ${booking.booking_id}`);
-                    }}
-                    className="relative w-full max-w-sm h-48 rounded-2xl overflow-hidden border border-indigo-200 bg-slate-900 cursor-pointer group shadow-sm hover:ring-2 hover:ring-indigo-500 transition"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={booking.receiving_photo_url}
-                      alt="Receiving Inspection"
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs sm:text-sm font-bold gap-1.5 transition">
-                      <Eye className="w-4 h-4" /> คลิกเพื่อดูขนาดเต็ม
+                if (userPhotos.length === 0) return null;
+
+                return (
+                  <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-150 space-y-3 sm:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm font-bold text-emerald-900 flex items-center gap-1.5">
+                        <ImageIcon className="w-4 h-4 text-emerald-600" />
+                        รูปถ่ายใบส่งของ / เอกสารแนบ ({userPhotos.length} รูป)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGalleryImages(userPhotos);
+                          setGalleryIndex(0);
+                          setGalleryTitle(`ใบส่งสินค้า/เอกสารแนบ - ${booking.booking_id}`);
+                          setGalleryOpen(true);
+                        }}
+                        className="text-xs sm:text-sm font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 shadow-2xs transition"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> ดูภาพขยาย
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                      {userPhotos.map((url, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            setGalleryImages(userPhotos);
+                            setGalleryIndex(idx);
+                            setGalleryTitle(`ใบส่งสินค้า/เอกสารแนบ - ${booking.booking_id}`);
+                            setGalleryOpen(true);
+                          }}
+                          className="relative aspect-video rounded-xl overflow-hidden border border-emerald-200 bg-slate-900 cursor-pointer group shadow-2xs hover:ring-2 hover:ring-emerald-500 transition"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={url}
+                            alt={`เอกสารแนบ ${idx + 1}`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold gap-1 transition">
+                            <Eye className="w-3.5 h-3.5" /> ดูรูป
+                          </div>
+                          <span className="absolute bottom-1 right-1 text-[9px] font-mono font-bold text-white bg-black/70 px-1 rounded">
+                            #{idx + 1}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
+
+              {/* 📸 Receiving Inspection Photos (Warehouse) */}
+              {(() => {
+                const receivingPhotos: string[] = booking.receiving_photo_urls && booking.receiving_photo_urls.length > 0
+                  ? booking.receiving_photo_urls
+                  : (booking.receiving_photo_url ? [booking.receiving_photo_url] : []);
+
+                if (receivingPhotos.length === 0) return null;
+
+                return (
+                  <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-150 space-y-3 sm:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm font-bold text-indigo-900 flex items-center gap-1.5">
+                        <Camera className="w-4 h-4 text-indigo-600" />
+                        รูปถ่ายตรวจรับสินค้าหน้างาน ({receivingPhotos.length} รูป)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGalleryImages(receivingPhotos);
+                          setGalleryIndex(0);
+                          setGalleryTitle(`รูปถ่ายตรวจรับสินค้า - ${booking.booking_id}`);
+                          setGalleryOpen(true);
+                        }}
+                        className="text-xs sm:text-sm font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-indigo-200 shadow-2xs transition"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> ดูภาพขยาย
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                      {receivingPhotos.map((url, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            setGalleryImages(receivingPhotos);
+                            setGalleryIndex(idx);
+                            setGalleryTitle(`รูปถ่ายตรวจรับสินค้า - ${booking.booking_id}`);
+                            setGalleryOpen(true);
+                          }}
+                          className="relative aspect-video rounded-xl overflow-hidden border border-indigo-200 bg-slate-900 cursor-pointer group shadow-2xs hover:ring-2 hover:ring-indigo-500 transition"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={url}
+                            alt={`ตรวจรับสินค้า ${idx + 1}`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold gap-1 transition">
+                            <Eye className="w-3.5 h-3.5" /> ดูรูป
+                          </div>
+                          <span className="absolute bottom-1 right-1 text-[9px] font-mono font-bold text-white bg-black/70 px-1 rounded">
+                            #{idx + 1}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Advice Footer */}
@@ -1061,51 +1106,14 @@ ${url}`;
         </div>
       )}
 
-      {/* 🖼️ Fullscreen Photo Lightbox Modal */}
-      {imageModalUrl && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
-          onClick={() => setImageModalUrl(null)}
-        >
-          <div className="absolute top-4 right-4 flex items-center gap-3 z-10">
-            {imageModalTitle && (
-              <span className="text-xs sm:text-sm text-white/90 bg-black/50 px-3.5 py-1.5 rounded-full border border-white/20 hidden sm:inline-block font-semibold">
-                {imageModalTitle}
-              </span>
-            )}
-            <a
-              href={imageModalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              download
-              onClick={(e) => e.stopPropagation()}
-              className="px-3.5 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-sm"
-            >
-              <Download className="w-4 h-4" />
-              <span>ดาวน์โหลด</span>
-            </a>
-            <button
-              type="button"
-              onClick={() => setImageModalUrl(null)}
-              className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition"
-              title="ปิดรูปภาพ"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <div
-            className="max-w-4xl max-h-[85vh] w-full h-full flex items-center justify-center p-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageModalUrl}
-              alt={imageModalTitle || 'รูปภาพขยาย'}
-              className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-white/10"
-            />
-          </div>
-        </div>
-      )}
+      {/* 🖼️ Multi-Photo Lightbox Gallery Modal */}
+      <ImageGalleryModal
+        images={galleryImages}
+        initialIndex={galleryIndex}
+        title={galleryTitle}
+        isOpen={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+      />
     </div>
   </div>
   );

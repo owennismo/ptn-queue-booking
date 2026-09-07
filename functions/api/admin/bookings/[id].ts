@@ -14,7 +14,7 @@ export async function onRequestPatch(context: { params: any; request: Request; e
 
     const id = params.id;
     const body: any = await request.json();
-    const { status, admin_reason, actual_pallet_count, receiving_notes, received_by, receiving_photo_url } = body;
+    const { status, admin_reason, actual_pallet_count, receiving_notes, received_by, receiving_photo_url, receiving_photo_urls, photo_urls, photo_url } = body;
     const operatorName = auth.payload?.operator || 'Admin';
     const clientIp = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
 
@@ -44,6 +44,9 @@ export async function onRequestPatch(context: { params: any; request: Request; e
         receiving_notes: receiving_notes !== undefined ? receiving_notes : undefined,
         received_by: received_by || operatorName,
         receiving_photo_url: receiving_photo_url !== undefined ? receiving_photo_url : undefined,
+        receiving_photo_urls: receiving_photo_urls !== undefined ? receiving_photo_urls : undefined,
+        photo_url: photo_url !== undefined ? photo_url : undefined,
+        photo_urls: photo_urls !== undefined ? photo_urls : undefined,
       }
     );
 

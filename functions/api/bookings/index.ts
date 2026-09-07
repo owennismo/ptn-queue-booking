@@ -18,6 +18,7 @@ export async function onRequestPost(context: { request: Request; env: any }) {
       cargo_type,
       notes,
       photo_url,
+      photo_urls,
     } = body;
 
     if (!user_phone || !carrier_name || !client_name || !requested_date || !requested_time || !driver_name) {
@@ -50,6 +51,7 @@ export async function onRequestPost(context: { request: Request; env: any }) {
       cargo_type,
       notes,
       photo_url,
+      photo_urls,
     });
 
     return new Response(

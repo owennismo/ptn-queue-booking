@@ -41,6 +41,7 @@ import { formatThaiDate, formatThaiShortDate, formatPhoneMask } from '@/lib/date
 import ThaiDatePicker from '@/components/ThaiDatePicker';
 import { compressImage, formatFileSize } from '@/lib/imageCompressor';
 import { DEFAULT_SYSTEM_SETTINGS, SystemSettings } from '@/lib/types';
+import ImageGalleryModal from '@/components/ImageGalleryModal';
 
 interface Slot {
   id: number;
@@ -133,13 +134,17 @@ export default function BookingPage() {
   const [licensePlate, setLicensePlate] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Photo Attachment State
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [photoStats, setPhotoStats] = useState<{ originalSize: number; compressedSize: number } | null>(null);
+  // Photo Attachment State (Multi-Photo up to 5 photos)
+  interface AttachedPhoto {
+    file: File;
+    dataUrl: string;
+    stats: { originalSize: number; compressedSize: number };
+  }
+  const [attachedPhotos, setAttachedPhotos] = useState<AttachedPhoto[]>([]);
+  const [galleryModalOpen, setGalleryModalOpen] = useState(false);
+  const [galleryActiveIndex, setGalleryActiveIndex] = useState(0);
   const [compressingPhoto, setCompressingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const [photoModalOpen, setPhotoModalOpen] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -263,34 +268,48 @@ export default function BookingPage() {
     window.scrollTo({ top: 120, behavior: 'smooth' });
   };
 
-  // Photo file selection and auto-compression handler
+  // Photo file selection and auto-compression handler (Multi-Photo up to 5)
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (attachedPhotos.length >= 5) {
+      setPhotoError('สามารถแนบรูปถ่ายได้สูงสุด 5 รูปเท่านั้น หากต้องการเพิ่ม กรุณาลบรูปเดิมก่อน');
+      e.target.value = '';
+      return;
+    }
 
     setCompressingPhoto(true);
     setPhotoError(null);
 
+    const availableSlots = 5 - attachedPhotos.length;
+    const filesToProcess = Array.from(files).slice(0, availableSlots);
+
     try {
-      const result = await compressImage(file, 1600, 0.82);
-      setPhotoFile(result.file);
-      setPhotoPreview(result.dataUrl);
-      setPhotoStats({
-        originalSize: result.originalSize,
-        compressedSize: result.compressedSize,
-      });
+      const newPhotos: AttachedPhoto[] = [];
+      for (const file of filesToProcess) {
+        const result = await compressImage(file, 1600, 0.82);
+        newPhotos.push({
+          file: result.file,
+          dataUrl: result.dataUrl,
+          stats: {
+            originalSize: result.originalSize,
+            compressedSize: result.compressedSize,
+          },
+        });
+      }
+      setAttachedPhotos((prev) => [...prev, ...newPhotos]);
     } catch (err: any) {
       console.error('Image compression error:', err);
       setPhotoError(err.message || 'ไม่สามารถบีบอัดรูปภาพได้');
     } finally {
       setCompressingPhoto(false);
+      e.target.value = '';
     }
   };
 
-  const handleRemovePhoto = () => {
-    setPhotoFile(null);
-    setPhotoPreview(null);
-    setPhotoStats(null);
+  const handleRemovePhoto = (index: number) => {
+    setAttachedPhotos((prev) => prev.filter((_, i) => i !== index));
     setPhotoError(null);
   };
 
@@ -477,26 +496,29 @@ export default function BookingPage() {
     setSubmitting(true);
 
     try {
-      let uploadedPhotoUrl: string | null = null;
+      const uploadedPhotoUrls: string[] = [];
 
-      // 1. If user attached a photo, upload it to Cloudflare R2 via /api/upload
-      if (photoPreview) {
-        try {
-          const uploadRes = await fetch('/api/upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              dataUrl: photoPreview,
-              filename: photoFile?.name || 'delivery-doc.webp',
-              booking_id: 'new',
-            }),
-          });
-          const uploadData = await uploadRes.json();
-          if (uploadRes.ok && uploadData.url) {
-            uploadedPhotoUrl = uploadData.url;
+      // 1. If user attached photos, upload all of them to /api/upload
+      if (attachedPhotos.length > 0) {
+        for (let i = 0; i < attachedPhotos.length; i++) {
+          const p = attachedPhotos[i];
+          try {
+            const uploadRes = await fetch('/api/upload', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                dataUrl: p.dataUrl,
+                filename: p.file?.name || `delivery-doc-${i + 1}.webp`,
+                booking_id: 'new',
+              }),
+            });
+            const uploadData = await uploadRes.json();
+            if (uploadRes.ok && uploadData.url) {
+              uploadedPhotoUrls.push(uploadData.url);
+            }
+          } catch (uploadErr) {
+            console.warn('Photo upload warning, proceeding with booking:', uploadErr);
           }
-        } catch (uploadErr) {
-          console.warn('Photo upload warning, proceeding with booking:', uploadErr);
         }
       }
 
@@ -517,7 +539,8 @@ export default function BookingPage() {
           driver_name: driverName,
           license_plate: licensePlate,
           notes: notes,
-          photo_url: uploadedPhotoUrl,
+          photo_url: uploadedPhotoUrls[0] || null,
+          photo_urls: uploadedPhotoUrls,
         }),
       });
 
@@ -1268,6 +1291,9 @@ export default function BookingPage() {
                       <span>แนบรูปถ่ายใบส่งของ / เอกสาร หรือรูปสินค้า</span>
                       <span className="text-xs text-slate-500 font-normal">(ไม่บังคับ)</span>
                     </label>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono font-bold">
+                      {attachedPhotos.length}/5 รูป
+                    </span>
                   </div>
                   <p className="text-xs sm:text-sm text-slate-500">
                     รองรับรูปถ่ายจากกล้องมือถือ ระบบจะย่อขนาดรูปให้อัตโนมัติ เพื่อการโหลดที่รวดเร็ว
@@ -1279,7 +1305,7 @@ export default function BookingPage() {
                     </div>
                   )}
 
-                  {!photoPreview ? (
+                  {attachedPhotos.length === 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-emerald-50/40 hover:bg-emerald-50 rounded-2xl cursor-pointer transition text-center group">
                         <div className="w-12 h-12 bg-emerald-100 group-hover:scale-110 text-emerald-700 rounded-full flex items-center justify-center mb-2 transition">
@@ -1302,10 +1328,11 @@ export default function BookingPage() {
                           <Upload className="w-6 h-6" />
                         </div>
                         <span className="text-sm font-bold text-slate-800">เลือกรูปจากคลังภาพ / ไฟล์</span>
-                        <span className="text-xs text-slate-500">รองรับไฟล์ JPG, PNG, WEBP</span>
+                        <span className="text-xs text-slate-500">รองรับไฟล์ JPG, PNG, WEBP (เลือกได้หลายรูป)</span>
                         <input
                           type="file"
                           accept="image/*"
+                          multiple
                           onChange={handlePhotoChange}
                           disabled={compressingPhoto}
                           className="hidden"
@@ -1313,60 +1340,102 @@ export default function BookingPage() {
                       </label>
                     </div>
                   ) : (
-                    <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                        {attachedPhotos.map((photo, idx) => (
                           <div
-                            onClick={() => setPhotoModalOpen(true)}
-                            className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-300 bg-slate-900 shrink-0 cursor-pointer group hover:ring-2 hover:ring-emerald-500 transition shadow-sm"
+                            key={idx}
+                            className="bg-slate-50 rounded-2xl border border-slate-200 p-3 flex items-center justify-between gap-2.5 hover:border-slate-300 transition"
                           >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={photoPreview}
-                              alt="Attached Document"
-                              className="w-full h-full object-cover group-hover:scale-105 transition"
-                            />
-                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition">
-                              <Eye className="w-4 h-4" />
+                            <div
+                              onClick={() => {
+                                setGalleryActiveIndex(idx);
+                                setGalleryModalOpen(true);
+                              }}
+                              className="relative w-14 h-14 rounded-xl overflow-hidden border border-slate-300 bg-slate-900 shrink-0 cursor-pointer group hover:ring-2 hover:ring-emerald-500 transition shadow-xs"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={photo.dataUrl}
+                                alt={`รูปที่ ${idx + 1}`}
+                                className="w-full h-full object-cover group-hover:scale-105 transition"
+                              />
+                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition">
+                                <Eye className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="absolute bottom-0.5 right-0.5 text-[9px] font-mono font-bold text-white bg-black/70 px-1 rounded">
+                                #{idx + 1}
+                              </span>
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-slate-900 truncate">
+                                {photo.file.name}
+                              </p>
+                              <p className="text-[11px] text-emerald-700 font-medium">
+                                {formatFileSize(photo.stats.compressedSize)}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setGalleryActiveIndex(idx);
+                                  setGalleryModalOpen(true);
+                                }}
+                                className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-white rounded-lg transition"
+                                title="ดูภาพขยาย"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemovePhoto(idx)}
+                                className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition"
+                                title="ลบรูปนี้"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
-                          <div className="space-y-0.5">
-                            <p className="text-sm font-bold text-slate-900 truncate max-w-xs">
-                              {photoFile?.name || 'เอกสารที่แนบ'}
-                            </p>
-                            {photoStats && (
-                              <p className="text-xs text-emerald-700 font-medium">
-                                ย่อขนาดเรียบร้อย: {formatFileSize(photoStats.compressedSize)}{' '}
-                                <span className="text-slate-500">
-                                  (จากเดิม {formatFileSize(photoStats.originalSize)})
-                                </span>
-                              </p>
-                            )}
-                            <span className="inline-block px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-md">
-                              พร้อมอัปโหลด
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setPhotoModalOpen(true)}
-                            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition shadow-2xs"
-                          >
-                            <Eye className="w-4 h-4 text-emerald-600" />
-                            <span>ดูรูปเต็ม</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleRemovePhoto}
-                            className="px-3.5 py-2 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            <span>ลบรูป</span>
-                          </button>
-                        </div>
+                        ))}
                       </div>
+
+                      {/* Add More Buttons (if < 5 photos) */}
+                      {attachedPhotos.length < 5 && (
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <label className="px-3 py-1.5 rounded-xl border border-dashed border-emerald-400 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold cursor-pointer transition flex items-center gap-1.5 shadow-2xs">
+                            <Camera className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>+ ถ่ายรูปเพิ่ม</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              onChange={handlePhotoChange}
+                              disabled={compressingPhoto}
+                              className="hidden"
+                            />
+                          </label>
+
+                          <label className="px-3 py-1.5 rounded-xl border border-dashed border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold cursor-pointer transition flex items-center gap-1.5 shadow-2xs">
+                            <Upload className="w-3.5 h-3.5 text-slate-500" />
+                            <span>+ เลือกรูปเพิ่มจากไฟล์</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={handlePhotoChange}
+                              disabled={compressingPhoto}
+                              className="hidden"
+                            />
+                          </label>
+
+                          <span className="text-xs text-slate-400 font-medium ml-auto">
+                            แนบได้อีก {5 - attachedPhotos.length} รูป
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1461,15 +1530,18 @@ export default function BookingPage() {
                     <span className="text-slate-400">ประเภทสินค้า:</span>
                     <strong className="text-white text-xs">{cargoType}</strong>
                   </div>
-                  {photoPreview && (
+                  {attachedPhotos.length > 0 && (
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-slate-400">เอกสาร/รูปภาพแนบ:</span>
                       <button
                         type="button"
-                        onClick={() => setPhotoModalOpen(true)}
+                        onClick={() => {
+                          setGalleryActiveIndex(0);
+                          setGalleryModalOpen(true);
+                        }}
                         className="text-xs text-emerald-300 underline font-bold hover:text-emerald-200"
                       >
-                        ดูรูปภาพแนบ ({formatFileSize(photoStats?.compressedSize || 0)})
+                        ดูรูปภาพแนบ ({attachedPhotos.length} รูป)
                       </button>
                     </div>
                   )}
@@ -1530,49 +1602,14 @@ export default function BookingPage() {
         </form>
       </div>
 
-      {/* 🖼️ Fullscreen Photo Lightbox Modal */}
-      {photoModalOpen && photoPreview && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
-          onClick={() => setPhotoModalOpen(false)}
-        >
-          <div className="absolute top-4 right-4 flex items-center gap-3 z-10">
-            <span className="text-xs sm:text-sm text-white/90 bg-black/50 px-3.5 py-1.5 rounded-full border border-white/20 hidden sm:inline-block font-semibold">
-              {photoFile?.name || 'รูปถ่ายใบส่งของ / เอกสารแนบ'}
-            </span>
-            <a
-              href={photoPreview}
-              target="_blank"
-              rel="noopener noreferrer"
-              download={photoFile?.name || 'document-photo.jpg'}
-              onClick={(e) => e.stopPropagation()}
-              className="px-3.5 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-sm"
-            >
-              <Download className="w-4 h-4" />
-              <span>ดาวน์โหลด</span>
-            </a>
-            <button
-              type="button"
-              onClick={() => setPhotoModalOpen(false)}
-              className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition"
-              title="ปิดรูปภาพ"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <div
-            className="max-w-4xl max-h-[85vh] w-full h-full flex items-center justify-center p-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={photoPreview}
-              alt="รูปภาพเอกสารแนบ"
-              className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-white/10"
-            />
-          </div>
-        </div>
-      )}
+      {/* 🖼️ Multi-Photo Lightbox Gallery Modal */}
+      <ImageGalleryModal
+        images={attachedPhotos.map((p) => p.dataUrl)}
+        initialIndex={galleryActiveIndex}
+        title="รูปถ่ายใบส่งของ / เอกสารแนบ"
+        isOpen={galleryModalOpen}
+        onClose={() => setGalleryModalOpen(false)}
+      />
     </div>
   </div>
 );
