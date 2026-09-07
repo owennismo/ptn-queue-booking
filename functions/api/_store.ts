@@ -1378,6 +1378,7 @@ export class DataStore {
     stats: {
       total: number;
       pending: number;
+      approved: number;
       overdue: number;
       receiving: number;
       completed: number;
@@ -1428,6 +1429,7 @@ export class DataStore {
     const stats = {
       total: dateScoped.length,
       pending: dateScoped.filter((b: any) => b.status === 'Pending').length,
+      approved: dateScoped.filter((b: any) => b.status === 'Approved').length,
       overdue: dateScoped.filter((b: any) => b.is_overdue).length,
       receiving: dateScoped.filter((b: any) => b.status === 'Receiving' || b.status === 'CheckedIn').length,
       completed: dateScoped.filter((b: any) => b.status === 'Completed').length,

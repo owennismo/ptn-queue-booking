@@ -162,6 +162,7 @@ export default function AdminDashboardPage() {
   const [kpiStats, setKpiStats] = useState<{
     total: number;
     pending: number;
+    approved: number;
     overdue: number;
     receiving: number;
     completed: number;
@@ -169,6 +170,7 @@ export default function AdminDashboardPage() {
 
   const totalCount = kpiStats?.total ?? bookings.length;
   const pendingCount = kpiStats?.pending ?? bookings.filter((b) => b.status === 'Pending').length;
+  const approvedCount = kpiStats?.approved ?? bookings.filter((b) => b.status === 'Approved').length;
   const overdueCount = kpiStats?.overdue ?? systemOverdueCount;
   const receivingCount = kpiStats?.receiving ?? bookings.filter((b) => b.status === 'Receiving' || b.status === 'CheckedIn').length;
   const completedCount = kpiStats?.completed ?? bookings.filter((b) => b.status === 'Completed').length;
@@ -1799,7 +1801,37 @@ export default function AdminDashboardPage() {
                 </div>
               </button>
 
-              {/* Card 3: Overdue */}
+              {/* Card 3: Approved */}
+              <button
+                type="button"
+                onClick={() => setFilterStatus(filterStatus === 'Approved' ? 'All' : 'Approved')}
+                className={`p-4 sm:p-5 rounded-3xl border text-left transition cursor-pointer active:scale-98 ${
+                  filterStatus === 'Approved'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-500 ring-offset-2'
+                    : 'bg-white hover:bg-emerald-50/60 border-slate-200/80 text-slate-900 shadow-xs hover:border-emerald-300'
+                }`}
+                title="คลิกเพื่อดูเฉพาะคิวที่อนุมัติแล้ว (Approved)"
+              >
+                <div className="flex justify-between items-start">
+                  <span className={`text-xs font-bold uppercase tracking-wider ${filterStatus === 'Approved' ? 'text-emerald-100' : 'text-slate-500'}`}>
+                    อนุมัติแล้ว (Approved)
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-lg font-bold text-2xs ${filterStatus === 'Approved' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'}`}>
+                    พร้อมส่ง
+                  </span>
+                </div>
+                <div className="mt-2.5">
+                  <span className={`text-2xl sm:text-3xl font-black font-mono ${filterStatus === 'Approved' ? 'text-white' : 'text-emerald-600'}`}>
+                    {approvedCount}
+                  </span>
+                  <span className={`text-xs ml-1 ${filterStatus === 'Approved' ? 'text-emerald-100' : 'text-slate-400'}`}>คิว</span>
+                </div>
+                <div className={`mt-1 text-2xs font-semibold ${filterStatus === 'Approved' ? 'text-emerald-100' : 'text-emerald-600'}`}>
+                  {filterStatus === 'Approved' ? '● กำลังแสดงเฉพาะคิวที่อนุมัติแล้ว' : '● อนุมัติแล้ว รอเข้าพื้นที่'}
+                </div>
+              </button>
+
+              {/* Card 4: Overdue */}
               <button
                 type="button"
                 onClick={() => setFilterStatus(filterStatus === 'Overdue' ? 'All' : 'Overdue')}
@@ -1826,36 +1858,6 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className={`mt-1 text-2xs font-semibold ${filterStatus === 'Overdue' ? 'text-amber-100' : 'text-amber-700'}`}>
                   {filterStatus === 'Overdue' ? '● กำลังแสดงเฉพาะคิวเลยเวลา' : '● ไม่ปฏิเสธคิวอัตโนมัติ'}
-                </div>
-              </button>
-
-              {/* Card 4: Dock / Receiving */}
-              <button
-                type="button"
-                onClick={() => setFilterStatus(filterStatus === 'Receiving' ? 'All' : 'Receiving')}
-                className={`p-4 sm:p-5 rounded-3xl border text-left transition cursor-pointer active:scale-98 ${
-                  filterStatus === 'Receiving'
-                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-500 ring-offset-2'
-                    : 'bg-white hover:bg-indigo-50/60 border-slate-200/80 text-slate-900 shadow-xs hover:border-indigo-300'
-                }`}
-                title="คลิกเพื่อดูเฉพาะคิวที่กำลังลงสินค้า (Dock)"
-              >
-                <div className="flex justify-between items-start">
-                  <span className={`text-xs font-bold uppercase tracking-wider ${filterStatus === 'Receiving' ? 'text-indigo-100' : 'text-slate-500'}`}>
-                    กำลังลงสินค้า (Dock)
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-lg font-bold text-2xs ${filterStatus === 'Receiving' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-800'}`}>
-                    หน้าท่า
-                  </span>
-                </div>
-                <div className="mt-2.5">
-                  <span className={`text-2xl sm:text-3xl font-black font-mono ${filterStatus === 'Receiving' ? 'text-white' : 'text-indigo-600'}`}>
-                    {receivingCount}
-                  </span>
-                  <span className={`text-xs ml-1 ${filterStatus === 'Receiving' ? 'text-indigo-100' : 'text-slate-400'}`}>คิว</span>
-                </div>
-                <div className={`mt-1 text-2xs font-semibold ${filterStatus === 'Receiving' ? 'text-indigo-100' : 'text-indigo-600'}`}>
-                  {filterStatus === 'Receiving' ? '● กำลังแสดงเฉพาะคิวหน้าท่า' : '● เทียบท่า / ตรวจนับสินค้า'}
                 </div>
               </button>
 
