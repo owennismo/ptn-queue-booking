@@ -289,19 +289,19 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
 
                   {/* Big Queue ID & QR Banner */}
                   <div className="bg-slate-50 border-2 border-slate-900 rounded-xl p-3 flex items-center justify-between gap-3">
-                    <div>
+                    <div className="space-y-1 flex-1">
                       <span className="text-[9px] font-black uppercase text-slate-600 block">
                         หมายเลขคิวส่งของ (QUEUE ID / BOOKING CODE)
                       </span>
-                      <div className="text-2xl font-mono font-black text-slate-950 tracking-tight leading-none mt-1">
+                      <div className="text-xl font-mono font-black text-slate-950 tracking-tight leading-none">
                         {booking.booking_id}
                       </div>
-                      <div className="text-xs text-slate-800 font-bold mt-1.5">
-                        นัดหมาย: {formatThaiDate(booking.requested_date)} • ช่วงเวลา: {booking.requested_time} น.
+                      <div className="text-sm font-black text-slate-950 pt-1 border-t border-slate-200 mt-1">
+                        🗓️ นัดหมาย: {formatThaiDate(booking.requested_date)} • {booking.requested_time} น.
                       </div>
                     </div>
                     <div className="bg-white p-1.5 rounded-lg border-2 border-slate-900 shrink-0 text-center">
-                      <QRCodeSVG value={trackingUrl} size={68} level="M" />
+                      <QRCodeSVG value={trackingUrl} size={90} level="M" />
                       <span className="text-[8px] font-mono font-bold block mt-0.5 text-slate-700">
                         SCAN TO VERIFY
                       </span>
@@ -348,9 +348,9 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                         </span>
                       </div>
                       <div className="px-3 py-1.5 flex justify-between gap-2 bg-slate-50">
-                        <span className="text-slate-600 font-bold shrink-0">จำนวนรับคิว:</span>
+                        <span className="text-slate-600 font-bold shrink-0">จำนวนพาเลท & ลัง:</span>
                         <span className="font-mono font-black text-slate-950">
-                          จอง {booking.pallet_count} ลัง | ตรวจรับจริง {totalPallets} พาเลท
+                          ส่งสินค้า: {booking.pallet_count} ลัง ({booking.vehicle_count} คัน) | รับเข้า: {totalPallets} พาเลท
                           {booking.actual_pallet_count !== undefined &&
                             booking.actual_pallet_count !== null && (
                               <span className="ml-2 font-bold text-emerald-800">
@@ -618,9 +618,10 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
+                      gap: '5mm',
                     }}
                   >
-                    <div>
+                    <div style={{ flex: 1 }}>
                       <span
                         style={{
                           fontSize: '9pt',
@@ -635,11 +636,11 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                       </span>
                       <div
                         style={{
-                          fontSize: '34pt',
+                          fontSize: '24pt',
                           fontWeight: '900',
                           fontFamily: 'monospace',
                           color: '#000000',
-                          letterSpacing: '-1px',
+                          letterSpacing: '-0.5px',
                           lineHeight: 1.1,
                           marginTop: '1mm',
                         }}
@@ -648,10 +649,13 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                       </div>
                       <div
                         style={{
-                          fontSize: '11pt',
-                          fontWeight: '800',
-                          color: '#1e293b',
-                          marginTop: '2mm',
+                          fontSize: '15pt',
+                          fontWeight: '900',
+                          color: '#000000',
+                          marginTop: '2.5mm',
+                          paddingTop: '2mm',
+                          borderTop: '1.5px solid #cbd5e1',
+                          lineHeight: 1.2,
                         }}
                       >
                         วันนัดหมายเข้าส่ง: {formatThaiDate(booking.requested_date)} • รอบเวลา: {booking.requested_time} น.
@@ -660,23 +664,24 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
 
                     <div
                       style={{
-                        padding: '2mm',
+                        padding: '2.5mm',
                         backgroundColor: '#ffffff',
-                        border: '2px solid #000000',
-                        borderRadius: '2mm',
+                        border: '2.5px solid #000000',
+                        borderRadius: '2.5mm',
                         textAlign: 'center',
                         flexShrink: 0,
                       }}
                     >
-                      <QRCodeSVG value={trackingUrl} size={92} level="M" />
+                      <QRCodeSVG value={trackingUrl} size={135} level="M" />
                       <span
                         style={{
-                          fontSize: '7pt',
-                          fontWeight: '800',
+                          fontSize: '7.5pt',
+                          fontWeight: '900',
                           fontFamily: 'monospace',
                           display: 'block',
                           marginTop: '1mm',
-                          color: '#333333',
+                          color: '#000000',
+                          letterSpacing: '0.5px',
                         }}
                       >
                         SCAN TO VERIFY
@@ -855,8 +860,8 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                               fontSize: '12pt',
                             }}
                           >
-                            แจ้งจอง: {booking.pallet_count} ลัง ({booking.vehicle_count} คัน) |
-                            ตรวจรับจริง: {totalPallets} พาเลท
+                            ส่งสินค้า: {booking.pallet_count} ลัง ({booking.vehicle_count} คัน) |
+                            รับเข้า: {totalPallets} พาเลท
                             {booking.actual_pallet_count !== undefined &&
                               booking.actual_pallet_count !== null && (
                                 <span style={{ marginLeft: '3mm', color: '#000000' }}>
