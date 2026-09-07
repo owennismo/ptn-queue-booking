@@ -100,17 +100,46 @@ export function formatThaiFullDate(dateStr?: string | null): string {
 
 /**
  * Format timestamp e.g. "2026-09-03 14:30:00" to "03/09/2569 14:30 น."
+ * Handles UTC strings from Cloudflare Workers and formats accurately to Asia/Bangkok time
  */
 export function formatThaiDateTime(dateStr?: string | null): string {
   if (!dateStr) return '-';
   try {
-    const [dPart, tPart] = dateStr.split(' ');
-    const numDate = formatThaiNumericDate(dPart);
-    if (tPart) {
-      const time = tPart.substring(0, 5);
-      return `${numDate} ${time} น.`;
+    if (dateStr.length <= 10) {
+      return formatThaiNumericDate(dateStr);
     }
-    return numDate;
+    let d: Date;
+    if (dateStr.includes('Z') || dateStr.includes('+')) {
+      d = new Date(dateStr);
+    } else if (dateStr.includes('T')) {
+      d = new Date(dateStr + 'Z');
+    } else if (dateStr.includes(' ') && dateStr.length >= 16) {
+      d = new Date(dateStr.replace(' ', 'T') + 'Z');
+    } else {
+      d = new Date(dateStr);
+    }
+
+    if (isNaN(d.getTime())) return dateStr;
+
+    const bangkokFormatter = new Intl.DateTimeFormat('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+
+    const parts = bangkokFormatter.formatToParts(d);
+    const getPart = (type: string) => parts.find((p) => p.type === type)?.value || '';
+    const day = getPart('day');
+    const month = getPart('month');
+    const year = getPart('year');
+    const hour = getPart('hour');
+    const minute = getPart('minute');
+
+    return `${day}/${month}/${year} ${hour}:${minute} น.`;
   } catch (e) {
     return dateStr;
   }
