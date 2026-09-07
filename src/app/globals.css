@@ -35,23 +35,17 @@ body {
   background: #94a3b8;
 }
 
-/* Print Styling for A4 Documents (Reports & Digital Tickets) */
+/* Print Styling for A4 Documents (Reports, Tickets & Pallet Tags) */
 @page {
   size: A4 portrait;
   margin: 10mm;
 }
 
-/* Print Styling for 100x150mm Thermal Sticker Labels */
-@page pallet-tag {
-  size: 100mm 150mm;
-  margin: 0mm;
-}
-
 @media print {
   body.printing-pallet-tag-mode {
-    width: 100mm !important;
-    min-width: 100mm !important;
-    max-width: 100mm !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #ffffff !important;
@@ -63,7 +57,7 @@ body {
 
   body.printing-pallet-tag-mode #pallet-tag-print-portal {
     display: block !important;
-    width: 100mm !important;
+    width: 100% !important;
   }
 
   *,
