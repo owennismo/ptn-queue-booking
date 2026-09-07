@@ -242,30 +242,42 @@ ${
     parts: [{ text: userMessage }],
   });
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents,
-      systemInstruction: {
-        parts: [{ text: systemInstruction }],
-      },
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 800,
-      },
-    }),
-  });
+  const candidateModels = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'];
+  let lastError = null;
 
-  if (!resp.ok) {
-    const errorText = await resp.text();
-    throw new Error(`Gemini API returned HTTP ${resp.status}: ${errorText}`);
+  for (const model of candidateModels) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents,
+          systemInstruction: {
+            parts: [{ text: systemInstruction }],
+          },
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 800,
+          },
+        }),
+      });
+
+      if (resp.ok) {
+        const data: any = await resp.json();
+        const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (candidate) return candidate;
+      } else {
+        const errorText = await resp.text();
+        lastError = new Error(`Model ${model} returned HTTP ${resp.status}: ${errorText}`);
+      }
+    } catch (e: any) {
+      lastError = e;
+    }
   }
 
-  const data: any = await resp.json();
-  const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  return candidate || null;
+  if (lastError) throw lastError;
+  return null;
 }
 
 // Rule-Based Smart Fallback Engine
