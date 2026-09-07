@@ -73,7 +73,6 @@ export interface SystemSettings {
   ticket_instruction?: string;
   admin_announcement?: string;
   admin_announcement_active: boolean;
-  gemini_api_key?: string;
 }
 
 export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
@@ -94,7 +93,6 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   ticket_instruction: 'กรุณานำรถและสินค้าเข้าส่งตามวันและเวลาที่ระบุ พร้อมแสดงบัตรคิวและ QR Code นี้ต่อเจ้าหน้าที่รักษาความปลอดภัยและฝ่ายรับสินค้า',
   admin_announcement: '',
   admin_announcement_active: false,
-  gemini_api_key: '',
 };
 
 export interface PushSubscriptionRecord {

@@ -5,7 +5,7 @@ export async function onRequestGet(context: { request: Request; env: any }) {
     const store = new DataStore(context.env);
     const settings = await store.getPublicSettings();
     const publicSettings = { ...settings };
-    delete publicSettings.gemini_api_key;
+    delete (publicSettings as any).gemini_api_key;
 
     return new Response(JSON.stringify({ success: true, settings: publicSettings }), {
       status: 200,
