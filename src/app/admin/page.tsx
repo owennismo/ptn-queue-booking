@@ -144,6 +144,8 @@ export default function AdminDashboardPage() {
   // Queues state (Default to 'All' to show all incoming bookings)
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
+  const [isRevalidating, setIsRevalidating] = useState(false);
+  const bookingsRef = useRef<Booking[]>([]);
   const [filterDate, setFilterDate] = useState<string>('All');
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -421,10 +423,14 @@ export default function AdminDashboardPage() {
     [token, handleLogout]
   );
 
-  // 3. Load Bookings
-  const fetchBookings = useCallback(async () => {
+  // 3. Load Bookings (Silent Background Refresh / Stale-While-Revalidate)
+  const fetchBookings = useCallback(async (isBackground = false) => {
     if (!token && !sessionStorage.getItem('ptn_admin_jwt')) return;
-    setLoadingBookings(true);
+    if (!isBackground && bookingsRef.current.length === 0) {
+      setLoadingBookings(true);
+    } else {
+      setIsRevalidating(true);
+    }
     try {
       let url = `/api/admin/bookings?date=${filterDate}&status=${filterStatus}`;
       if (searchQuery.trim()) {
@@ -432,16 +438,25 @@ export default function AdminDashboardPage() {
       }
       const res = await authFetch(url);
       const data = await res.json();
-      setBookings(data.bookings || []);
+      const newBookings = data.bookings || [];
+      bookingsRef.current = newBookings;
+      setBookings(newBookings);
       if (data.stats) {
         setKpiStats(data.stats);
       }
+      // Seamlessly sync currently opened modal detail in-place without closing or jump
+      setSelectedBooking((prev) => {
+        if (!prev) return null;
+        const fresh = newBookings.find((b: Booking) => b.booking_id === prev.booking_id);
+        return fresh || prev;
+      });
     } catch (err: any) {
-      if (err.message !== 'Unauthorized') {
+      if (!isBackground && err.message !== 'Unauthorized') {
         showToast('ไม่สามารถโหลดข้อมูลคิวได้', 'error');
       }
     } finally {
       setLoadingBookings(false);
+      setIsRevalidating(false);
     }
   }, [authFetch, filterDate, filterStatus, searchQuery, token]);
 
@@ -468,7 +483,7 @@ export default function AdminDashboardPage() {
             body: `มีคิวใหม่รอตรวจสอบอนุมัติทั้งหมด ${data.total_pending_all} คิว`,
             url: '/admin',
           });
-          fetchBookings();
+          fetchBookings(true);
         }
         prevPendingCountRef.current = data.total_pending_all;
       }
@@ -529,7 +544,7 @@ export default function AdminDashboardPage() {
       // ⏱️ Auto-polling every 15s to catch new incoming bookings in real-time
       const interval = setInterval(() => {
         fetchForecast();
-        fetchBookings();
+        fetchBookings(true);
       }, 15000);
 
       return () => clearInterval(interval);
@@ -690,6 +705,7 @@ export default function AdminDashboardPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'ล้างข้อมูลไม่สำเร็จ');
       showToast(data.message || 'ล้างข้อมูลคิวจองทั้งหมดสำเร็จ', 'success');
+      bookingsRef.current = [];
       setBookings([]);
       fetchForecast();
     } catch (err: any) {
@@ -2029,12 +2045,12 @@ export default function AdminDashboardPage() {
                 </div>
 
                 <button
-                  onClick={fetchBookings}
-                  disabled={loadingBookings}
+                  onClick={() => fetchBookings(false)}
+                  disabled={loadingBookings && bookings.length === 0}
                   className="p-2 sm:p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl transition shrink-0"
                   title="รีเฟรชข้อมูล"
                 >
-                  <RefreshCw className={`w-4 h-4 ${loadingBookings ? 'animate-spin text-emerald-600' : ''}`} />
+                  <RefreshCw className={`w-4 h-4 ${(loadingBookings || isRevalidating) ? 'animate-spin text-emerald-600' : ''}`} />
                 </button>
               </div>
             </div>
@@ -2063,7 +2079,15 @@ export default function AdminDashboardPage() {
                       ? 'รายการจองคิวทั้งหมด (ทุกวันที่)'
                       : `รายการจองคิวประจำ${formatThaiDate(filterDate)}`}
                   </h3>
-                  <p className="text-xs text-slate-500">พบทั้งหมด {bookings.length} รายการ</p>
+                  <p className="text-xs text-slate-500 flex items-center gap-2">
+                    <span>พบทั้งหมด {bookings.length} รายการ</span>
+                    {isRevalidating && (
+                      <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-600 font-semibold animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        กำลังอัปเดตข้อมูล...
+                      </span>
+                    )}
+                  </p>
                 </div>
 
                 {/* Export & Print Toolbar */}
@@ -2116,7 +2140,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              {loadingBookings ? (
+              {loadingBookings && bookings.length === 0 ? (
                 <div className="py-16 text-center text-slate-400 space-y-2">
                   <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
                   <p className="text-xs">กำลังโหลดข้อมูลคิว...</p>
