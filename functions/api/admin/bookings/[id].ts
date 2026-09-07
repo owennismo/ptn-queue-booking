@@ -14,7 +14,19 @@ export async function onRequestPatch(context: { params: any; request: Request; e
 
     const id = params.id;
     const body: any = await request.json();
-    const { status, admin_reason, actual_pallet_count, receiving_notes, received_by, receiving_photo_url, receiving_photo_urls, photo_urls, photo_url } = body;
+    const {
+      status,
+      admin_reason,
+      actual_pallet_count,
+      receiving_notes,
+      received_by,
+      receiving_photo_url,
+      receiving_photo_urls,
+      photo_urls,
+      photo_url,
+      requested_date,
+      requested_time,
+    } = body;
     const operatorName = auth.payload?.operator || 'Admin';
     const clientIp = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
 
@@ -33,6 +45,18 @@ export async function onRequestPatch(context: { params: any; request: Request; e
     }
 
     const store = new DataStore(env);
+    const existing = await store.getBookingById(id);
+    if (!existing) {
+      return new Response(JSON.stringify({ error: 'ไม่พบรายการจองนี้' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      });
+    }
+
+    const dateChanged = requested_date && requested_date !== existing.requested_date;
+    const timeChanged = requested_time && requested_time !== existing.requested_time;
+    const isRescheduled = Boolean(dateChanged || timeChanged);
+
     const updated = await store.updateBookingStatus(
       id,
       status,
@@ -47,12 +71,14 @@ export async function onRequestPatch(context: { params: any; request: Request; e
         receiving_photo_urls: receiving_photo_urls !== undefined ? receiving_photo_urls : undefined,
         photo_url: photo_url !== undefined ? photo_url : undefined,
         photo_urls: photo_urls !== undefined ? photo_urls : undefined,
+        requested_date: requested_date !== undefined ? requested_date : undefined,
+        requested_time: requested_time !== undefined ? requested_time : undefined,
       }
     );
 
     if (!updated) {
-      return new Response(JSON.stringify({ error: 'ไม่พบรายการจองนี้' }), {
-        status: 404,
+      return new Response(JSON.stringify({ error: 'ไม่สามารถอัปเดตรายการจองนี้ได้' }), {
+        status: 500,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       });
     }
@@ -64,7 +90,14 @@ export async function onRequestPatch(context: { params: any; request: Request; e
         let title = '🔔 อัปเดตสถานะคิวส่งสินค้า!';
         let body = `คิว ${updated.booking_id} (${updated.carrier_name}) เปลี่ยนสถานะเป็น "${status}"`;
 
-        if (status === 'Approved') {
+        if (isRescheduled) {
+          title = '📅 ปรับเปลี่ยนวัน-เวลานัดหมายคิวส่งสินค้า!';
+          body = `คิว ${updated.booking_id} (${updated.carrier_name}) ปรับเปลี่ยนนัดหมายเป็น: วันที่ ${updated.requested_date} รอบเวลา ${updated.requested_time} [สถานะ: ${status}]`;
+          if (status === 'Approved') {
+            title = '🎉 อนุมัติและปรับเวลานัดหมายคิวส่งสินค้า!';
+            body = `คิว ${updated.booking_id} ได้รับการอนุมัติแล้ว นัดเข้าส่งวันที่ ${updated.requested_date} รอบเวลา ${updated.requested_time}`;
+          }
+        } else if (status === 'Approved') {
           title = '🎉 คิวส่งสินค้าได้รับการอนุมัติแล้ว!';
           body = `คิว ${updated.booking_id} (${updated.requested_date} ${updated.requested_time}) ได้รับการอนุมัติแล้ว พร้อมเข้าส่งสินค้าได้`;
         } else if (status === 'Rejected') {

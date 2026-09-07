@@ -234,6 +234,12 @@ export default function AdminDashboardPage() {
   const [editActualPalletInput, setEditActualPalletInput] = useState<number | string>('');
   const [editReceivingNotesInput, setEditReceivingNotesInput] = useState('');
   const [statusSubmitting, setStatusSubmitting] = useState(false);
+  const [editRequestedDate, setEditRequestedDate] = useState<string>('');
+  const [editRequestedTime, setEditRequestedTime] = useState<string>('');
+  const [modalSlots, setModalSlots] = useState<any[]>([]);
+  const [loadingModalSlots, setLoadingModalSlots] = useState<boolean>(false);
+  const [modalDateBlocked, setModalDateBlocked] = useState<boolean>(false);
+  const [modalDateBlockReason, setModalDateBlockReason] = useState<string | null>(null);
 
   // Complete Receiving & Goods Inspection Modal State
   const [completeModalOpen, setCompleteModalOpen] = useState(false);
@@ -919,6 +925,31 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Fetch slots and availability for modal date picker
+  const fetchModalSlots = useCallback(async (dateStr: string) => {
+    if (!dateStr) return;
+    setLoadingModalSlots(true);
+    try {
+      const res = await fetch(`/api/availability?date=${dateStr}`);
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setModalDateBlocked(false);
+        setModalDateBlockReason(null);
+        setModalSlots([]);
+      } else {
+        setModalDateBlocked(Boolean(data.is_blocked));
+        setModalDateBlockReason(data.block_reason || null);
+        const active = (data.slots || []).filter((s: any) => s.is_active !== 0);
+        setModalSlots(active);
+      }
+    } catch (e) {
+      console.error('Failed to load slots for modal:', e);
+      setModalSlots([]);
+    } finally {
+      setLoadingModalSlots(false);
+    }
+  }, []);
+
   // Open Edit Queue Status Modal
   const openEditStatusModal = (booking: Booking) => {
     setEditingStatusBooking(booking);
@@ -926,6 +957,9 @@ export default function AdminDashboardPage() {
     setStatusChangeReason('');
     setEditActualPalletInput(booking.actual_pallet_count !== undefined && booking.actual_pallet_count !== null ? booking.actual_pallet_count : booking.pallet_count);
     setEditReceivingNotesInput(booking.receiving_notes || '');
+    setEditRequestedDate(booking.requested_date);
+    setEditRequestedTime(booking.requested_time);
+    fetchModalSlots(booking.requested_date);
     setEditStatusModalOpen(true);
   };
 
@@ -939,11 +973,27 @@ export default function AdminDashboardPage() {
       return;
     }
 
+    if (!editRequestedDate) {
+      showToast('กรุณาระบุวันที่เข้าส่งสินค้า', 'error');
+      return;
+    }
+
+    if (!editRequestedTime) {
+      showToast('กรุณาเลือกรอบเวลาเข้าส่งสินค้า', 'error');
+      return;
+    }
+
     setStatusSubmitting(true);
     try {
+      const isDateChanged = editRequestedDate !== editingStatusBooking.requested_date;
+      const isTimeChanged = editRequestedTime !== editingStatusBooking.requested_time;
+      const isRescheduled = Boolean(isDateChanged || isTimeChanged);
+
       const payload: any = {
         status: targetStatus,
         admin_reason: statusChangeReason.trim() || `ปรับเปลี่ยนสถานะเป็น ${targetStatus} โดย ${operatorName}`,
+        requested_date: editRequestedDate,
+        requested_time: editRequestedTime,
       };
 
       if (targetStatus === 'Completed' || targetStatus === 'Receiving') {
@@ -963,7 +1013,12 @@ export default function AdminDashboardPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      showToast(`แก้ไขสถานะคิว ${editingStatusBooking.booking_id} เป็น "${targetStatus}" เรียบร้อยแล้ว`);
+      let successMsg = `แก้ไขสถานะคิว ${editingStatusBooking.booking_id} เป็น "${targetStatus}" เรียบร้อยแล้ว`;
+      if (isRescheduled) {
+        successMsg += ` พร้อมปรับเปลี่ยนนัดหมายเป็น ${formatThaiShortDate(editRequestedDate)} (${editRequestedTime}) และส่งแจ้งเตือนไปยังผู้จองแล้ว`;
+      }
+      showToast(successMsg);
+
       setEditStatusModalOpen(false);
       setEditingStatusBooking(null);
       setStatusChangeReason('');
@@ -3757,6 +3812,100 @@ export default function AdminDashboardPage() {
               <div className="text-slate-600 text-[11px]">
                 ผู้ส่ง: <strong>{editingStatusBooking.client_name}</strong> | วันที่: <strong>{formatThaiShortDate(editingStatusBooking.requested_date)}</strong> ({editingStatusBooking.requested_time})
               </div>
+            </div>
+
+            {/* 📅 RESCHEDULE: Change Date & Time Slot */}
+            <div className="p-4 bg-amber-50/60 rounded-2xl border border-amber-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-amber-600" />
+                  <span>กำหนดวันและรอบเวลาเข้าส่งใหม่</span>
+                </label>
+                {(editRequestedDate !== editingStatusBooking.requested_date || editRequestedTime !== editingStatusBooking.requested_time) && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900 flex items-center gap-1 animate-pulse">
+                    <Sparkles className="w-3 h-3 text-amber-700" /> มีการปรับเปลี่ยนนัดหมาย
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Date Picker */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-700 block">
+                    วันที่เข้าส่งสินค้า <span className="text-rose-500">*</span>
+                  </label>
+                  <ThaiDatePicker
+                    value={editRequestedDate}
+                    onChange={(newDate) => {
+                      setEditRequestedDate(newDate);
+                      fetchModalSlots(newDate);
+                    }}
+                    disableSundays={false}
+                    placeholder="เลือกวันที่นัดหมาย"
+                    className="py-2 px-3 text-xs bg-white rounded-xl"
+                  />
+                  {modalDateBlocked && (
+                    <p className="text-[10px] text-rose-600 font-medium mt-0.5 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" />
+                      <span>{modalDateBlockReason || 'วันที่นี้ถูกปิดรับจองหรือเป็นวันหยุด'}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Time Slot Picker */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                    <span>รอบเวลาเข้าส่ง <span className="text-rose-500">*</span></span>
+                    {loadingModalSlots && <span className="text-[10px] text-slate-400 animate-pulse">กำลังโหลดรอบ...</span>}
+                  </label>
+                  <select
+                    value={editRequestedTime}
+                    onChange={(e) => setEditRequestedTime(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  >
+                    {/* If current time is not in standard slots, include it as an option */}
+                    {editRequestedTime && !modalSlots.some((s: any) => s.slot_name === editRequestedTime) && (
+                      <option value={editRequestedTime}>
+                        {editRequestedTime} (รอบเดิมของคิวนี้)
+                      </option>
+                    )}
+                    {modalSlots.length > 0 ? (
+                      modalSlots.map((s: any) => (
+                        <option key={s.id || s.slot_name} value={s.slot_name}>
+                          {s.slot_name} {s.booked_count !== undefined ? `(จองแล้ว ${s.booked_count}/${s.max_capacity || 4} คิว)` : ''}
+                        </option>
+                      ))
+                    ) : (
+                      slots.filter((s: any) => s.is_active !== 0).map((s: any) => (
+                        <option key={s.id || s.slot_name} value={s.slot_name}>
+                          {s.slot_name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              {/* Reschedule Comparison Box */}
+              {(editRequestedDate !== editingStatusBooking.requested_date || editRequestedTime !== editingStatusBooking.requested_time) && (
+                <div className="p-3 rounded-xl bg-amber-100/80 border border-amber-300 text-[11px] text-amber-950 space-y-1.5">
+                  <div className="flex items-start gap-2">
+                    <Clock className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="text-slate-500 line-through">
+                        เดิม: {formatThaiShortDate(editingStatusBooking.requested_date)} ({editingStatusBooking.requested_time})
+                      </div>
+                      <div className="font-bold text-amber-950 text-xs">
+                        ➔ ใหม่: {formatThaiShortDate(editRequestedDate)} ({editRequestedTime})
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-amber-800 flex items-center gap-1.5 pt-1 border-t border-amber-200 font-medium">
+                    <Bell className="w-3.5 h-3.5 text-amber-700 shrink-0 animate-bounce" />
+                    <span>ระบบจะส่งแจ้งเตือน Web Push ไปยังเครื่องผู้จองคิวทันทีที่บันทึกข้อมูล</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Choose Target Status */}

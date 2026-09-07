@@ -64,6 +64,9 @@ export default function BookingDetailPage({
   const [galleryOpen, setGalleryOpen] = useState<boolean>(false);
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(DEFAULT_SYSTEM_SETTINGS);
   const prevStatusRef = useRef<string | null>(null);
+  const prevDateRef = useRef<string | null>(null);
+  const prevTimeRef = useRef<string | null>(null);
+  const [rescheduleAlert, setRescheduleAlert] = useState<{ date: string; time: string; oldDate: string; oldTime: string } | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -143,13 +146,33 @@ export default function BookingDetailPage({
 
       const fetchedBooking: Booking = data.booking;
 
-      // 🔔 Trigger Web Push Notification if status changed
-      if (prevStatusRef.current && prevStatusRef.current !== fetchedBooking.status) {
+      const dateChanged = prevDateRef.current && prevDateRef.current !== fetchedBooking.requested_date;
+      const timeChanged = prevTimeRef.current && prevTimeRef.current !== fetchedBooking.requested_time;
+      const isRescheduled = Boolean(dateChanged || timeChanged);
+      const isStatusChanged = prevStatusRef.current && prevStatusRef.current !== fetchedBooking.status;
+
+      // 🔔 Trigger Web Push Notification if status or date/time changed
+      if (isRescheduled || isStatusChanged) {
         const newSt = fetchedBooking.status;
         let title = '🔔 อัปเดตสถานะคิวส่งสินค้า!';
         let body = `คิว ${fetchedBooking.booking_id} (${fetchedBooking.carrier_name}) เปลี่ยนสถานะเป็น "${newSt}"`;
 
-        if (newSt === 'Approved') {
+        if (isRescheduled) {
+          title = '📅 แจ้งเปลี่ยนวัน-เวลานัดหมายคิวส่งของ!';
+          body = `คิว ${fetchedBooking.booking_id} ปรับเปลี่ยนนัดหมายเป็น: วันที่ ${formatThaiShortDate(fetchedBooking.requested_date)} เวลา ${fetchedBooking.requested_time} [สถานะ: ${newSt}]`;
+          if (newSt === 'Approved') {
+            title = '🎉 คิวได้รับการอนุมัติและปรับเวลานัดหมาย!';
+            body = `คิว ${fetchedBooking.booking_id} ได้รับการอนุมัติแล้ว นัดเข้าส่งวันที่ ${formatThaiShortDate(fetchedBooking.requested_date)} เวลา ${fetchedBooking.requested_time}`;
+          }
+          if (prevDateRef.current && prevTimeRef.current) {
+            setRescheduleAlert({
+              date: fetchedBooking.requested_date,
+              time: fetchedBooking.requested_time,
+              oldDate: prevDateRef.current,
+              oldTime: prevTimeRef.current,
+            });
+          }
+        } else if (newSt === 'Approved') {
           title = '🎉 คิวส่งสินค้าได้รับการอนุมัติแล้ว!';
           body = `คิว ${fetchedBooking.booking_id} (${formatThaiShortDate(fetchedBooking.requested_date)} ${fetchedBooking.requested_time}) ได้รับการอนุมัติแล้ว พร้อมเข้าส่งสินค้าได้`;
         } else if (newSt === 'CheckedIn') {
@@ -178,6 +201,8 @@ export default function BookingDetailPage({
       }
 
       prevStatusRef.current = fetchedBooking.status;
+      prevDateRef.current = fetchedBooking.requested_date;
+      prevTimeRef.current = fetchedBooking.requested_time;
       setBooking(fetchedBooking);
     } catch (err: any) {
       setError(err.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
@@ -683,6 +708,36 @@ ${url}`;
           </div>
 
           <div className="p-6 sm:p-8 space-y-6">
+            {/* 📅 Reschedule Alert Banner */}
+            {rescheduleAlert && (
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 flex items-start gap-3.5 shadow-sm animate-in fade-in slide-in-from-top duration-300 no-print">
+                <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div className="flex-1 text-xs sm:text-sm">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-amber-900 text-sm sm:text-base">
+                      แจ้งปรับเปลี่ยนวัน-เวลานัดหมายเข้าส่งสินค้า
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => setRescheduleAlert(null)}
+                      className="text-slate-400 hover:text-slate-600 p-0.5"
+                      title="ปิดการแจ้งเตือน"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="mt-1 text-amber-900">
+                    เจ้าหน้าที่ได้ปรับเปลี่ยนเวลานัดหมายใหม่เป็น: <strong>{formatThaiDate(rescheduleAlert.date)}</strong> รอบเวลา <strong>{rescheduleAlert.time}</strong>
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5 line-through">
+                    (เวลานัดหมายเดิม: {formatThaiShortDate(rescheduleAlert.oldDate)} เวลา {rescheduleAlert.oldTime})
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Status Alert Banner */}
             <div className={`p-5 rounded-2xl border flex items-start gap-4 ${statusInfo.badgeBg}`}>
               <div className="shrink-0 mt-0.5">{statusInfo.icon}</div>

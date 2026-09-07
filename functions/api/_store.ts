@@ -1561,6 +1561,8 @@ export class DataStore {
       receiving_photo_urls?: string[];
       photo_url?: string | null;
       photo_urls?: string[];
+      requested_date?: string;
+      requested_time?: string;
     }
   ): Promise<Booking | null> {
     const cleanId = id.trim().toUpperCase();
@@ -1569,12 +1571,25 @@ export class DataStore {
 
     const item = bookings.find((b: Booking) => b.booking_id.toUpperCase() === cleanId);
     if (item) {
+      const oldDate = item.requested_date;
+      const oldTime = item.requested_time;
+      let rescheduleLog = '';
+
       item.status = status as any;
       item.admin_reason = reason || null;
       item.admin_action_date = nowStr;
       item.admin_action_by = actionBy;
 
       if (extra) {
+        if (extra.requested_date && extra.requested_date !== oldDate) {
+          item.requested_date = extra.requested_date;
+        }
+        if (extra.requested_time && extra.requested_time !== oldTime) {
+          item.requested_time = extra.requested_time;
+        }
+        if ((extra.requested_date && extra.requested_date !== oldDate) || (extra.requested_time && extra.requested_time !== oldTime)) {
+          rescheduleLog = ` [เปลี่ยนนัดหมาย: เดิม ${oldDate} (${oldTime}) ➔ ใหม่ ${item.requested_date} (${item.requested_time})]`;
+        }
         if (extra.actual_pallet_count !== undefined) {
           item.actual_pallet_count = extra.actual_pallet_count;
         }
@@ -1631,7 +1646,7 @@ export class DataStore {
 
       await this.addAuditLog(
         logAction,
-        `เปลี่ยนสถานะคิว ${cleanId} เป็น ${status}${receivingInfo}${reason ? ` (เหตุผล: ${reason})` : ''}`,
+        `เปลี่ยนสถานะคิว ${cleanId} เป็น ${status}${rescheduleLog}${receivingInfo}${reason ? ` (เหตุผล: ${reason})` : ''}`,
         actionBy,
         ip
       );
