@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   PlusCircle,
   X,
+  History,
 } from 'lucide-react';
 import { Booking } from '@/lib/types';
 import QRScannerModal from '@/components/QRScannerModal';
@@ -36,6 +37,14 @@ export default function TrackPage() {
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Booking[] | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  // Active / History Tab State
+  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
+
+  // Helper to distinguish Active Queues vs Completed/Past History
+  const isActiveQueue = (status: string) => {
+    return ['Pending', 'Approved', 'CheckedIn', 'Receiving'].includes(status);
+  };
 
   // Device Bookings state (Auto-loaded if booked on this device)
   const [deviceBookings, setDeviceBookings] = useState<Booking[]>([]);
@@ -66,7 +75,15 @@ export default function TrackPage() {
       const res = await fetch(`/api/bookings?ids=${encodeURIComponent(allIds.join(','))}`);
       const data = await res.json();
       if (res.ok && data.bookings) {
-        setDeviceBookings(data.bookings);
+        const list: Booking[] = data.bookings;
+        setDeviceBookings(list);
+        const hasActive = list.some((b) => isActiveQueue(b.status));
+        const hasHistory = list.some((b) => !isActiveQueue(b.status));
+        if (!hasActive && hasHistory) {
+          setActiveTab('history');
+        } else {
+          setActiveTab('active');
+        }
       } else {
         setDeviceBookings([]);
       }
@@ -115,6 +132,14 @@ export default function TrackPage() {
         setSearchResults(list);
         setSearchError(null);
 
+        const hasActive = list.some((b) => isActiveQueue(b.status));
+        const hasHistory = list.some((b) => !isActiveQueue(b.status));
+        if (!hasActive && hasHistory) {
+          setActiveTab('history');
+        } else {
+          setActiveTab('active');
+        }
+
         // Auto-save found IDs to device storage for convenience
         try {
           const myBookings: string[] = JSON.parse(localStorage.getItem('ptn_my_bookings') || '[]');
@@ -157,6 +182,13 @@ export default function TrackPage() {
     setQuery('');
     setSearchResults(null);
     setSearchError(null);
+    const hasActive = deviceBookings.some((b) => isActiveQueue(b.status));
+    const hasHistory = deviceBookings.some((b) => !isActiveQueue(b.status));
+    if (!hasActive && hasHistory) {
+      setActiveTab('history');
+    } else {
+      setActiveTab('active');
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -206,6 +238,11 @@ export default function TrackPage() {
     }
   };
 
+  // Current list depending on search state
+  const currentList = searchResults !== null ? searchResults : deviceBookings;
+  const activeItems = useMemo(() => currentList.filter((b) => isActiveQueue(b.status)), [currentList]);
+  const historyItems = useMemo(() => currentList.filter((b) => !isActiveQueue(b.status)), [currentList]);
+
   const renderBookingCard = (item: Booking) => (
     <Link
       key={item.booking_id}
@@ -254,6 +291,11 @@ export default function TrackPage() {
             <Package className="w-4 h-4 text-emerald-600 shrink-0" />
             {item.pallet_count} ลัง / {item.vehicle_count} คัน
           </span>
+          {item.status === 'Completed' && item.actual_pallet_count !== undefined && item.actual_pallet_count !== null && (
+            <span className="text-[11px] font-bold text-teal-700 block mt-0.5">
+              (รับเข้าจริง {item.actual_pallet_count} ลัง)
+            </span>
+          )}
         </div>
       </div>
 
@@ -407,99 +449,185 @@ export default function TrackPage() {
             </div>
           )}
 
-          {/* 🌟 SECTION A: SEARCH RESULTS (IF QUERY WAS ENTERED) */}
+          {/* 🌟 SECTION A: SEARCH RESULTS HEADER */}
           {searchResults !== null && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between px-1">
-                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <Search className="w-4 h-4 text-emerald-600" />
-                  <span>ผลการค้นหา ({searchResults.length} รายการ)</span>
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Search className="w-4 h-4 text-emerald-600" />
+                <span>ผลการค้นหา ({searchResults.length} รายการ)</span>
+              </h3>
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="text-xs font-semibold text-rose-600 hover:underline cursor-pointer"
+              >
+                ปิดผลการค้นหา
+              </button>
+            </div>
+          )}
+
+          {/* 🌟 SECTION B: DEVICE BOOKINGS HEADER */}
+          {searchResults === null && (
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-sm font-bold text-slate-800">
+                  คิวของคุณบนอุปกรณ์นี้
                 </h3>
-                <button
-                  type="button"
-                  onClick={handleClearSearch}
-                  className="text-xs font-semibold text-rose-600 hover:underline"
-                >
-                  ปิดผลการค้นหา
-                </button>
+                {deviceBookings.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                    {deviceBookings.length} รายการ
+                  </span>
+                )}
               </div>
 
-              {searchResults.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 space-y-2 bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
-                  <Calendar className="w-10 h-10 mx-auto text-slate-300" />
-                  <p className="text-sm font-semibold text-slate-600">ไม่พบคิวที่ตรงกับข้อมูลที่ค้นหา</p>
-                  <p className="text-xs text-slate-400">กรุณาตรวจสอบความถูกต้องของรหัสคิวหรือเบอร์โทรศัพท์อีกครั้ง</p>
-                </div>
-              ) : (
-                searchResults.map(renderBookingCard)
+              {deviceBookings.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => fetchDeviceBookings(true)}
+                  disabled={refreshingDevice}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-emerald-700 transition cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshingDevice ? 'animate-spin text-emerald-600' : ''}`} />
+                  <span>รีเฟรช</span>
+                </button>
               )}
             </div>
           )}
 
-          {/* 🌟 SECTION B: DEVICE BOOKINGS (AUTO-SHOWN IF BOOKED ON THIS DEVICE) */}
-          {searchResults === null && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <div className="flex items-center gap-2">
-                  <Smartphone className="w-4 h-4 text-emerald-600" />
-                  <h3 className="text-sm font-bold text-slate-800">
-                    คิวของคุณบนอุปกรณ์นี้
-                  </h3>
-                  {deviceBookings.length > 0 && (
-                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
-                      {deviceBookings.length} คิว
-                    </span>
-                  )}
-                </div>
+          {/* 🔍 Search Results Empty State */}
+          {searchResults !== null && searchResults.length === 0 && (
+            <div className="py-12 text-center text-slate-400 space-y-2 bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
+              <Calendar className="w-10 h-10 mx-auto text-slate-300" />
+              <p className="text-sm font-semibold text-slate-600">ไม่พบคิวที่ตรงกับข้อมูลที่ค้นหา</p>
+              <p className="text-xs text-slate-400">กรุณาตรวจสอบความถูกต้องของรหัสคิวหรือเบอร์โทรศัพท์อีกครั้ง</p>
+            </div>
+          )}
 
-                {deviceBookings.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => fetchDeviceBookings(true)}
-                    disabled={refreshingDevice}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-emerald-700 transition"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${refreshingDevice ? 'animate-spin text-emerald-600' : ''}`} />
-                    <span>รีเฟรช</span>
-                  </button>
-                )}
+          {/* 📱 Device Loading State */}
+          {searchResults === null && loadingDevice && (
+            <div className="py-12 text-center text-slate-400 space-y-2 bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
+              <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs">กำลังตรวจสอบประวัติการจองบนอุปกรณ์นี้...</p>
+            </div>
+          )}
+
+          {/* 🛡️ PRIVACY EMPTY STATE (NO DEVICE BOOKINGS) */}
+          {searchResults === null && !loadingDevice && deviceBookings.length === 0 && (
+            <div className="bg-white rounded-3xl border border-slate-200/90 p-8 text-center space-y-4 shadow-sm">
+              <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto border border-emerald-150">
+                <ShieldCheck className="w-7 h-7" />
+              </div>
+              <div className="max-w-md mx-auto space-y-1.5">
+                <h3 className="text-base font-bold text-slate-800">
+                  ยังไม่มีประวัติการจองคิวบนอุปกรณ์นี้
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  ระบบจะบันทึกและแสดงคิวที่คุณจองจากโทรศัพท์หรือคอมพิวเตอร์เครื่องนี้ให้อัตโนมัติ<br />
+                  หากคุณเคยจองไว้จากอุปกรณ์อื่น สามารถใช้ <strong>ช่องค้นหาด้านบน</strong> กรอกรหัสคิวหรือเบอร์โทรศัพท์เพื่อติดตามสถานะได้ทันทีครับ
+                </p>
               </div>
 
-              {loadingDevice ? (
-                <div className="py-12 text-center text-slate-400 space-y-2 bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
-                  <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
-                  <p className="text-xs">กำลังตรวจสอบประวัติการจองบนอุปกรณ์นี้...</p>
-                </div>
-              ) : deviceBookings.length > 0 ? (
-                <div className="space-y-3">
-                  {deviceBookings.map(renderBookingCard)}
-                </div>
-              ) : (
-                /* 🛡️ PRIVACY EMPTY STATE (NO STRANGER DATA IS EXPOSED) */
-                <div className="bg-white rounded-3xl border border-slate-200/90 p-8 text-center space-y-4 shadow-sm">
-                  <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto border border-emerald-150">
-                    <ShieldCheck className="w-7 h-7" />
-                  </div>
-                  <div className="max-w-md mx-auto space-y-1.5">
-                    <h3 className="text-base font-bold text-slate-800">
-                      ยังไม่มีประวัติการจองคิวบนอุปกรณ์นี้
-                    </h3>
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                      ระบบจะบันทึกและแสดงคิวที่คุณจองจากโทรศัพท์หรือคอมพิวเตอร์เครื่องนี้ให้อัตโนมัติ<br />
-                      หากคุณเคยจองไว้จากอุปกรณ์อื่น สามารถใช้ <strong>ช่องค้นหาด้านบน</strong> กรอกรหัสคิวหรือเบอร์โทรศัพท์เพื่อติดตามสถานะได้ทันทีครับ
-                    </p>
-                  </div>
+              <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md shadow-emerald-200 transition"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  จองคิวส่งสินค้าทันที
+                </Link>
+              </div>
+            </div>
+          )}
 
-                  <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
-                    <Link
-                      href="/"
-                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md shadow-emerald-200 transition"
-                    >
-                      <PlusCircle className="w-4 h-4" />
-                      จองคิวส่งสินค้าทันที
-                    </Link>
+          {/* 🗂️ 2-TAB CONTAINER: ACTIVE QUEUES vs COMPLETED HISTORY */}
+          {currentList.length > 0 && !(searchResults !== null && searchResults.length === 0) && (
+            <div className="space-y-4">
+              {/* Tab Navigation Buttons */}
+              <div className="flex items-center p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('active')}
+                  className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
+                    activeTab === 'active'
+                      ? 'bg-white text-emerald-950 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  }`}
+                >
+                  <Clock className={`w-4 h-4 ${activeTab === 'active' ? 'text-emerald-600' : 'text-slate-400'}`} />
+                  <span>คิวที่ต้องเข้าส่ง</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
+                    activeTab === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {activeItems.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('history')}
+                  className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
+                    activeTab === 'history'
+                      ? 'bg-white text-teal-950 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  }`}
+                >
+                  <CheckCircle2 className={`w-4 h-4 ${activeTab === 'history' ? 'text-teal-600' : 'text-slate-400'}`} />
+                  <span>ประวัติการส่งสำเร็จ</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
+                    activeTab === 'history' ? 'bg-teal-100 text-teal-800' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {historyItems.length}
+                  </span>
+                </button>
+              </div>
+
+              {/* TAB 1 CONTENT: ACTIVE QUEUES */}
+              {activeTab === 'active' && (
+                activeItems.length > 0 ? (
+                  <div className="space-y-3">
+                    {activeItems.map(renderBookingCard)}
                   </div>
-                </div>
+                ) : (
+                  <div className="py-10 text-center text-slate-500 space-y-3 bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                      <CheckCircle2 className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-800">ไม่มีคิวที่รอดำเนินการเข้าส่งในขณะนี้</h4>
+                      <p className="text-xs text-slate-500 mt-1">คิวทั้งหมดได้รับการตรวจรับเรียบร้อยแล้ว หรือยังไม่มีการจองคิวรอบใหม่</p>
+                    </div>
+                    {historyItems.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('history')}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 text-xs font-bold transition border border-teal-200 cursor-pointer shadow-xs"
+                      >
+                        <History className="w-4 h-4 text-teal-600" />
+                        <span>ดูประวัติการส่งสำเร็จ ({historyItems.length} รายการ)</span>
+                      </button>
+                    )}
+                  </div>
+                )
+              )}
+
+              {/* TAB 2 CONTENT: COMPLETED HISTORY */}
+              {activeTab === 'history' && (
+                historyItems.length > 0 ? (
+                  <div className="space-y-3">
+                    {historyItems.map(renderBookingCard)}
+                  </div>
+                ) : (
+                  <div className="py-10 text-center text-slate-500 space-y-2 bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                      <History className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-800">ยังไม่มีประวัติการส่งสำเร็จ</h4>
+                      <p className="text-xs text-slate-500 mt-1">เมื่อเจ้าหน้าที่คลังตรวจรับสินค้าเสร็จสิ้น คิวจะถูกบันทึกมาไว้ที่หน้านี้</p>
+                    </div>
+                  </div>
+                )
               )}
             </div>
           )}
