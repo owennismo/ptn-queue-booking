@@ -1043,9 +1043,17 @@ export default function AdminDashboardPage() {
           const uploadData = await uploadRes.json();
           if (uploadRes.ok && uploadData.url) {
             finalReceivingPhotoUrl = uploadData.url;
+          } else {
+            console.error('Failed to upload receiving photo:', uploadData);
+            showToast(uploadData.error || '⚠️ ไม่สามารถอัปโหลดรูปภาพตรวจรับได้ กรุณาลองใหม่อีกครั้ง', 'error');
+            setCompleteSubmitting(false);
+            return;
           }
-        } catch (uploadErr) {
+        } catch (uploadErr: any) {
           console.error('Failed to upload receiving photo:', uploadErr);
+          showToast('⚠️ เกิดข้อผิดพลาดในการส่งรูปภาพตรวจรับสินค้า', 'error');
+          setCompleteSubmitting(false);
+          return;
         }
       }
 

@@ -259,7 +259,7 @@ export class DataStore {
     return this.env?.PTN_PHOTOS || this.env?.PHOTOS_BUCKET || this.env?.R2_BUCKET;
   }
 
-  // --- PHOTO & R2 OBJECT STORAGE METHODS ---
+  // --- PHOTO & OBJECT STORAGE METHODS (KV & R2) ---
   async savePhoto(
     key: string,
     buffer: ArrayBuffer,
@@ -268,6 +268,7 @@ export class DataStore {
   ): Promise<{ url: string; key: string }> {
     const uploadedAt = metadata?.uploadedAt || new Date().toISOString();
 
+    // 1. Try R2 if configured and bound
     if (this.r2) {
       try {
         await this.r2.put(key, buffer, {
@@ -286,13 +287,31 @@ export class DataStore {
       }
     }
 
-    // Store in fallback photo map
+    // 2. Persist in Cloudflare KV (Guaranteed persistent storage on Cloudflare edge network)
+    if (this.kv) {
+      try {
+        await this.kv.put(key, buffer, {
+          metadata: {
+            mimeType,
+            uploadedAt,
+            originalName: metadata?.originalName || 'photo',
+            bookingId: metadata?.bookingId || '',
+          },
+          // Auto-expire after 180 days (180 * 24 * 60 * 60 = 15,552,000s)
+          expirationTtl: 15552000,
+        });
+      } catch (e) {
+        console.error('KV put photo error:', e);
+      }
+    }
+
+    // 3. Store in in-memory L1 cache for immediate fast retrieval within the same isolate
     if (!globalStore.photos) {
       globalStore.photos = new Map<string, { buffer: ArrayBuffer; mimeType: string; uploadedAt: string }>();
     }
     globalStore.photos.set(key, { buffer, mimeType, uploadedAt });
 
-    // Periodic check to clean up items older than 180 days (180 * 24 * 60 * 60 * 1000 ms)
+    // Periodic check to clean up items older than 180 days
     this.cleanupExpiredPhotos().catch(() => {});
 
     return {
@@ -302,6 +321,13 @@ export class DataStore {
   }
 
   async getPhoto(key: string): Promise<{ buffer: ArrayBuffer; mimeType: string; etag?: string } | null> {
+    // 1. Check in-memory L1 cache
+    if (globalStore.photos && globalStore.photos.has(key)) {
+      const item = globalStore.photos.get(key)!;
+      return { buffer: item.buffer, mimeType: item.mimeType };
+    }
+
+    // 2. Try R2 if configured
     if (this.r2) {
       try {
         const object = await this.r2.get(key);
@@ -315,10 +341,54 @@ export class DataStore {
       }
     }
 
-    // Fallback store
-    if (globalStore.photos && globalStore.photos.has(key)) {
-      const item = globalStore.photos.get(key)!;
-      return { buffer: item.buffer, mimeType: item.mimeType };
+    // 3. Check Cloudflare KV (Persistent storage across all workers and restarts)
+    if (this.kv) {
+      try {
+        let res = await this.kv.getWithMetadata(key, 'arrayBuffer');
+        if (!res || !res.value) {
+          // Fallback key lookup: try with or without 'photos/' prefix
+          const altKey = key.startsWith('photos/') ? key.replace(/^photos\//, '') : `photos/${key}`;
+          res = await this.kv.getWithMetadata(altKey, 'arrayBuffer');
+        }
+
+        if (res && res.value) {
+          const mimeType =
+            (res.metadata as any)?.mimeType ||
+            (key.endsWith('.png')
+              ? 'image/png'
+              : key.endsWith('.jpg') || key.endsWith('.jpeg')
+              ? 'image/jpeg'
+              : 'image/webp');
+
+          let finalBuffer: ArrayBuffer;
+          if (typeof res.value === 'string') {
+            // If stored as base64 string
+            const base64 = (res.value as string).includes('base64,')
+              ? (res.value as string).split('base64,')[1]
+              : (res.value as string);
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            finalBuffer = bytes.buffer;
+          } else {
+            finalBuffer = res.value as ArrayBuffer;
+          }
+
+          // Cache in memory for subsequent hits
+          if (!globalStore.photos) {
+            globalStore.photos = new Map();
+          }
+          globalStore.photos.set(key, {
+            buffer: finalBuffer,
+            mimeType,
+            uploadedAt: (res.metadata as any)?.uploadedAt || new Date().toISOString(),
+          });
+
+          return { buffer: finalBuffer, mimeType };
+        }
+      } catch (e) {
+        console.error('KV get photo error:', e);
+      }
     }
 
     return null;
