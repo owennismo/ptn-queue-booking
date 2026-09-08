@@ -89,12 +89,12 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   contact_line_id: 'ptnexpress',
   contact_line_url: 'https://line.me/ti/p/~ptnexpress',
   booking_notice_text: 'คลังเปิดรับสินค้าจันทร์ - เสาร์ (หยุดวันอาทิตย์) ล่วงหน้าได้ 14 วัน',
-  booking_announcement: '',
-  booking_announcement_active: false,
+  booking_announcement: 'รบกวนถ่ายรูป บิลส่งของ หรือ สินค้า เข้ามาด้วยนะครับ',
+  booking_announcement_active: true,
   warehouse_address: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
   ticket_instruction: 'กรุณานำรถและสินค้าเข้าส่งตามวันและเวลาที่ระบุ พร้อมแสดงบัตรคิวและ QR Code นี้ต่อเจ้าหน้าที่รักษาความปลอดภัยและฝ่ายรับสินค้า',
-  admin_announcement: '',
-  admin_announcement_active: false,
+  admin_announcement: 'รับสินค้าเสร็จแล้ว ถ่ายรูปสินค้า หรือ บิล แนบมาให้ด้วยนะครับ',
+  admin_announcement_active: true,
 };
 
 export interface PushSubscriptionRecord {

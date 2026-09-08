@@ -35,6 +35,7 @@ import {
   Zap,
   RotateCcw,
   Loader2,
+  Bell,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { formatThaiDate, formatThaiShortDate, formatPhoneMask } from '@/lib/dateUtils';
@@ -636,20 +637,29 @@ export default function BookingPage() {
             <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
           </div>
 
-          {/* 📢 Emergency Announcement Banner (Controlled by Super Admin) */}
+          {/* 📢 Announcement Banner (Large & Eye-catching) */}
           {systemSettings.booking_announcement_active && systemSettings.booking_announcement && (
-            <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-orange-500/15 border-2 border-amber-400/60 rounded-3xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm text-amber-950 animate-in fade-in duration-300">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/30 mt-0.5">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <div className="font-extrabold text-sm sm:text-base text-amber-900 flex items-center gap-2">
-                  <span>ประกาศสำคัญจากคลังสินค้า</span>
-                  <span className="text-[10px] bg-amber-200 text-amber-900 px-2.5 py-0.5 rounded-full font-bold">แจ้งเตือน</span>
+            <div className="relative overflow-hidden bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-3xl p-5 sm:p-7 text-white shadow-xl shadow-amber-500/25 border-2 border-amber-300 animate-in fade-in duration-300">
+              {/* Background ambient blur */}
+              <div className="absolute -right-8 -bottom-8 w-44 h-44 bg-white/15 rounded-full blur-2xl pointer-events-none" />
+              <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white text-amber-600 flex items-center justify-center shrink-0 shadow-lg shadow-black/10">
+                  <Bell className="w-7 h-7 sm:w-8 sm:h-8 text-amber-600 animate-bounce" />
                 </div>
-                <p className="text-xs sm:text-sm text-amber-900/90 whitespace-pre-line leading-relaxed font-medium">
-                  {systemSettings.booking_announcement}
-                </p>
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 bg-white/20 border border-white/35 backdrop-blur-xs text-white text-xs sm:text-sm font-black px-3.5 py-1 rounded-full uppercase tracking-wider">
+                      <AlertTriangle className="w-4 h-4 text-amber-200 shrink-0" />
+                      ประกาศสำคัญจากคลังสินค้า
+                    </span>
+                    <span className="bg-rose-500 text-white text-xs font-black px-3 py-1 rounded-full shadow-xs animate-pulse">
+                      แจ้งเตือน
+                    </span>
+                  </div>
+                  <p className="text-lg sm:text-2xl md:text-3xl font-black text-white leading-snug whitespace-pre-line tracking-tight drop-shadow-sm">
+                    {systemSettings.booking_announcement}
+                  </p>
+                </div>
               </div>
             </div>
           )}

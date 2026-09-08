@@ -1803,13 +1803,26 @@ export default function AdminDashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
-        {/* Admin Internal Announcement Banner */}
+        {/* Admin Internal Announcement Banner (Large & Eye-catching) */}
         {systemSettings.admin_announcement_active && systemSettings.admin_announcement && (
-          <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-orange-500/15 border border-amber-500/40 text-amber-950 px-5 py-3.5 rounded-2xl flex items-start sm:items-center gap-3 shadow-xs no-print">
-            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
-            <div className="flex-1 text-xs sm:text-sm">
-              <span className="font-extrabold text-amber-800 mr-2">[ประกาศภายในคลังสินค้า]:</span>
-              <span className="font-medium text-amber-950 leading-relaxed">{systemSettings.admin_announcement}</span>
+          <div className="relative overflow-hidden bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-3xl p-5 sm:p-6 text-white shadow-xl shadow-amber-500/20 border-2 border-amber-300 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 no-print animate-in fade-in duration-300">
+            <div className="absolute -right-8 -bottom-8 w-36 h-36 bg-white/15 rounded-full blur-2xl pointer-events-none" />
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white text-amber-600 flex items-center justify-center shrink-0 shadow-lg shadow-black/10">
+              <Bell className="w-7 h-7 sm:w-8 sm:h-8 text-amber-600 animate-bounce" />
+            </div>
+            <div className="flex-1 space-y-1.5 relative z-10">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 bg-white/20 border border-white/35 backdrop-blur-xs text-white text-xs sm:text-sm font-black px-3.5 py-1 rounded-full uppercase tracking-wider">
+                  <AlertCircle className="w-4 h-4 text-amber-200 shrink-0" />
+                  ประกาศภายในสำหรับเจ้าหน้าที่ (Internal Announcement)
+                </span>
+                <span className="bg-rose-500 text-white text-xs font-black px-3 py-1 rounded-full shadow-xs animate-pulse">
+                  สำคัญ
+                </span>
+              </div>
+              <p className="text-lg sm:text-2xl md:text-3xl font-black text-white leading-snug tracking-tight drop-shadow-sm whitespace-pre-line">
+                {systemSettings.admin_announcement}
+              </p>
             </div>
           </div>
         )}
@@ -3227,13 +3240,18 @@ export default function AdminDashboardPage() {
                       </label>
                     </div>
 
-                    <textarea
-                      rows={2}
-                      value={systemSettings.booking_announcement || ''}
-                      onChange={(e) => setSystemSettings({ ...systemSettings, booking_announcement: e.target.value })}
-                      placeholder="ตัวอย่าง: คลังปิดทำการช่วงเทศกาลสงกรานต์ 12-16 เม.ย. จะเปิดรับส่งของปกติวันที่ 17 เม.ย. เป็นต้นไป"
-                      className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs text-amber-950 focus:ring-2 focus:ring-amber-500"
-                    />
+                    <div className="space-y-1.5">
+                      <p className="text-2xs text-amber-800 font-medium">
+                        ข้อความนี้จะแสดงเป็นแถบประกาศขนาดใหญ่พิเศษและสะดุดตาบนหน้าจองคิวสำหรับผู้มาติดต่อทุกคน
+                      </p>
+                      <textarea
+                        rows={3}
+                        value={systemSettings.booking_announcement || ''}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, booking_announcement: e.target.value })}
+                        placeholder="ตัวอย่าง: รบกวนถ่ายรูปบิลส่งของ หรือสินค้า เข้ามาด้วยนะครับ"
+                        className="w-full px-3.5 py-2.5 bg-white border border-amber-300 rounded-xl text-sm sm:text-base font-bold text-amber-950 focus:ring-2 focus:ring-amber-500 shadow-2xs"
+                      />
+                    </div>
                   </div>
 
                   {/* ข้อกำหนดและเงื่อนไขหน้าจองคิว */}
@@ -3337,13 +3355,18 @@ export default function AdminDashboardPage() {
                       </label>
                     </div>
 
-                    <textarea
-                      rows={3}
-                      value={systemSettings.admin_announcement || ''}
-                      onChange={(e) => setSystemSettings({ ...systemSettings, admin_announcement: e.target.value })}
-                      placeholder="ตัวอย่าง: ประกาศเจ้าหน้าที่: สัปดาห์นี้มีตรวจนับสต็อกใหญ่ รถส่งของอาจมีความล่าช้าในการขึ้นของ 10-15 นาที"
-                      className="w-full px-3 py-2 bg-white border border-cyan-300 rounded-xl text-xs text-cyan-950 focus:ring-2 focus:ring-cyan-500"
-                    />
+                    <div className="space-y-1.5">
+                      <p className="text-2xs text-cyan-900 font-medium">
+                        ข้อความนี้จะแสดงเป็นแถบประกาศขนาดใหญ่พิเศษและสะดุดตาบนหน้า Admin Dashboard ให้เจ้าหน้าที่ทุกคนเห็น
+                      </p>
+                      <textarea
+                        rows={3}
+                        value={systemSettings.admin_announcement || ''}
+                        onChange={(e) => setSystemSettings({ ...systemSettings, admin_announcement: e.target.value })}
+                        placeholder="ตัวอย่าง: รับสินค้าเสร็จแล้ว ถ่ายรูปสินค้า หรือ บิล แนบมาให้ด้วยนะครับ"
+                        className="w-full px-3.5 py-2.5 bg-white border border-cyan-300 rounded-xl text-sm sm:text-base font-bold text-cyan-950 focus:ring-2 focus:ring-cyan-500 shadow-2xs"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -3385,10 +3408,26 @@ export default function AdminDashboardPage() {
                   {/* Emergency Banner Preview */}
                   {systemSettings.booking_announcement_active && systemSettings.booking_announcement && (
                     <div>
-                      <span className="text-2xs text-slate-400 block mb-1">ตัวอย่างแถบประกาศฉุกเฉินบนหน้าจองคิว (Public Banner):</span>
-                      <div className="bg-amber-500/20 border border-amber-500/50 text-amber-200 px-4 py-2.5 rounded-xl flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                        <span className="font-semibold">{systemSettings.booking_announcement}</span>
+                      <span className="text-2xs text-slate-400 block mb-1 font-bold">ตัวอย่างแถบประกาศบนหน้าจองคิว (Public Banner Preview):</span>
+                      <div className="relative overflow-hidden bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-2xl p-4 text-white shadow-md border border-amber-300">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-white text-amber-600 flex items-center justify-center shrink-0 shadow-sm">
+                            <Bell className="w-5 h-5 text-amber-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold uppercase">
+                                ประกาศสำคัญจากคลังสินค้า
+                              </span>
+                              <span className="bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full">
+                                แจ้งเตือน
+                              </span>
+                            </div>
+                            <p className="text-sm sm:text-base font-black text-white leading-snug truncate">
+                              {systemSettings.booking_announcement}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -3416,10 +3455,26 @@ export default function AdminDashboardPage() {
                   {/* Admin Banner Preview */}
                   {systemSettings.admin_announcement_active && systemSettings.admin_announcement && (
                     <div>
-                      <span className="text-2xs text-slate-400 block mb-1">ตัวอย่างแถบประกาศภายในสำหรับเจ้าหน้าที่ (Admin Banner):</span>
-                      <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/40 text-amber-200 px-4 py-2.5 rounded-xl flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                        <span><strong className="text-amber-300 mr-1">[ประกาศภายใน]:</strong> {systemSettings.admin_announcement}</span>
+                      <span className="text-2xs text-slate-400 block mb-1 font-bold">ตัวอย่างแถบประกาศภายในสำหรับเจ้าหน้าที่ (Admin Banner Preview):</span>
+                      <div className="relative overflow-hidden bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-2xl p-4 text-white shadow-md border border-amber-300">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-white text-amber-600 flex items-center justify-center shrink-0 shadow-sm">
+                            <Bell className="w-5 h-5 text-amber-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold uppercase">
+                                ประกาศภายในสำหรับเจ้าหน้าที่
+                              </span>
+                              <span className="bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full">
+                                สำคัญ
+                              </span>
+                            </div>
+                            <p className="text-sm sm:text-base font-black text-white leading-snug truncate">
+                              {systemSettings.admin_announcement}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
