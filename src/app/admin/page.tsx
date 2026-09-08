@@ -2475,63 +2475,7 @@ export default function AdminDashboardPage() {
                                 </button>
                               )}
 
-                               {/* 4. Print Pallet Tag (Pallet Tag Print System) */}
-                               {!isSecurityOnly && (item.status === 'Approved' || item.status === 'CheckedIn' || item.status === 'Receiving' || item.status === 'Completed') && (
-                                 <button
-                                   type="button"
-                                   onClick={() => {
-                                     setPalletTagBooking(item);
-                                     setPalletTagModalOpen(true);
-                                   }}
-                                   className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-xs rounded-xl transition flex items-center gap-1 shadow-2xs shrink-0"
-                                   title="พิมพ์ป้ายปะหน้าพาเลทสินค้า (Pallet Tag)"
-                                 >
-                                   <Tag className="w-3.5 h-3.5 text-emerald-700" />
-                                   <span>ป้ายพาเลท</span>
-                                 </button>
-                               )}
-
-                              {/* 5. Master Edit / Override Status (for Super Admin & Warehouse Officer) */}
-                              {!isSecurityOnly && (
-                                <button
-                                  type="button"
-                                  onClick={() => openEditStatusModal(item)}
-                                  className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 font-bold text-xs rounded-xl transition flex items-center gap-1 shadow-2xs shrink-0"
-                                  title="แก้ไขหรือเปลี่ยนสถานะการอนุมัติคิวนี้"
-                                >
-                                  <Edit className="w-3.5 h-3.5 text-amber-700" />
-                                  <span>แก้ไขสถานะ</span>
-                                </button>
-                              )}
-
-                              {/* Multi-Step Cancel (Hidden for Security Gate) */}
-                              {!isSecurityOnly && (item.status === 'Approved' || item.status === 'CheckedIn' || item.status === 'Receiving') && (
-                                <button
-                                  onClick={() => {
-                                    setCancellingBooking(item);
-                                    setCancelReason('');
-                                    setConfirmCodeInput('');
-                                    setCancelStep(1);
-                                    setCancelError(null);
-                                    setCancelModalOpen(true);
-                                  }}
-                                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition shrink-0"
-                                  title="ยกเลิกคิว (ระบบป้องกัน)"
-                                >
-                                  ยกเลิก
-                                </button>
-                              )}
-
-                              {/* View Details */}
-                              <button
-                                onClick={() => setSelectedBooking(item)}
-                                className="p-1.5 text-slate-500 hover:text-slate-800 rounded-xl hover:bg-slate-100 transition shrink-0"
-                                title="ดูรายละเอียดบัตรคิว"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-
-                              {/* Delete Booking (Super Admin Only) */}
+                               {/* Delete Booking (Super Admin Only) */}
                               {isSuperAdmin && (
                                 <button
                                   type="button"
@@ -3702,7 +3646,7 @@ export default function AdminDashboardPage() {
 
       {/* ⚠️ MULTI-STEP CANCELLATION MODAL */}
       {cancelModalOpen && cancellingBooking && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <form onSubmit={handleCancelSubmit} className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 border border-slate-200">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div className="flex items-center gap-2 text-amber-600">
@@ -3780,7 +3724,7 @@ export default function AdminDashboardPage() {
 
       {/* 🛠️ EDIT / OVERRIDE QUEUE STATUS MODAL */}
       {editStatusModalOpen && editingStatusBooking && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <form
             onSubmit={handleEditStatusSubmit}
             className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 border border-slate-200 max-h-[90vh] overflow-y-auto"
@@ -4322,79 +4266,167 @@ export default function AdminDashboardPage() {
 
       {/* 📄 BOOKING DETAIL DRAWER / MODAL */}
       {selectedBooking && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 border border-slate-200 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl space-y-6 border border-slate-200 max-h-[92vh] overflow-y-auto my-auto animate-in fade-in duration-200">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-slate-100 gap-4">
               <div>
-                <span className="text-[11px] font-bold text-emerald-700 uppercase">รายละเอียดคิว</span>
-                <h3 className="text-lg font-mono font-bold text-slate-900">{selectedBooking.booking_id}</h3>
+                <div className="flex items-center gap-2.5 mb-2 flex-wrap">
+                  <span className="text-xs font-bold text-emerald-800 uppercase bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                    รายละเอียดคิวจอง
+                  </span>
+                  {getStatusBadge(selectedBooking.status)}
+                </div>
+                <h3 className="text-2xl sm:text-3xl font-mono font-black text-slate-900 tracking-tight">
+                  {selectedBooking.booking_id}
+                </h3>
                 {selectedBooking.created_at && (
-                  <span className="text-xs text-slate-500 font-normal flex items-center gap-1 mt-0.5">
-                    <Send className="w-3 h-3 text-indigo-500" />
-                    จองเมื่อ: <strong className="font-mono text-slate-700">{formatThaiDateTime(selectedBooking.created_at)}</strong>
+                  <span className="text-xs sm:text-sm text-slate-500 font-normal flex items-center gap-1.5 mt-1.5">
+                    <Send className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                    <span>จองเมื่อ: <strong className="font-mono text-slate-700 font-semibold">{formatThaiDateTime(selectedBooking.created_at)}</strong></span>
                   </span>
                 )}
               </div>
-              <button onClick={() => setSelectedBooking(null)} className="text-slate-400 hover:text-slate-700">
-                <X className="w-5 h-5" />
+              <button
+                onClick={() => setSelectedBooking(null)}
+                className="p-2.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-2xl transition shrink-0"
+                title="ปิดหน้าต่าง"
+              >
+                <X className="w-6 h-6" />
               </button>
             </div>
 
+            {/* Overdue Alert */}
             {isBookingOverdue(selectedBooking) && (
-              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3 text-xs text-amber-900">
-                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3.5 text-sm text-amber-900">
+                <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0" />
                 <div>
-                  <span className="font-bold block text-amber-950">⚠️ รายการนี้เลยกำหนดเวลานัดหมายแล้ว</span>
-                  <span className="text-2xs text-amber-800 leading-relaxed">
+                  <span className="font-bold block text-base text-amber-950">⚠️ รายการนี้เลยกำหนดเวลานัดหมายแล้ว</span>
+                  <span className="text-xs sm:text-sm text-amber-800 leading-relaxed">
                     ระบบยังคงรักษาสถานะคิวไว้ตามเดิม (ไม่ปฏิเสธคิวอัตโนมัติ) เพื่อให้เจ้าหน้าที่ตรวจสอบและรับสินค้าได้ตามความเหมาะสม
                   </span>
                 </div>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3 bg-slate-50 rounded-xl">
-                <span className="text-slate-400 block">วันที่เข้าส่ง (พ.ศ.)</span>
-                <span className="font-bold text-slate-800">
+            {/* Information Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm sm:text-base">
+              <div className="p-4 bg-slate-50/90 border border-slate-200/70 rounded-2xl space-y-1">
+                <span className="text-xs sm:text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-emerald-600" />
+                  วันที่เข้าส่งสินค้า (พ.ศ.)
+                </span>
+                <span className="text-lg sm:text-xl font-black text-slate-900 block">
                   {formatThaiDate(selectedBooking.requested_date)}
                 </span>
               </div>
-              <div className="p-3 bg-slate-50 rounded-xl">
-                <span className="text-slate-400 block">ช่วงเวลานัดหมาย</span>
-                <span className="font-bold text-slate-800">{selectedBooking.requested_time}</span>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl col-span-2">
-                <span className="text-slate-400 block">บริษัทเจ้าของสินค้า / ผู้ส่ง</span>
-                <span className="font-bold text-slate-800">{selectedBooking.client_name}</span>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl col-span-2">
-                <span className="text-slate-400 block">ประเภทสินค้า</span>
-                <span className={`font-bold inline-block mt-0.5 px-2.5 py-0.5 rounded-lg ${
-                  selectedBooking.cargo_type?.includes('ยาเย็น')
-                    ? 'bg-cyan-100 text-cyan-800 border border-cyan-200'
-                    : 'text-slate-800'
-                }`}>
-                  {selectedBooking.cargo_type || 'ยาและเวชภัณฑ์ทั่วไป'}
+
+              <div className="p-4 bg-slate-50/90 border border-slate-200/70 rounded-2xl space-y-1">
+                <span className="text-xs sm:text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-indigo-600" />
+                  รอบเวลานัดหมาย
+                </span>
+                <span className="text-lg sm:text-xl font-black text-slate-900 block">
+                  {selectedBooking.requested_time}
                 </span>
               </div>
-              <div className="p-3 bg-slate-50 rounded-xl">
-                <span className="text-slate-400 block">บริษัทขนส่ง</span>
-                <span className="font-bold text-slate-800">{selectedBooking.carrier_name}</span>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl">
-                <span className="text-slate-400 block">เบอร์โทรศัพท์</span>
-                <span className="font-bold text-slate-800">{selectedBooking.user_phone}</span>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl">
-                <span className="text-slate-400 block">ประเภทรถ</span>
-                <span className="font-bold text-slate-800">{selectedBooking.vehicle_type || 'รถกระบะ 4 ล้อ'}</span>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl">
-                <span className="text-slate-400 block">จำนวนลังที่จอง / รถ</span>
-                <span className="font-bold text-slate-800">{selectedBooking.pallet_count} ลัง ({selectedBooking.vehicle_count} คัน)</span>
+
+              <div className="p-4 bg-slate-50/90 border border-slate-200/70 rounded-2xl space-y-1">
+                <span className="text-xs sm:text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4 text-slate-500" />
+                  บริษัทเจ้าของสินค้า / ผู้ส่ง
+                </span>
+                <span className="text-base sm:text-lg font-bold text-slate-900 block">
+                  {selectedBooking.client_name}
+                </span>
               </div>
 
-              {/* Attached Photos (Delivery Note & Warehouse Inspection) */}
+              <div className="p-4 bg-slate-50/90 border border-slate-200/70 rounded-2xl space-y-1">
+                <span className="text-xs sm:text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                  <Package className="w-4 h-4 text-slate-500" />
+                  ประเภทสินค้า
+                </span>
+                <div>
+                  <span className={`font-bold inline-block px-3 py-1 rounded-xl text-sm sm:text-base ${
+                    selectedBooking.cargo_type?.includes('ยาเย็น')
+                      ? 'bg-cyan-100 text-cyan-900 border border-cyan-300'
+                      : 'bg-slate-200/80 text-slate-800'
+                  }`}>
+                    {selectedBooking.cargo_type || 'ยาและเวชภัณฑ์ทั่วไป'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50/90 border border-slate-200/70 rounded-2xl space-y-1">
+                <span className="text-xs sm:text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                  <Truck className="w-4 h-4 text-slate-500" />
+                  บริษัทขนส่ง
+                </span>
+                <span className="text-base sm:text-lg font-bold text-slate-900 block">
+                  {selectedBooking.carrier_name}
+                </span>
+              </div>
+
+              <div className="p-4 bg-slate-50/90 border border-slate-200/70 rounded-2xl space-y-1">
+                <span className="text-xs sm:text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                  <Phone className="w-4 h-4 text-emerald-600" />
+                  เบอร์โทรศัพท์ผู้จอง
+                </span>
+                <div>
+                  <a
+                    href={`tel:${selectedBooking.user_phone}`}
+                    className="text-base sm:text-lg font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
+                  >
+                    {selectedBooking.user_phone}
+                  </a>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50/90 border border-slate-200/70 rounded-2xl space-y-1">
+                <span className="text-xs sm:text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                  <Car className="w-4 h-4 text-slate-500" />
+                  ประเภทรถและทะเบียน
+                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-base sm:text-lg font-bold text-slate-900">
+                    {selectedBooking.vehicle_type || 'รถกระบะ 4 ล้อ'}
+                  </span>
+                  {selectedBooking.license_plate && (
+                    <span className="px-2.5 py-0.5 bg-slate-200 text-slate-800 rounded-lg text-sm font-mono font-bold">
+                      {selectedBooking.license_plate}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50/90 border border-slate-200/70 rounded-2xl space-y-1">
+                <span className="text-xs sm:text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                  <Package className="w-4 h-4 text-emerald-600" />
+                  จำนวนสินค้าที่จองเข้าส่ง
+                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xl sm:text-2xl font-black text-emerald-700">
+                    {selectedBooking.pallet_count} ลัง
+                  </span>
+                  <span className="text-sm font-semibold text-slate-600">
+                    ({selectedBooking.vehicle_count} คัน)
+                  </span>
+                </div>
+              </div>
+
+              {selectedBooking.driver_name && (
+                <div className="p-4 bg-slate-50/90 border border-slate-200/70 rounded-2xl md:col-span-2 space-y-1">
+                  <span className="text-xs sm:text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                    <User className="w-4 h-4 text-slate-500" />
+                    ชื่อพนักงานขับรถ / ผู้ส่งมอบสินค้า
+                  </span>
+                  <span className="text-base sm:text-lg font-bold text-slate-900 block">
+                    {selectedBooking.driver_name}
+                  </span>
+                </div>
+              )}
+
+              {/* Photos (Delivery Note & Inspection) */}
               {(() => {
                 const userPhotos = (selectedBooking.photo_urls && selectedBooking.photo_urls.length > 0)
                   ? selectedBooking.photo_urls
@@ -4406,20 +4438,20 @@ export default function AdminDashboardPage() {
                 if (userPhotos.length === 0 && recPhotos.length === 0) return null;
 
                 return (
-                  <div className="p-3.5 bg-slate-50 rounded-xl col-span-2 space-y-3 border border-slate-200/80">
-                    <span className="text-slate-700 font-bold block text-xs flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <ImageIcon className="w-4 h-4 text-teal-600" />
+                  <div className="p-5 bg-slate-50/90 border border-slate-200/80 rounded-2xl md:col-span-2 space-y-4">
+                    <span className="text-slate-800 font-bold block text-sm sm:text-base flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <ImageIcon className="w-5 h-5 text-teal-600" />
                         รูปภาพและเอกสารแนบประกอบคิว ({userPhotos.length + recPhotos.length} รูป)
                       </span>
                     </span>
 
                     {userPhotos.length > 0 && (
-                      <div className="space-y-1.5">
-                        <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                      <div className="space-y-2">
+                        <span className="text-xs sm:text-sm font-bold text-slate-600 flex items-center gap-1.5">
                           📄 เอกสารแนบจากผู้จอง / ใบส่งสินค้า ({userPhotos.length} รูป)
                         </span>
-                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
                           {userPhotos.map((url, idx) => (
                             <div
                               key={`user-photo-${idx}`}
@@ -4429,17 +4461,17 @@ export default function AdminDashboardPage() {
                                 setGalleryTitle(`เอกสารผู้จอง - ${selectedBooking.booking_id}`);
                                 setGalleryOpen(true);
                               }}
-                              className="relative aspect-square rounded-lg overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer group hover:opacity-95 transition"
+                              className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer group hover:opacity-95 transition shadow-2xs"
                             >
                               <img
                                 src={url}
                                 alt={`เอกสารแนบ ${idx + 1}`}
                                 className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                               />
-                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[10px] font-bold">
-                                <Maximize2 className="w-3.5 h-3.5" />
+                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold">
+                                <Maximize2 className="w-5 h-5" />
                               </div>
-                              <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] px-1 rounded">
+                              <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded font-mono font-medium">
                                 {idx + 1}/{userPhotos.length}
                               </span>
                             </div>
@@ -4449,11 +4481,11 @@ export default function AdminDashboardPage() {
                     )}
 
                     {recPhotos.length > 0 && (
-                      <div className="space-y-1.5 pt-2 border-t border-slate-200">
-                        <span className="text-[11px] font-bold text-teal-700 flex items-center gap-1">
+                      <div className="space-y-2 pt-3 border-t border-slate-200">
+                        <span className="text-xs sm:text-sm font-bold text-teal-700 flex items-center gap-1.5">
                           🔍 รูปถ่ายตรวจรับสินค้าหน้างานจากคลังสินค้า ({recPhotos.length} รูป)
                         </span>
-                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
                           {recPhotos.map((url, idx) => (
                             <div
                               key={`rec-photo-${idx}`}
@@ -4463,17 +4495,17 @@ export default function AdminDashboardPage() {
                                 setGalleryTitle(`รูปตรวจรับสินค้า - ${selectedBooking.booking_id}`);
                                 setGalleryOpen(true);
                               }}
-                              className="relative aspect-square rounded-lg overflow-hidden bg-slate-100 border border-teal-200 cursor-pointer group hover:opacity-95 transition"
+                              className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-teal-200 cursor-pointer group hover:opacity-95 transition shadow-2xs"
                             >
                               <img
                                 src={url}
                                 alt={`รูปตรวจรับ ${idx + 1}`}
                                 className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                               />
-                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[10px] font-bold">
-                                <Maximize2 className="w-3.5 h-3.5" />
+                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold">
+                                <Maximize2 className="w-5 h-5" />
                               </div>
-                              <span className="absolute bottom-1 right-1 bg-teal-800/80 text-white text-[9px] px-1 rounded">
+                              <span className="absolute bottom-1 right-1 bg-teal-800/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono font-medium">
                                 {idx + 1}/{recPhotos.length}
                               </span>
                             </div>
@@ -4485,123 +4517,149 @@ export default function AdminDashboardPage() {
                 );
               })()}
 
-              {/* Actual Received pallet count & inspection results */}
+              {/* Actual Received Inspection Result */}
               {selectedBooking.actual_pallet_count !== undefined && selectedBooking.actual_pallet_count !== null && (
-                <div className={`p-3 rounded-xl col-span-2 border ${
+                <div className={`p-5 rounded-2xl md:col-span-2 border ${
                   selectedBooking.actual_pallet_count < selectedBooking.pallet_count
-                    ? 'bg-amber-50 border-amber-200 text-amber-950'
+                    ? 'bg-amber-50/90 border-amber-300 text-amber-950'
                     : selectedBooking.actual_pallet_count > selectedBooking.pallet_count
-                    ? 'bg-blue-50 border-blue-200 text-blue-950'
-                    : 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                    ? 'bg-blue-50/90 border-blue-300 text-blue-950'
+                    : 'bg-emerald-50/90 border-emerald-300 text-emerald-950'
                 }`}>
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold flex items-center gap-1">
-                      <PackageCheck className="w-4 h-4 text-emerald-700" />
-                      ผลการตรวจรับสินค้าจริง:
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="font-black text-base sm:text-lg flex items-center gap-2">
+                      <PackageCheck className="w-6 h-6 text-emerald-700 shrink-0" />
+                      ผลการตรวจรับสินค้าจริงหน้างาน:
                     </span>
-                    <span className="font-extrabold text-sm">
+                    <span className="font-mono font-black text-lg sm:text-xl">
                       {selectedBooking.actual_pallet_count} / {selectedBooking.pallet_count} ลัง
                     </span>
                   </div>
-                  <div className="text-[11px] mt-1">
+                  <div className="text-sm sm:text-base font-bold mt-2">
                     {selectedBooking.actual_pallet_count < selectedBooking.pallet_count ? (
-                      <span className="text-amber-800 font-bold">
+                      <span className="text-amber-900 flex items-center gap-1.5">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                         ⚠️ สินค้ามาไม่ครบ (ขาดส่ง {selectedBooking.pallet_count - selectedBooking.actual_pallet_count} ลัง)
                       </span>
                     ) : selectedBooking.actual_pallet_count > selectedBooking.pallet_count ? (
-                      <span className="text-blue-800 font-bold">
+                      <span className="text-blue-900 flex items-center gap-1.5">
+                        <Info className="w-4 h-4 text-blue-600 shrink-0" />
                         ℹ️ สินค้ามาเกิน (+{selectedBooking.actual_pallet_count - selectedBooking.pallet_count} ลัง)
                       </span>
                     ) : (
-                      <span className="text-emerald-800 font-bold">
+                      <span className="text-emerald-900 flex items-center gap-1.5">
+                        <Check className="w-4 h-4 text-emerald-600 shrink-0" />
                         ✅ ตรวจรับครบถ้วนสมบูรณ์ 100%
                       </span>
                     )}
                   </div>
                   {selectedBooking.receiving_notes && (
-                    <div className="text-[11px] mt-1.5 pt-1.5 border-t border-slate-200 text-slate-700">
+                    <div className="text-sm sm:text-base mt-2.5 pt-2.5 border-t border-slate-200/80 text-slate-800">
                       <strong>หมายเหตุการตรวจรับ:</strong> {selectedBooking.receiving_notes}
                     </div>
                   )}
                   {selectedBooking.received_by && (
-                    <div className="text-[10px] text-slate-500 mt-1">
-                      ผู้ตรวจรับ: {selectedBooking.received_by}
+                    <div className="text-xs sm:text-sm text-slate-600 mt-1.5">
+                      ผู้ตรวจรับ: <span className="font-semibold text-slate-800">{selectedBooking.received_by}</span>
                       {selectedBooking.receiving_completed_at && ` (${selectedBooking.receiving_completed_at})`}
                     </div>
                   )}
                 </div>
               )}
 
-              {(selectedBooking.driver_name || selectedBooking.license_plate) && (
-                <div className="p-3 bg-slate-50 rounded-xl col-span-2">
-                  <span className="text-slate-400 block">ข้อมูลผู้ส่งสินค้าและทะเบียน</span>
-                  <span className="font-bold text-slate-800">
-                    {selectedBooking.driver_name ? `ผู้ส่ง: ${selectedBooking.driver_name} ` : ''}
-                    {selectedBooking.license_plate ? `| ทะเบียน: ${selectedBooking.license_plate}` : ''}
-                  </span>
-                </div>
-              )}
               {selectedBooking.notes && (
-                <div className="p-3 bg-slate-50 rounded-xl col-span-2">
-                  <span className="text-slate-400 block">หมายเหตุเพิ่มเติม</span>
-                  <span className="text-slate-700">{selectedBooking.notes}</span>
+                <div className="p-4 bg-slate-50/90 border border-slate-200/70 rounded-2xl md:col-span-2 space-y-1">
+                  <span className="text-xs sm:text-sm font-semibold text-slate-500 block">หมายเหตุเพิ่มเติมจากผู้จอง</span>
+                  <span className="text-slate-800 text-sm sm:text-base leading-relaxed block">{selectedBooking.notes}</span>
                 </div>
               )}
+
               {selectedBooking.admin_reason && (
-                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl col-span-2 text-rose-900">
-                  <span className="font-bold block">บันทึกเหตุผลจากเจ้าหน้าที่:</span>
-                  <span>{selectedBooking.admin_reason}</span>
+                <div className="p-4 bg-rose-50/90 border border-rose-200 rounded-2xl md:col-span-2 text-rose-900 space-y-1">
+                  <span className="font-bold text-sm sm:text-base block">บันทึกเหตุผลจากเจ้าหน้าที่:</span>
+                  <span className="text-sm sm:text-base leading-relaxed block">{selectedBooking.admin_reason}</span>
                   {selectedBooking.admin_action_date && (
-                    <span className="text-[10px] text-rose-600 block mt-1">({formatThaiDateTime(selectedBooking.admin_action_date)} โดย {selectedBooking.admin_action_by})</span>
+                    <span className="text-xs text-rose-600 block pt-1">
+                      ({formatThaiDateTime(selectedBooking.admin_action_date)} โดย {selectedBooking.admin_action_by})
+                    </span>
                   )}
                 </div>
               )}
             </div>
 
-            <div className="pt-2 flex items-center gap-2">
-              {isSuperAdmin && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    openSingleDeleteModal(selectedBooking);
-                  }}
-                  className="py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs shrink-0"
-                  title="ลบรายการจองนี้ออกจากระบบ (เฉพาะ Super Admin)"
-                >
-                  <Trash2 className="w-4 h-4 text-rose-600" />
-                  <span>ลบคิวนี้</span>
-                </button>
-              )}
-              {!isSecurityOnly && (selectedBooking.status === 'Approved' || selectedBooking.status === 'CheckedIn' || selectedBooking.status === 'Receiving' || selectedBooking.status === 'Completed') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPalletTagBooking(selectedBooking);
-                    setPalletTagModalOpen(true);
-                  }}
-                  className="py-2.5 px-3.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm shrink-0"
-                  title="พิมพ์ป้ายปะหน้าพาเลทสินค้า (Pallet Tag)"
-                >
-                  <Tag className="w-4 h-4" />
-                  <span>พิมพ์ป้ายพาเลท</span>
-                </button>
-              )}
-              {!isSecurityOnly && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    openEditStatusModal(selectedBooking);
-                  }}
-                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-                >
-                  <Edit className="w-4 h-4" />
-                  <span>แก้ไขสถานะคิวนี้</span>
-                </button>
-              )}
+            {/* Modal Actions Footer */}
+            <div className="pt-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                {/* 1. Print Pallet Tag */}
+                {!isSecurityOnly && (selectedBooking.status === 'Approved' || selectedBooking.status === 'CheckedIn' || selectedBooking.status === 'Receiving' || selectedBooking.status === 'Completed') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPalletTagBooking(selectedBooking);
+                      setPalletTagModalOpen(true);
+                    }}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-sm sm:text-base font-bold transition flex items-center justify-center gap-2 shadow-sm hover:shadow"
+                    title="พิมพ์ป้ายปะหน้าพาเลทสินค้า (Pallet Tag)"
+                  >
+                    <Tag className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span>ป้ายพาเลท</span>
+                  </button>
+                )}
+
+                {/* 2. Edit Status */}
+                {!isSecurityOnly && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      openEditStatusModal(selectedBooking);
+                    }}
+                    className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-sm sm:text-base font-bold transition flex items-center justify-center gap-2 shadow-sm hover:shadow"
+                    title="แก้ไขหรือเปลี่ยนสถานะการอนุมัติคิวนี้"
+                  >
+                    <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span>แก้ไขสถานะ</span>
+                  </button>
+                )}
+
+                {/* 3. Multi-Step Cancel */}
+                {!isSecurityOnly && (selectedBooking.status === 'Approved' || selectedBooking.status === 'CheckedIn' || selectedBooking.status === 'Receiving') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCancellingBooking(selectedBooking);
+                      setCancelReason('');
+                      setConfirmCodeInput('');
+                      setCancelStep(1);
+                      setCancelError(null);
+                      setCancelModalOpen(true);
+                    }}
+                    className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-2xl text-sm sm:text-base font-bold transition flex items-center justify-center gap-2"
+                    title="ยกเลิกคิว (ระบบป้องกัน)"
+                  >
+                    <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-rose-600" />
+                    <span>ยกเลิกคิว</span>
+                  </button>
+                )}
+
+                {/* 4. Delete Booking (Super Admin Only) */}
+                {isSuperAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => openSingleDeleteModal(selectedBooking)}
+                    className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-800 border border-rose-200 rounded-2xl text-sm sm:text-base font-bold transition flex items-center justify-center gap-1.5"
+                    title="ลบรายการจองนี้ออกจากระบบ (เฉพาะ Super Admin)"
+                  >
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span>ลบคิว</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Close Modal Button */}
               <button
                 type="button"
                 onClick={() => setSelectedBooking(null)}
-                className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition"
+                className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-sm sm:text-base font-bold transition shadow-sm text-center"
               >
                 ปิดหน้าต่าง
               </button>
@@ -4655,7 +4713,7 @@ export default function AdminDashboardPage() {
 
       {/* 🗑️ DELETE QUEUE CONFIRMATION MODAL (Super Admin) */}
       {deleteConfirmModalOpen && bookingsToDelete.length > 0 && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-rose-200 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5 text-rose-600">

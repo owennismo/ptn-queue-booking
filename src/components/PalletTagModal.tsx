@@ -103,7 +103,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
   return (
     <>
       {/* 🖨️ On-screen Modal Dialog (Never printed) */}
-      <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 no-print animate-in fade-in duration-200">
+      <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 no-print animate-in fade-in duration-200">
         <div className="bg-white rounded-3xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200 max-h-[92vh] flex flex-col">
           {/* Modal Header */}
           <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 shrink-0">
