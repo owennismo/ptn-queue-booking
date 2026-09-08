@@ -2310,7 +2310,8 @@ export default function AdminDashboardPage() {
                         {bookings.map((item) => (
                           <tr
                             key={item.booking_id}
-                            className={`hover:bg-slate-50/80 transition ${
+                            onClick={() => setSelectedBooking(item)}
+                            className={`cursor-pointer hover:bg-emerald-50/40 transition ${
                               selectedBookingIds.includes(item.booking_id) ? 'bg-amber-50/50' : ''
                             }`}
                           >
@@ -2414,7 +2415,7 @@ export default function AdminDashboardPage() {
                           <td className="py-4 px-4 whitespace-nowrap">
                             {getStatusBadge(item.status)}
                           </td>
-                          <td className="py-3 px-3 text-center no-print">
+                          <td className="py-3 px-3 text-center no-print" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-center gap-1.5 flex-wrap">
                               {/* 1. If Pending: 1-Click Approve or Reject */}
                               {!isSecurityOnly && item.status === 'Pending' && (
