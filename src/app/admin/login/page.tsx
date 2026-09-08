@@ -14,8 +14,25 @@ function AdminLoginForm() {
   const [isLocked, setIsLocked] = useState(false);
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
 
-  // Check if redirected due to idle timeout
+  // Check if redirected due to idle timeout or explicit logout
   const reason = searchParams.get('reason');
+
+  // Auto-redirect to /admin if user is already authenticated and session is still active
+  useEffect(() => {
+    if (reason === 'idle_timeout' || reason === 'logout') return;
+
+    try {
+      const savedToken = sessionStorage.getItem('ptn_admin_jwt') || localStorage.getItem('ptn_admin_jwt');
+      const savedLoginTime = sessionStorage.getItem('ptn_admin_login_time') || localStorage.getItem('ptn_admin_login_time');
+      if (savedToken && savedLoginTime) {
+        const loginTime = parseInt(savedLoginTime, 10);
+        // Valid for 1 hour (3600 seconds)
+        if (!isNaN(loginTime) && Date.now() - loginTime < 3600 * 1000) {
+          router.replace('/admin');
+        }
+      }
+    } catch (e) {}
+  }, [reason, router]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -75,7 +92,8 @@ function AdminLoginForm() {
       localStorage.setItem('ptn_admin_role_name', data.staff?.role_name || 'เจ้าหน้าที่');
       localStorage.setItem('ptn_admin_login_time', Date.now().toString());
 
-      router.push('/admin');
+      // Use replace to prevent /admin/login from staying in browser back history stack
+      router.replace('/admin');
     } catch (err: any) {
       setError(err.message || 'เข้าสู่ระบบไม่สำเร็จ');
     } finally {

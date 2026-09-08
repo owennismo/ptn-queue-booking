@@ -271,6 +271,22 @@ export default function AdminDashboardPage() {
   // QR Scanner Modal State
   const [scannerOpen, setScannerOpen] = useState(false);
 
+  // Super Admin Delete Queue Bookings (Single & Batch)
+  const [selectedBookingIds, setSelectedBookingIds] = useState<string[]>([]);
+  const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
+  const [bookingsToDelete, setBookingsToDelete] = useState<Booking[]>([]);
+  const [isDeletingBookings, setIsDeletingBookings] = useState(false);
+
+  // Super Admin Full System Backup & Restore (JSON)
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [restoreModalOpen, setRestoreModalOpen] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoreData, setRestoreData] = useState<any | null>(null);
+  const [restoreMode, setRestoreMode] = useState<'merge' | 'replace'>('merge');
+  const [restoreConfirmCode, setRestoreConfirmCode] = useState('');
+  const [isRestoring, setIsRestoring] = useState(false);
+  const restoreFileInputRef = useRef<HTMLInputElement | null>(null);
+
   // Audio Notification Alert State
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -343,6 +359,165 @@ export default function AdminDashboardPage() {
     setTimeout(() => setToastMsg(null), 3500);
   };
 
+  // ── Browser Back-Button & Modal History Handler ──────────────────
+  // Prevents mobile/browser Back button from kicking admin users out to login.
+  // Instead, pressing Back closes the topmost open modal/popup.
+  // If no modals are open, it safely keeps the user on the admin dashboard.
+  const pushedModalCountRef = useRef<number>(0);
+  const suppressNextPopstateCountRef = useRef<number>(0);
+
+  const openModalCount = useMemo(() => {
+    return (
+      (galleryOpen ? 1 : 0) +
+      (lightboxImage ? 1 : 0) +
+      (completeModalOpen ? 1 : 0) +
+      (editStatusModalOpen ? 1 : 0) +
+      (palletTagModalOpen ? 1 : 0) +
+      (cancelModalOpen ? 1 : 0) +
+      (rejectModalOpen ? 1 : 0) +
+      (deleteConfirmModalOpen ? 1 : 0) +
+      (restoreModalOpen ? 1 : 0) +
+      (staffModalOpen ? 1 : 0) +
+      (scannerOpen ? 1 : 0) +
+      (selectedBooking ? 1 : 0)
+    );
+  }, [
+    galleryOpen,
+    lightboxImage,
+    completeModalOpen,
+    editStatusModalOpen,
+    palletTagModalOpen,
+    cancelModalOpen,
+    rejectModalOpen,
+    deleteConfirmModalOpen,
+    restoreModalOpen,
+    staffModalOpen,
+    scannerOpen,
+    selectedBooking,
+  ]);
+
+  const closeTopmostModal = useCallback(() => {
+    if (galleryOpen) {
+      setGalleryOpen(false);
+      return true;
+    }
+    if (lightboxImage) {
+      setLightboxImage(null);
+      return true;
+    }
+    if (completeModalOpen) {
+      setCompleteModalOpen(false);
+      return true;
+    }
+    if (editStatusModalOpen) {
+      setEditStatusModalOpen(false);
+      return true;
+    }
+    if (palletTagModalOpen) {
+      setPalletTagModalOpen(false);
+      return true;
+    }
+    if (cancelModalOpen) {
+      setCancelModalOpen(false);
+      return true;
+    }
+    if (rejectModalOpen) {
+      setRejectModalOpen(false);
+      return true;
+    }
+    if (deleteConfirmModalOpen) {
+      setDeleteConfirmModalOpen(false);
+      return true;
+    }
+    if (restoreModalOpen) {
+      setRestoreModalOpen(false);
+      return true;
+    }
+    if (staffModalOpen) {
+      setStaffModalOpen(false);
+      return true;
+    }
+    if (scannerOpen) {
+      setScannerOpen(false);
+      return true;
+    }
+    if (selectedBooking) {
+      setSelectedBooking(null);
+      return true;
+    }
+    return false;
+  }, [
+    galleryOpen,
+    lightboxImage,
+    completeModalOpen,
+    editStatusModalOpen,
+    palletTagModalOpen,
+    cancelModalOpen,
+    rejectModalOpen,
+    deleteConfirmModalOpen,
+    restoreModalOpen,
+    staffModalOpen,
+    scannerOpen,
+    selectedBooking,
+  ]);
+
+  const closeTopmostModalRef = useRef(closeTopmostModal);
+  closeTopmostModalRef.current = closeTopmostModal;
+
+  // Sync openModalCount with browser history stack
+  useEffect(() => {
+    if (openModalCount > pushedModalCountRef.current) {
+      const diff = openModalCount - pushedModalCountRef.current;
+      for (let i = 0; i < diff; i++) {
+        window.history.pushState({ ptnAdminModal: true }, '');
+      }
+      pushedModalCountRef.current = openModalCount;
+    } else if (openModalCount < pushedModalCountRef.current) {
+      const diff = pushedModalCountRef.current - openModalCount;
+      pushedModalCountRef.current = openModalCount;
+      suppressNextPopstateCountRef.current += diff;
+      for (let i = 0; i < diff; i++) {
+        window.history.back();
+      }
+    }
+  }, [openModalCount]);
+
+  // Global popstate event listener (Browser Back / Mobile Swipe Back)
+  useEffect(() => {
+    try {
+      window.history.replaceState({ ptnAdminRoot: true }, '');
+    } catch (e) {}
+
+    const handlePopState = () => {
+      // If this popstate was triggered by our programmatic history.back(), skip handling
+      if (suppressNextPopstateCountRef.current > 0) {
+        suppressNextPopstateCountRef.current -= 1;
+        return;
+      }
+
+      // If a modal is open, closing it is our back action
+      const closed = closeTopmostModalRef.current();
+      if (closed) {
+        if (pushedModalCountRef.current > 0) {
+          pushedModalCountRef.current -= 1;
+        }
+        return;
+      }
+
+      // If NO modal was open, user pressed Back on the main admin dashboard.
+      // Re-push root state so user stays safely inside /admin and doesn't get kicked out to login.
+      try {
+        window.history.pushState({ ptnAdminRoot: true }, '');
+      } catch (e) {}
+      showToast('อยู่ในหน้าระบบจัดการคลังสินค้า (หากต้องการออกจากระบบให้กดปุ่ม "ออกจากระบบ")', 'success');
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
   const handleLogout = useCallback((reason = 'manual') => {
     sessionStorage.removeItem('ptn_admin_jwt');
     sessionStorage.removeItem('ptn_admin_staff');
@@ -360,9 +535,9 @@ export default function AdminDashboardPage() {
     localStorage.removeItem('ptn_admin_token');
     
     if (reason === 'idle') {
-      router.push('/admin/login?reason=idle_timeout');
+      router.replace('/admin/login?reason=idle_timeout');
     } else {
-      router.push('/admin/login');
+      router.replace('/admin/login?reason=logout');
     }
   }, [router]);
 
@@ -375,7 +550,7 @@ export default function AdminDashboardPage() {
     const savedLoginTime = sessionStorage.getItem('ptn_admin_login_time') || localStorage.getItem('ptn_admin_login_time');
 
     if (!savedToken) {
-      router.push('/admin/login');
+      router.replace('/admin/login');
       return;
     }
 
@@ -737,11 +912,6 @@ export default function AdminDashboardPage() {
   };
 
   // Super Admin Delete Queue Bookings (Single & Batch)
-  const [selectedBookingIds, setSelectedBookingIds] = useState<string[]>([]);
-  const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
-  const [bookingsToDelete, setBookingsToDelete] = useState<Booking[]>([]);
-  const [isDeletingBookings, setIsDeletingBookings] = useState(false);
-
   // Toggle single selection
   const handleToggleSelectBooking = (id: string) => {
     setSelectedBookingIds((prev) =>
@@ -823,15 +993,6 @@ export default function AdminDashboardPage() {
   };
 
   // Super Admin Full System Backup & Restore (JSON)
-  const [isBackingUp, setIsBackingUp] = useState(false);
-  const [restoreModalOpen, setRestoreModalOpen] = useState(false);
-  const [restoreFile, setRestoreFile] = useState<File | null>(null);
-  const [restoreData, setRestoreData] = useState<any | null>(null);
-  const [restoreMode, setRestoreMode] = useState<'merge' | 'replace'>('merge');
-  const [restoreConfirmCode, setRestoreConfirmCode] = useState('');
-  const [isRestoring, setIsRestoring] = useState(false);
-  const restoreFileInputRef = useRef<HTMLInputElement | null>(null);
-
   // 1. Download Backup JSON
   const handleDownloadBackup = async () => {
     setIsBackingUp(true);
