@@ -9,7 +9,18 @@ import { DEFAULT_SYSTEM_SETTINGS, SystemSettings } from '@/lib/types';
 export default function Navbar() {
   const pathname = usePathname() || '';
   const normalizedPath = pathname.replace(/\/+$/, '') || '/';
-  const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SYSTEM_SETTINGS);
+  const [settings, setSettings] = useState<SystemSettings>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('ptn_system_settings');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          return { ...DEFAULT_SYSTEM_SETTINGS, ...parsed };
+        }
+      } catch (e) {}
+    }
+    return DEFAULT_SYSTEM_SETTINGS;
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -19,6 +30,9 @@ export default function Navbar() {
         const data = await res.json();
         if (isMounted && data.success && data.settings) {
           setSettings(data.settings);
+          try {
+            localStorage.setItem('ptn_system_settings', JSON.stringify(data.settings));
+          } catch (e) {}
         }
       } catch (e) {
         // Fallback to default

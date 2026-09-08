@@ -60,7 +60,24 @@ export default function BookingPage() {
   const router = useRouter();
 
   const [currentStep, setCurrentStep] = useState<number>(1);
-  const [systemSettings, setSystemSettings] = useState<SystemSettings>(DEFAULT_SYSTEM_SETTINGS);
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('ptn_system_settings');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          return { ...DEFAULT_SYSTEM_SETTINGS, ...parsed };
+        }
+      } catch (e) {}
+    }
+    return DEFAULT_SYSTEM_SETTINGS;
+  });
+  const [settingsLoaded, setSettingsLoaded] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && localStorage.getItem('ptn_system_settings')) {
+      return true;
+    }
+    return false;
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -69,6 +86,10 @@ export default function BookingPage() {
       .then((d) => {
         if (isMounted && d.success && d.settings) {
           setSystemSettings(d.settings);
+          setSettingsLoaded(true);
+          try {
+            localStorage.setItem('ptn_system_settings', JSON.stringify(d.settings));
+          } catch (e) {}
         }
       })
       .catch(() => {});
@@ -638,7 +659,7 @@ export default function BookingPage() {
           </div>
 
           {/* 📢 Announcement Banner (Large & Eye-catching) */}
-          {systemSettings.booking_announcement_active && systemSettings.booking_announcement && (
+          {settingsLoaded && systemSettings.booking_announcement_active && systemSettings.booking_announcement && (
             <div className="relative overflow-hidden bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-3xl p-5 sm:p-7 text-white shadow-xl shadow-amber-500/25 border-2 border-amber-300 animate-in fade-in duration-300">
               {/* Background ambient blur */}
               <div className="absolute -right-8 -bottom-8 w-44 h-44 bg-white/15 rounded-full blur-2xl pointer-events-none" />

@@ -189,7 +189,24 @@ export default function AdminDashboardPage() {
   const [newBlockedReason, setNewBlockedReason] = useState('');
 
   // System Settings state (Contact info & Announcements)
-  const [systemSettings, setSystemSettings] = useState<SystemSettings>(DEFAULT_SYSTEM_SETTINGS);
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('ptn_system_settings');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          return { ...DEFAULT_SYSTEM_SETTINGS, ...parsed };
+        }
+      } catch (e) {}
+    }
+    return DEFAULT_SYSTEM_SETTINGS;
+  });
+  const [settingsLoaded, setSettingsLoaded] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && localStorage.getItem('ptn_system_settings')) {
+      return true;
+    }
+    return false;
+  });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   // Staff Management state
@@ -696,6 +713,10 @@ export default function AdminDashboardPage() {
       setBlockedDates(data.blockedDates || []);
       if (data.settings) {
         setSystemSettings(data.settings);
+        setSettingsLoaded(true);
+        try {
+          localStorage.setItem('ptn_system_settings', JSON.stringify(data.settings));
+        } catch (e) {}
       }
     } catch (err) {}
   }, [authFetch, token]);
@@ -1713,6 +1734,9 @@ export default function AdminDashboardPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setSystemSettings(data.settings);
+        try {
+          localStorage.setItem('ptn_system_settings', JSON.stringify(data.settings));
+        } catch (e) {}
         showToast('บันทึกข้อมูลติดต่อและประกาศสำเร็จ มีผลใช้งานทันที');
       } else {
         showToast(data.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
@@ -1965,7 +1989,7 @@ export default function AdminDashboardPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
         {/* Admin Internal Announcement Banner (Large & Eye-catching) */}
-        {systemSettings.admin_announcement_active && systemSettings.admin_announcement && (
+        {settingsLoaded && systemSettings.admin_announcement_active && systemSettings.admin_announcement && (
           <div className="relative overflow-hidden bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-3xl p-5 sm:p-6 text-white shadow-xl shadow-amber-500/20 border-2 border-amber-300 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 no-print animate-in fade-in duration-300">
             <div className="absolute -right-8 -bottom-8 w-36 h-36 bg-white/15 rounded-full blur-2xl pointer-events-none" />
             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white text-amber-600 flex items-center justify-center shrink-0 shadow-lg shadow-black/10">

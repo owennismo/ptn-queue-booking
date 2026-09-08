@@ -62,7 +62,18 @@ export default function BookingDetailPage({
   const [galleryIndex, setGalleryIndex] = useState<number>(0);
   const [galleryTitle, setGalleryTitle] = useState<string>('รูปภาพเอกสารแนบ');
   const [galleryOpen, setGalleryOpen] = useState<boolean>(false);
-  const [systemSettings, setSystemSettings] = useState<SystemSettings>(DEFAULT_SYSTEM_SETTINGS);
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('ptn_system_settings');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          return { ...DEFAULT_SYSTEM_SETTINGS, ...parsed };
+        }
+      } catch (e) {}
+    }
+    return DEFAULT_SYSTEM_SETTINGS;
+  });
   const prevStatusRef = useRef<string | null>(null);
   const prevDateRef = useRef<string | null>(null);
   const prevTimeRef = useRef<string | null>(null);
@@ -75,6 +86,9 @@ export default function BookingDetailPage({
       .then((d) => {
         if (isMounted && d.success && d.settings) {
           setSystemSettings(d.settings);
+          try {
+            localStorage.setItem('ptn_system_settings', JSON.stringify(d.settings));
+          } catch (e) {}
         }
       })
       .catch(() => {});
