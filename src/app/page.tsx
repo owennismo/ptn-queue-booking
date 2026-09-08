@@ -685,32 +685,7 @@ export default function BookingPage() {
             </div>
           )}
 
-          {/* ⚡ Quick Action Shortcut Banner: สำหรับคนที่มีคิวแล้ว */}
-          <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border border-emerald-200/90 rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm hover:border-emerald-300 transition">
-            <div className="flex items-center gap-3.5 w-full sm:w-auto">
-              <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-200">
-                <Search className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2 flex-wrap">
-                  <span>มีนัดหมายคิวส่งของอยู่แล้วใช่ไหม?</span>
-                  <span className="text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                    ติดตามแบบเรียลไทม์
-                  </span>
-                </div>
-                <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                  ตรวจสอบสถานะคิวล่าสุด ค้นหาด้วยเบอร์โทร หรือเปิดดูบัตรคิวดิจิทัลของคุณได้ทันที
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/track"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-md shadow-emerald-600/20 hover:shadow-lg transition shrink-0 group"
-            >
-              <span>ตรวจสอบสถานะคิว</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-          </div>
+
 
         {/* Stepper Navigation Header */}
         <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs">
