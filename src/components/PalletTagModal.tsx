@@ -32,6 +32,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
   const [printMode, setPrintMode] = useState<'individual' | 'summary'>('individual');
   const [customPalletCount, setCustomPalletCount] = useState<number>(0);
   const [storageLocation, setStorageLocation] = useState<string>('');
+  const [productItems, setProductItems] = useState<string>('');
   const [mounted, setMounted] = useState<boolean>(false);
 
   useEffect(() => {
@@ -39,7 +40,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
   }, []);
 
   useEffect(() => {
-    // Reset custom count and location when a new booking opens
+    // Reset custom count, location, and product items when a new booking opens
     if (booking) {
       const defaultPallets =
         booking.actual_pallet_count !== undefined &&
@@ -49,6 +50,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
           : booking.pallet_count || 1;
       setCustomPalletCount(defaultPallets);
       setStorageLocation('');
+      setProductItems('');
     }
   }, [booking]);
 
@@ -246,6 +248,64 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                   />
                 </div>
               </div>
+
+              {/* Product Items List Input (ช่องพิมพ์รายการสินค้า) */}
+              <div className="pt-2.5 border-t border-slate-200/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Package className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>รายการสินค้าในพาเลท (Product Items / Goods Description):</span>
+                  </label>
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    พิมพ์ได้หลายบรรทัด
+                  </span>
+                </div>
+
+                <textarea
+                  rows={2}
+                  value={productItems}
+                  onChange={(e) => setProductItems(e.target.value)}
+                  placeholder="พิมพ์รายการสินค้า เช่น:&#10;1. พาราเซตามอล 500 มก. (20 ลัง)&#10;2. ยาแก้แพ้ CPM 4 มก. (15 ลัง)&#10;3. น้ำเกลือ NSS 1,000 มล. (15 ลัง)"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500 leading-relaxed resize-none"
+                />
+
+                <div className="flex items-center justify-between gap-2 flex-wrap text-2xs">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-slate-400 font-medium">ตัวอย่าง:</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setProductItems(
+                          '1. พาราเซตามอล 500 มก. (20 ลัง)\n2. ยาแก้แพ้ CPM 4 มก. (15 ลัง)\n3. น้ำเกลือ NSS 1,000 มล. (15 ลัง)'
+                        )
+                      }
+                      className="px-2 py-0.5 bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 rounded-md transition"
+                    >
+                      💊 ยาเม็ด & น้ำเกลือ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setProductItems(
+                          '1. กระบอกฉีดยา Syringe 5ml (25 ลัง)\n2. สายน้ำเกลือ IV Set (15 ลัง)\n3. สำลีปลอดเชื้อ (10 ลัง)'
+                        )
+                      }
+                      className="px-2 py-0.5 bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 rounded-md transition"
+                    >
+                      💉 เวชภัณฑ์
+                    </button>
+                  </div>
+                  {productItems && (
+                    <button
+                      type="button"
+                      onClick={() => setProductItems('')}
+                      className="text-slate-400 hover:text-rose-600 font-medium transition"
+                    >
+                      ล้างข้อมูล
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* A4 Preview Mockup */}
@@ -358,6 +418,22 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                               </span>
                             )}
                         </span>
+                      </div>
+                      <div className="px-3 py-1.5 flex justify-between gap-2 bg-blue-50/50">
+                        <span className="text-slate-700 font-bold shrink-0 flex items-center gap-1">
+                          <span>📦</span> รายการสินค้า:
+                        </span>
+                        <div className="text-right flex-1 pl-2">
+                          {productItems && productItems.trim() !== '' ? (
+                            <span className="text-slate-950 font-bold text-xs whitespace-pre-line leading-snug block">
+                              {productItems}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic text-[11px] block">
+                              - (ตามใบส่งสินค้า / ใบ Delivery Order)
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {(booking.receiving_notes || booking.notes) && (
                         <div className="px-3 py-1.5 text-[11px] text-slate-700 bg-amber-50/50">
@@ -868,6 +944,44 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                                   ({booking.actual_pallet_count} ลัง)
                                 </span>
                               )}
+                          </td>
+                        </tr>
+
+                        <tr style={{ borderBottom: '1.5px solid #000000' }}>
+                          <td
+                            style={{
+                              backgroundColor: '#eaeaea',
+                              fontWeight: '900',
+                              padding: '2.5mm 3.5mm',
+                              color: '#000000',
+                              verticalAlign: 'top',
+                            }}
+                          >
+                            รายการสินค้า (Items):
+                          </td>
+                          <td
+                            style={{
+                              fontWeight: '800',
+                              padding: '2.5mm 3.5mm',
+                              color: '#000000',
+                              fontSize: '11pt',
+                              lineHeight: 1.35,
+                            }}
+                          >
+                            {productItems && productItems.trim() !== '' ? (
+                              <div style={{ whiteSpace: 'pre-line' }}>{productItems}</div>
+                            ) : (
+                              <span
+                                style={{
+                                  color: '#777777',
+                                  fontStyle: 'italic',
+                                  fontWeight: 'normal',
+                                  fontSize: '9.5pt',
+                                }}
+                              >
+                                - (ตามใบส่งสินค้า / ใบ Delivery Order)
+                              </span>
+                            )}
                           </td>
                         </tr>
 
