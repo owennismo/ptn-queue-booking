@@ -376,156 +376,115 @@ export default function AdminDashboardPage() {
     setTimeout(() => setToastMsg(null), 3500);
   };
 
-  // ── Browser Back-Button & Modal History Handler ──────────────────
-  // Prevents mobile/browser Back button from kicking admin users out to login.
-  // Instead, pressing Back closes the topmost open modal/popup.
-  // If no modals are open, it safely keeps the user on the admin dashboard.
-  const pushedModalCountRef = useRef<number>(0);
-  const suppressNextPopstateCountRef = useRef<number>(0);
+  // ── Browser Back-Button & Modal Trap Handler ─────────────────────
+  // Tracks open modals via refs so closing via UI (X button / backdrop) never touches history,
+  // while pressing the physical/browser Back button closes the topmost open modal without exiting /admin.
+  const galleryOpenRef = useRef(galleryOpen);
+  galleryOpenRef.current = galleryOpen;
 
-  const openModalCount = useMemo(() => {
-    return (
-      (galleryOpen ? 1 : 0) +
-      (lightboxImage ? 1 : 0) +
-      (completeModalOpen ? 1 : 0) +
-      (editStatusModalOpen ? 1 : 0) +
-      (palletTagModalOpen ? 1 : 0) +
-      (cancelModalOpen ? 1 : 0) +
-      (rejectModalOpen ? 1 : 0) +
-      (deleteConfirmModalOpen ? 1 : 0) +
-      (restoreModalOpen ? 1 : 0) +
-      (staffModalOpen ? 1 : 0) +
-      (scannerOpen ? 1 : 0) +
-      (selectedBooking ? 1 : 0)
-    );
-  }, [
-    galleryOpen,
-    lightboxImage,
-    completeModalOpen,
-    editStatusModalOpen,
-    palletTagModalOpen,
-    cancelModalOpen,
-    rejectModalOpen,
-    deleteConfirmModalOpen,
-    restoreModalOpen,
-    staffModalOpen,
-    scannerOpen,
-    selectedBooking,
-  ]);
+  const lightboxImageRef = useRef(lightboxImage);
+  lightboxImageRef.current = lightboxImage;
 
-  const closeTopmostModal = useCallback(() => {
-    if (galleryOpen) {
-      setGalleryOpen(false);
-      return true;
-    }
-    if (lightboxImage) {
-      setLightboxImage(null);
-      return true;
-    }
-    if (completeModalOpen) {
-      setCompleteModalOpen(false);
-      return true;
-    }
-    if (editStatusModalOpen) {
-      setEditStatusModalOpen(false);
-      return true;
-    }
-    if (palletTagModalOpen) {
-      setPalletTagModalOpen(false);
-      return true;
-    }
-    if (cancelModalOpen) {
-      setCancelModalOpen(false);
-      return true;
-    }
-    if (rejectModalOpen) {
-      setRejectModalOpen(false);
-      return true;
-    }
-    if (deleteConfirmModalOpen) {
-      setDeleteConfirmModalOpen(false);
-      return true;
-    }
-    if (restoreModalOpen) {
-      setRestoreModalOpen(false);
-      return true;
-    }
-    if (staffModalOpen) {
-      setStaffModalOpen(false);
-      return true;
-    }
-    if (scannerOpen) {
-      setScannerOpen(false);
-      return true;
-    }
-    if (selectedBooking) {
-      setSelectedBooking(null);
-      return true;
-    }
-    return false;
-  }, [
-    galleryOpen,
-    lightboxImage,
-    completeModalOpen,
-    editStatusModalOpen,
-    palletTagModalOpen,
-    cancelModalOpen,
-    rejectModalOpen,
-    deleteConfirmModalOpen,
-    restoreModalOpen,
-    staffModalOpen,
-    scannerOpen,
-    selectedBooking,
-  ]);
+  const completeModalOpenRef = useRef(completeModalOpen);
+  completeModalOpenRef.current = completeModalOpen;
 
-  const closeTopmostModalRef = useRef(closeTopmostModal);
-  closeTopmostModalRef.current = closeTopmostModal;
+  const editStatusModalOpenRef = useRef(editStatusModalOpen);
+  editStatusModalOpenRef.current = editStatusModalOpen;
 
-  // Sync openModalCount with browser history stack
-  useEffect(() => {
-    if (openModalCount > pushedModalCountRef.current) {
-      const diff = openModalCount - pushedModalCountRef.current;
-      for (let i = 0; i < diff; i++) {
-        window.history.pushState({ ptnAdminModal: true }, '');
-      }
-      pushedModalCountRef.current = openModalCount;
-    } else if (openModalCount < pushedModalCountRef.current) {
-      const diff = pushedModalCountRef.current - openModalCount;
-      pushedModalCountRef.current = openModalCount;
-      suppressNextPopstateCountRef.current += diff;
-      for (let i = 0; i < diff; i++) {
-        window.history.back();
-      }
-    }
-  }, [openModalCount]);
+  const palletTagModalOpenRef = useRef(palletTagModalOpen);
+  palletTagModalOpenRef.current = palletTagModalOpen;
+
+  const cancelModalOpenRef = useRef(cancelModalOpen);
+  cancelModalOpenRef.current = cancelModalOpen;
+
+  const rejectModalOpenRef = useRef(rejectModalOpen);
+  rejectModalOpenRef.current = rejectModalOpen;
+
+  const deleteConfirmModalOpenRef = useRef(deleteConfirmModalOpen);
+  deleteConfirmModalOpenRef.current = deleteConfirmModalOpen;
+
+  const restoreModalOpenRef = useRef(restoreModalOpen);
+  restoreModalOpenRef.current = restoreModalOpen;
+
+  const staffModalOpenRef = useRef(staffModalOpen);
+  staffModalOpenRef.current = staffModalOpen;
+
+  const scannerOpenRef = useRef(scannerOpen);
+  scannerOpenRef.current = scannerOpen;
+
+  const selectedBookingRef = useRef(selectedBooking);
+  selectedBookingRef.current = selectedBooking;
 
   // Global popstate event listener (Browser Back / Mobile Swipe Back)
   useEffect(() => {
+    // Re-push a history trap entry so pressing Back is caught
     try {
-      window.history.replaceState({ ptnAdminRoot: true }, '');
+      window.history.pushState(null, '', window.location.href);
     } catch (e) {}
 
     const handlePopState = () => {
-      // If this popstate was triggered by our programmatic history.back(), skip handling
-      if (suppressNextPopstateCountRef.current > 0) {
-        suppressNextPopstateCountRef.current -= 1;
-        return;
-      }
-
-      // If a modal is open, closing it is our back action
-      const closed = closeTopmostModalRef.current();
-      if (closed) {
-        if (pushedModalCountRef.current > 0) {
-          pushedModalCountRef.current -= 1;
-        }
-        return;
-      }
-
-      // If NO modal was open, user pressed Back on the main admin dashboard.
-      // Re-push root state so user stays safely inside /admin and doesn't get kicked out to login.
+      // Always re-push trap immediately so subsequent Back clicks are also caught
       try {
-        window.history.pushState({ ptnAdminRoot: true }, '');
+        window.history.pushState(null, '', window.location.href);
       } catch (e) {}
+
+      // 1. Photo lightboxes
+      if (galleryOpenRef.current) {
+        setGalleryOpen(false);
+        return;
+      }
+      if (lightboxImageRef.current) {
+        setLightboxImage(null);
+        return;
+      }
+
+      // 2. Action modals inside details
+      if (completeModalOpenRef.current) {
+        setCompleteModalOpen(false);
+        return;
+      }
+      if (editStatusModalOpenRef.current) {
+        setEditStatusModalOpen(false);
+        return;
+      }
+      if (palletTagModalOpenRef.current) {
+        setPalletTagModalOpen(false);
+        return;
+      }
+      if (cancelModalOpenRef.current) {
+        setCancelModalOpen(false);
+        return;
+      }
+      if (rejectModalOpenRef.current) {
+        setRejectModalOpen(false);
+        return;
+      }
+      if (deleteConfirmModalOpenRef.current) {
+        setDeleteConfirmModalOpen(false);
+        return;
+      }
+      if (restoreModalOpenRef.current) {
+        setRestoreModalOpen(false);
+        return;
+      }
+
+      // 3. Other dialogs
+      if (staffModalOpenRef.current) {
+        setStaffModalOpen(false);
+        return;
+      }
+      if (scannerOpenRef.current) {
+        setScannerOpen(false);
+        return;
+      }
+
+      // 4. Booking detail modal
+      if (selectedBookingRef.current) {
+        setSelectedBooking(null);
+        return;
+      }
+
+      // 5. If no modals were open, user pressed Back on the main admin dashboard
       showToast('อยู่ในหน้าระบบจัดการคลังสินค้า (หากต้องการออกจากระบบให้กดปุ่ม "ออกจากระบบ")', 'success');
     };
 
