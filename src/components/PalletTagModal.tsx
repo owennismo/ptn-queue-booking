@@ -612,7 +612,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                     <div>
                       <span
                         style={{
-                          fontSize: '9pt',
+                          fontSize: '9.5pt',
                           fontWeight: '900',
                           letterSpacing: '1px',
                           textTransform: 'uppercase',
@@ -624,7 +624,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                       </span>
                       <h1
                         style={{
-                          fontSize: '18pt',
+                          fontSize: '20pt',
                           fontWeight: '900',
                           color: '#000000',
                           lineHeight: 1.2,
@@ -635,7 +635,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                       </h1>
                       <span
                         style={{
-                          fontSize: '10.5pt',
+                          fontSize: '11.5pt',
                           fontWeight: '700',
                           color: '#333333',
                           display: 'block',
@@ -654,12 +654,12 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                           padding: '3mm 6mm',
                           borderRadius: '3mm',
                           textAlign: 'center',
-                          minWidth: '38mm',
+                          minWidth: '40mm',
                         }}
                       >
                         <span
                           style={{
-                            fontSize: '8pt',
+                            fontSize: '9pt',
                             fontWeight: '800',
                             textTransform: 'uppercase',
                             letterSpacing: '1px',
@@ -671,7 +671,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                         </span>
                         <span
                           style={{
-                            fontSize: '24pt',
+                            fontSize: '26pt',
                             fontWeight: '900',
                             fontFamily: 'monospace',
                             lineHeight: 1.1,
@@ -690,8 +690,8 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                   {/* 2. Big Queue ID Banner & Scannable QR Code */}
                   <div
                     style={{
-                      margin: '4mm 0',
-                      padding: '4mm 5mm',
+                      margin: '3.5mm 0',
+                      padding: '3.5mm 5mm',
                       border: '3px solid #000000',
                       borderRadius: '3mm',
                       backgroundColor: '#f8fafc',
@@ -704,10 +704,10 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                     <div style={{ flex: 1 }}>
                       <span
                         style={{
-                          fontSize: '9pt',
+                          fontSize: '10pt',
                           fontWeight: '900',
                           textTransform: 'uppercase',
-                          color: '#555555',
+                          color: '#444444',
                           display: 'block',
                           letterSpacing: '0.5px',
                         }}
@@ -716,7 +716,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                       </span>
                       <div
                         style={{
-                          fontSize: '24pt',
+                          fontSize: '26pt',
                           fontWeight: '900',
                           fontFamily: 'monospace',
                           color: '#000000',
@@ -729,10 +729,10 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                       </div>
                       <div
                         style={{
-                          fontSize: '15pt',
+                          fontSize: '16pt',
                           fontWeight: '900',
                           color: '#000000',
-                          marginTop: '2.5mm',
+                          marginTop: '2mm',
                           paddingTop: '2mm',
                           borderTop: '1.5px solid #cbd5e1',
                           lineHeight: 1.2,
@@ -755,7 +755,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                       <QRCodeSVG value={trackingUrl} size={135} level="M" />
                       <span
                         style={{
-                          fontSize: '7.5pt',
+                          fontSize: '8.5pt',
                           fontWeight: '900',
                           fontFamily: 'monospace',
                           display: 'block',
@@ -783,7 +783,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                         backgroundColor: '#000000',
                         color: '#ffffff',
                         fontWeight: '900',
-                        fontSize: '9.5pt',
+                        fontSize: '11pt',
                         padding: '2mm 4mm',
                         textTransform: 'uppercase',
                         letterSpacing: '0.5px',
@@ -792,25 +792,26 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                       }}
                     >
                       <span>รายการข้อมูลคิวส่งของ (DELIVERY MANIFEST)</span>
-                      <span>สถานะคิว: {booking.status}</span>
+                      <span style={{ fontSize: '10pt', fontWeight: 'bold' }}>สถานะคิว: {booking.status}</span>
                     </div>
 
                     <table
                       style={{
                         width: '100%',
                         borderCollapse: 'collapse',
-                        fontSize: '10pt',
+                        fontSize: '11pt',
                       }}
                     >
                       <tbody>
                         <tr style={{ borderBottom: '1.5px solid #000000' }}>
                           <td
                             style={{
-                              width: '46mm',
+                              width: '48mm',
                               backgroundColor: '#eaeaea',
                               fontWeight: '900',
                               padding: '2.5mm 3.5mm',
                               color: '#000000',
+                              fontSize: '11pt',
                             }}
                           >
                             บริษัทเจ้าของสินค้า (Client):
@@ -820,7 +821,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                               fontWeight: '900',
                               padding: '2.5mm 3.5mm',
                               color: '#000000',
-                              fontSize: '12pt',
+                              fontSize: '13.5pt',
                             }}
                           >
                             {booking.client_name}
@@ -834,6 +835,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                               fontWeight: '900',
                               padding: '2.5mm 3.5mm',
                               color: '#000000',
+                              fontSize: '11pt',
                             }}
                           >
                             บริษัทขนส่ง (Carrier):
@@ -843,7 +845,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                               fontWeight: '800',
                               padding: '2.5mm 3.5mm',
                               color: '#000000',
-                              fontSize: '11pt',
+                              fontSize: '12pt',
                             }}
                           >
                             {booking.carrier_name}{' '}
@@ -858,6 +860,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                               fontWeight: '900',
                               padding: '2.5mm 3.5mm',
                               color: '#000000',
+                              fontSize: '11pt',
                             }}
                           >
                             ยานพาหนะ & ทะเบียนรถ:
@@ -867,11 +870,12 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                               fontWeight: '800',
                               padding: '2.5mm 3.5mm',
                               color: '#000000',
+                              fontSize: '12pt',
                             }}
                           >
                             <span
                               style={{
-                                fontSize: '13pt',
+                                fontSize: '14pt',
                                 fontWeight: '900',
                                 fontFamily: 'monospace',
                               }}
@@ -879,7 +883,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                               {booking.license_plate || '-'}
                             </span>{' '}
                             ({booking.vehicle_type || 'รถกระบะ 4 ล้อ'}) • ผู้ขับขี่:{' '}
-                            <strong>{booking.driver_name || '-'}</strong>
+                            <strong style={{ fontSize: '12pt' }}>{booking.driver_name || '-'}</strong>
                           </td>
                         </tr>
 
@@ -890,6 +894,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                               fontWeight: '900',
                               padding: '2.5mm 3.5mm',
                               color: '#000000',
+                              fontSize: '11pt',
                             }}
                           >
                             ประเภทสินค้า (Cargo):
@@ -899,7 +904,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                               fontWeight: '900',
                               padding: '2.5mm 3.5mm',
                               color: '#000000',
-                              fontSize: '11pt',
+                              fontSize: '12pt',
                             }}
                           >
                             {isColdChain ? (
@@ -927,6 +932,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                               fontWeight: '900',
                               padding: '2.5mm 3.5mm',
                               color: '#000000',
+                              fontSize: '11pt',
                             }}
                           >
                             จำนวนพาเลท & ลัง:
@@ -937,7 +943,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                               fontFamily: 'monospace',
                               padding: '2.5mm 3.5mm',
                               color: '#000000',
-                              fontSize: '12pt',
+                              fontSize: '13pt',
                             }}
                           >
                             ส่งสินค้า: {booking.pallet_count} ลัง ({booking.vehicle_count} คัน) |
@@ -959,6 +965,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                                 fontWeight: '900',
                                 padding: '2mm 3.5mm',
                                 color: '#000000',
+                                fontSize: '11pt',
                               }}
                             >
                               หมายเหตุคิว / เอกสาร DO:
@@ -966,9 +973,9 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                             <td
                               style={{
                                 padding: '2mm 3.5mm',
-                                fontSize: '9.5pt',
+                                fontSize: '11pt',
                                 color: '#000000',
-                                fontWeight: '600',
+                                fontWeight: '700',
                               }}
                             >
                               {booking.receiving_notes || booking.notes}
@@ -993,8 +1000,8 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                         backgroundColor: '#000000',
                         color: '#ffffff',
                         fontWeight: '900',
-                        fontSize: '11pt',
-                        padding: '2mm 4mm',
+                        fontSize: '11.5pt',
+                        padding: '2.5mm 4mm',
                         textTransform: 'uppercase',
                         letterSpacing: '0.5px',
                         display: 'flex',
@@ -1003,19 +1010,19 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                       }}
                     >
                       <span>📦 รายการสินค้าในพาเลท (PRODUCT ITEMS)</span>
-                      <span style={{ fontSize: '9pt', fontWeight: 'bold', color: '#e2e8f0' }}>
+                      <span style={{ fontSize: '9.5pt', fontWeight: 'bold', color: '#e2e8f0' }}>
                         {productItems && productItems.trim() !== '' ? 'รายการระบุเฉพาะพาเลท' : 'ตามเอกสารส่งมอบ'}
                       </span>
                     </div>
 
                     <div
                       style={{
-                        padding: '3mm 4.5mm',
-                        fontSize: '15pt',
+                        padding: '3.5mm 5mm',
+                        fontSize: '16.5pt',
                         fontWeight: '900',
                         color: '#000000',
-                        lineHeight: 1.4,
-                        minHeight: '12mm',
+                        lineHeight: 1.35,
+                        minHeight: '13mm',
                         backgroundColor: '#ffffff',
                       }}
                     >
@@ -1027,7 +1034,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                             color: '#666666',
                             fontStyle: 'italic',
                             fontWeight: 'normal',
-                            fontSize: '11pt',
+                            fontSize: '11.5pt',
                           }}
                         >
                           - (ตามใบส่งสินค้า / ใบ Delivery Order)
@@ -1056,7 +1063,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                     >
                       <span
                         style={{
-                          fontSize: '8.5pt',
+                          fontSize: '9.5pt',
                           fontWeight: '800',
                           color: '#444444',
                           display: 'block',
@@ -1073,7 +1080,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                       />
                       <span
                         style={{
-                          fontSize: '11pt',
+                          fontSize: '12.5pt',
                           fontWeight: '900',
                           color: '#000000',
                           display: 'block',
@@ -1083,7 +1090,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                       </span>
                       <span
                         style={{
-                          fontSize: '8pt',
+                          fontSize: '8.5pt',
                           color: '#555555',
                           display: 'block',
                           marginTop: '1mm',
@@ -1105,7 +1112,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                     >
                       <span
                         style={{
-                          fontSize: '8.5pt',
+                          fontSize: '9.5pt',
                           fontWeight: '800',
                           color: '#444444',
                           display: 'block',
@@ -1119,7 +1126,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '14pt',
+                          fontSize: '16pt',
                           fontWeight: '900',
                           fontFamily: 'monospace',
                           color: '#000000',
@@ -1129,7 +1136,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                       </div>
                       <span
                         style={{
-                          fontSize: '8pt',
+                          fontSize: '8.5pt',
                           color: '#555555',
                           display: 'block',
                           textAlign: 'center',
@@ -1148,7 +1155,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      fontSize: '7.5pt',
+                      fontSize: '8.5pt',
                       color: '#666666',
                       paddingTop: '2mm',
                       marginTop: '3mm',
