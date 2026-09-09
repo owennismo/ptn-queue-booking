@@ -252,11 +252,11 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
               {/* Product Items List Input (ช่องพิมพ์รายการสินค้า) */}
               <div className="pt-2.5 border-t border-slate-200/80 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <Package className="w-3.5 h-3.5 text-emerald-600" />
+                  <label className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
+                    <Package className="w-4 h-4 text-emerald-600" />
                     <span>รายการสินค้าในพาเลท (Product Items / Goods Description):</span>
                   </label>
-                  <span className="text-[11px] text-slate-400 font-medium">
+                  <span className="text-[11px] text-slate-500 font-medium">
                     พิมพ์ได้หลายบรรทัด
                   </span>
                 </div>
@@ -266,7 +266,7 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                   value={productItems}
                   onChange={(e) => setProductItems(e.target.value)}
                   placeholder="พิมพ์รายการสินค้า เช่น:&#10;1. พาราเซตามอล 500 มก. (20 ลัง)&#10;2. ยาแก้แพ้ CPM 4 มก. (15 ลัง)&#10;3. น้ำเกลือ NSS 1,000 มล. (15 ลัง)"
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500 leading-relaxed resize-none"
+                  className="w-full px-3 py-2.5 bg-white border-2 border-slate-300 rounded-xl text-sm sm:text-base font-bold text-slate-950 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 leading-relaxed resize-none"
                 />
 
                 <div className="flex items-center justify-between gap-2 flex-wrap text-2xs">
@@ -419,17 +419,17 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                             )}
                         </span>
                       </div>
-                      <div className="px-3 py-1.5 flex justify-between gap-2 bg-blue-50/50">
-                        <span className="text-slate-700 font-bold shrink-0 flex items-center gap-1">
+                      <div className="px-3 py-2 flex justify-between gap-2 bg-blue-50/70 border-t border-b border-blue-200">
+                        <span className="text-slate-900 font-black shrink-0 text-xs sm:text-sm flex items-center gap-1.5">
                           <span>📦</span> รายการสินค้า:
                         </span>
                         <div className="text-right flex-1 pl-2">
                           {productItems && productItems.trim() !== '' ? (
-                            <span className="text-slate-950 font-bold text-xs whitespace-pre-line leading-snug block">
+                            <span className="text-slate-950 font-black text-sm sm:text-base whitespace-pre-line leading-snug block">
                               {productItems}
                             </span>
                           ) : (
-                            <span className="text-slate-400 italic text-[11px] block">
+                            <span className="text-slate-400 italic text-xs block">
                               - (ตามใบส่งสินค้า / ใบ Delivery Order)
                             </span>
                           )}
@@ -952,31 +952,32 @@ export default function PalletTagModal({ booking, isOpen, onClose }: PalletTagMo
                             style={{
                               backgroundColor: '#eaeaea',
                               fontWeight: '900',
-                              padding: '2.5mm 3.5mm',
+                              padding: '3mm 3.5mm',
                               color: '#000000',
                               verticalAlign: 'top',
+                              fontSize: '12pt',
                             }}
                           >
                             รายการสินค้า (Items):
                           </td>
                           <td
                             style={{
-                              fontWeight: '800',
-                              padding: '2.5mm 3.5mm',
+                              fontWeight: '900',
+                              padding: '3mm 4mm',
                               color: '#000000',
-                              fontSize: '11pt',
+                              fontSize: '14.5pt',
                               lineHeight: 1.35,
                             }}
                           >
                             {productItems && productItems.trim() !== '' ? (
-                              <div style={{ whiteSpace: 'pre-line' }}>{productItems}</div>
+                              <div style={{ whiteSpace: 'pre-line', fontWeight: '900' }}>{productItems}</div>
                             ) : (
                               <span
                                 style={{
                                   color: '#777777',
                                   fontStyle: 'italic',
                                   fontWeight: 'normal',
-                                  fontSize: '9.5pt',
+                                  fontSize: '10pt',
                                 }}
                               >
                                 - (ตามใบส่งสินค้า / ใบ Delivery Order)
