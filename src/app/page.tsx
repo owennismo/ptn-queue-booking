@@ -43,6 +43,7 @@ import ThaiDatePicker from '@/components/ThaiDatePicker';
 import { compressImage, formatFileSize } from '@/lib/imageCompressor';
 import { DEFAULT_SYSTEM_SETTINGS, SystemSettings } from '@/lib/types';
 import ImageGalleryModal from '@/components/ImageGalleryModal';
+import { subscribeDeviceToPush } from '@/lib/pushNotifications';
 
 interface Slot {
   id: number;
@@ -517,6 +518,21 @@ export default function BookingPage() {
 
     setSubmitting(true);
 
+    // Prompt for Web Push Notification permission automatically upon booking confirmation
+    let isNotificationGranted = false;
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        try {
+          const perm = await Notification.requestPermission();
+          isNotificationGranted = perm === 'granted';
+        } catch (e) {
+          console.warn('Notification permission request note:', e);
+        }
+      } else if (Notification.permission === 'granted') {
+        isNotificationGranted = true;
+      }
+    }
+
     try {
       const uploadedPhotoUrls: string[] = [];
 
@@ -570,6 +586,15 @@ export default function BookingPage() {
 
       if (!res.ok) {
         throw new Error(data.error || 'การจองไม่สำเร็จ');
+      }
+
+      // Automatically subscribe device to Push Notifications for this new booking ID
+      if (isNotificationGranted && data?.booking?.booking_id) {
+        try {
+          await subscribeDeviceToPush(data.booking.booking_id);
+        } catch (pushErr) {
+          console.warn('Auto push subscription note:', pushErr);
+        }
       }
 
       // Save booking ID to user device for Device/Session lock verification
@@ -1593,6 +1618,10 @@ export default function BookingPage() {
                   )}
                 </button>
               </div>
+              <p className="text-center text-xs text-slate-500 flex items-center justify-center gap-1.5 pt-2">
+                <Bell className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>เมื่อกดยืนยัน ระบบจะขออนุญาตแจ้งเตือนสถานะคิวและประกาศสำคัญเข้ามือถือของคุณ</span>
+              </p>
             </section>
           )}
 
