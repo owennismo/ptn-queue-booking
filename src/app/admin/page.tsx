@@ -240,6 +240,21 @@ export default function AdminDashboardPage() {
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
+  // Push Notification Broadcast state
+  const [pushSubscriberCount, setPushSubscriberCount] = useState<number | null>(null);
+  const [loadingPushCount, setLoadingPushCount] = useState<boolean>(false);
+  const [broadcastModalOpen, setBroadcastModalOpen] = useState<boolean>(false);
+  const [broadcastTitle, setBroadcastTitle] = useState<string>('📢 ประกาศสำคัญจากคลังสินค้า PTN');
+  const [broadcastMessage, setBroadcastMessage] = useState<string>('');
+  const [isBroadcasting, setIsBroadcasting] = useState<boolean>(false);
+  const [broadcastResult, setBroadcastResult] = useState<{
+    success: boolean;
+    total: number;
+    sent: number;
+    failed: number;
+    message: string;
+  } | null>(null);
+
   // Staff Management state
   const [staffList, setStaffList] = useState<StaffUser[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
@@ -693,7 +708,26 @@ export default function AdminDashboardPage() {
     } catch (err) {}
   }, [authFetch, token, soundEnabled, fetchBookings, playAlertSound]);
 
-  // 5. Load Settings
+  // 5. Load Push Subscriber Count
+  const fetchPushSubscriberCount = useCallback(async () => {
+    if (!token && !sessionStorage.getItem('ptn_admin_jwt')) return;
+    try {
+      setLoadingPushCount(true);
+      const res = await authFetch('/api/admin/broadcast-push');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && typeof data.count === 'number') {
+          setPushSubscriberCount(data.count);
+        }
+      }
+    } catch (err) {
+      console.warn('Error fetching push subscriber count:', err);
+    } finally {
+      setLoadingPushCount(false);
+    }
+  }, [authFetch, token]);
+
+  // 5.1 Load Settings
   const fetchSettings = useCallback(async () => {
     if (!token && !sessionStorage.getItem('ptn_admin_jwt')) return;
     try {
@@ -711,8 +745,10 @@ export default function AdminDashboardPage() {
           localStorage.setItem('ptn_system_settings', JSON.stringify(data.settings));
         } catch (e) {}
       }
+      // Also refresh push subscriber count
+      fetchPushSubscriberCount();
     } catch (err) {}
-  }, [authFetch, token]);
+  }, [authFetch, token, fetchPushSubscriberCount]);
 
   // 6. Load Staff List
   const fetchStaff = useCallback(async () => {
@@ -1832,6 +1868,50 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleBroadcastPush = async () => {
+    const textToSend = broadcastMessage.trim();
+    if (!textToSend) {
+      showToast('กรุณากรอกข้อความประกาศที่ต้องการส่ง', 'error');
+      return;
+    }
+
+    try {
+      setIsBroadcasting(true);
+      setBroadcastResult(null);
+
+      const res = await authFetch('/api/admin/broadcast-push', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: broadcastTitle.trim() || '📢 ประกาศสำคัญจากคลังสินค้า PTN',
+          body: textToSend,
+          url: '/',
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'เกิดข้อผิดพลาดในการส่งบรอดแคสต์');
+      }
+
+      setBroadcastResult({
+        success: true,
+        total: data.total || 0,
+        sent: data.sent || 0,
+        failed: data.failed || 0,
+        message: data.message || `ส่งแจ้งเตือนสำเร็จ ${data.sent} เครื่อง`,
+      });
+
+      showToast(`📢 ส่งแจ้งเตือนสำเร็จ ${data.sent} เครื่อง (ไม่สำเร็จ ${data.failed})`, 'success');
+      // Refresh subscriber count in case expired ones were pruned
+      fetchPushSubscriberCount();
+    } catch (err: any) {
+      console.error('Broadcast error:', err);
+      showToast(`ส่งบรอดแคสต์ไม่สำเร็จ: ${err.message}`, 'error');
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
+
   const getRoleBadge = (role: StaffRole) => {
     switch (role) {
       case 'super_admin':
@@ -1945,6 +2025,24 @@ export default function AdminDashboardPage() {
             >
               {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400 shrink-0" /> : <VolumeX className="w-4 h-4 shrink-0" />}
               <span>{soundEnabled ? 'เสียง: เปิด' : 'เสียง: ปิด'}</span>
+            </button>
+
+            {/* Quick Broadcast Push Notification Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setBroadcastTitle('📢 ประกาศสำคัญจากคลังสินค้า PTN');
+                setBroadcastMessage(systemSettings.booking_announcement || '');
+                setBroadcastResult(null);
+                setBroadcastModalOpen(true);
+                fetchPushSubscriberCount();
+              }}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-amber-500/40 bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 shadow-sm shrink-0"
+              title="บรอดแคสต์ส่งข้อความแจ้งเตือนด่วนไปยังอุปกรณ์ PWA ทุกเครื่อง"
+            >
+              <Send className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="hidden md:inline">บรอดแคสต์ประกาศ</span>
+              <span className="md:hidden">ประกาศ</span>
             </button>
 
             {/* Operator info with Role Badge */}
@@ -3818,6 +3916,43 @@ export default function AdminDashboardPage() {
                         className="w-full px-3.5 py-2.5 bg-white border border-amber-300 rounded-xl text-sm sm:text-base font-bold text-amber-950 focus:ring-2 focus:ring-amber-500 shadow-2xs"
                       />
                     </div>
+
+                    {/* PWA Push Notification Broadcast Action */}
+                    <div className="pt-2 border-t border-amber-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-200/90 text-amber-950 border border-amber-300 shadow-2xs">
+                          <Bell className="w-3.5 h-3.5 text-amber-700 animate-pulse" />
+                          <span>อุปกรณ์ PWA ที่พร้อมรับแจ้งเตือน:</span>
+                          <strong className="text-amber-900 font-extrabold ml-0.5">
+                            {loadingPushCount ? '...' : `${pushSubscriberCount ?? 0} เครื่อง`}
+                          </strong>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={fetchPushSubscriberCount}
+                          disabled={loadingPushCount}
+                          title="รีเฟรชจำนวนอุปกรณ์"
+                          className="p-1.5 hover:bg-amber-200/60 rounded-lg text-amber-800 transition disabled:opacity-50"
+                        >
+                          <RotateCcw className={`w-3.5 h-3.5 ${loadingPushCount ? 'animate-spin' : ''}`} />
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBroadcastTitle('📢 ประกาศสำคัญจากคลังสินค้า PTN');
+                          setBroadcastMessage(systemSettings.booking_announcement || '');
+                          setBroadcastResult(null);
+                          setBroadcastModalOpen(true);
+                        }}
+                        disabled={!systemSettings.booking_announcement?.trim()}
+                        className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-700 hover:to-orange-800 text-white rounded-xl text-xs font-black transition flex items-center justify-center gap-2 shadow-sm shadow-orange-950/20 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>บรอดแคสต์ส่ง Push Notification ไปยังทุกเครื่อง</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* ข้อกำหนดและเงื่อนไขหน้าจองคิว */}
@@ -5592,6 +5727,135 @@ export default function AdminDashboardPage() {
                   <>
                     <Database className="w-4 h-4" />
                     <span>ยืนยันกู้คืนระบบ ({restoreMode === 'replace' ? 'แทนที่ทั้งหมด' : 'ผสานข้อมูล'})</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📢 Broadcast Push Notification Modal */}
+      {broadcastModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 p-5 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shadow-xs">
+                  <Send className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black">บรอดแคสต์ส่ง Push Notification</h3>
+                  <p className="text-xs text-amber-100">ส่งข้อความแจ้งเตือนด่วนไปยังผู้ใช้ทุกคนที่ติดตั้ง PWA</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBroadcastModalOpen(false)}
+                disabled={isBroadcasting}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition disabled:opacity-50"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              {/* Subscriber count pill */}
+              <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-950">
+                  <Bell className="w-4 h-4 text-amber-600 animate-bounce" />
+                  <span>อุปกรณ์เป้าหมายที่พร้อมรับข้อความ:</span>
+                </div>
+                <span className="px-2.5 py-1 bg-amber-200 text-amber-950 rounded-full text-xs font-black">
+                  {pushSubscriberCount ?? 0} เครื่อง
+                </span>
+              </div>
+
+              {/* Title input */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  หัวข้อการแจ้งเตือน (Title) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={broadcastTitle}
+                  onChange={(e) => setBroadcastTitle(e.target.value)}
+                  placeholder="เช่น 📢 ประกาศสำคัญจากคลังสินค้า PTN"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              {/* Message body input */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  ข้อความประกาศ (Message Body) <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  rows={4}
+                  value={broadcastMessage}
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  placeholder="พิมพ์ข้อความที่ต้องการแจ้งเตือน..."
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              {/* Warning note */}
+              <div className="p-3 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 text-2xs space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>ข้อควรระวัง</span>
+                </div>
+                <p className="leading-relaxed">
+                  ข้อความนี้จะถูกส่งไปยังหน้าจอมือถือและคอมพิวเตอร์ของผู้ใช้ทุกคนที่กดอนุญาตรับการแจ้งเตือน (Notification) ทันที แม้จะปิดเบราว์เซอร์หรือล็อกหน้าจอก็ตาม
+                </p>
+              </div>
+
+              {/* Result report if any */}
+              {broadcastResult && (
+                <div className={`p-3.5 rounded-xl text-xs font-bold border ${
+                  broadcastResult.sent > 0
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                    : 'bg-amber-50 border-amber-200 text-amber-950'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {broadcastResult.sent > 0 ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-amber-600" />
+                    )}
+                    <span>{broadcastResult.message}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setBroadcastModalOpen(false)}
+                disabled={isBroadcasting}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl transition disabled:opacity-50"
+              >
+                ปิดหน้าต่าง
+              </button>
+              <button
+                type="button"
+                onClick={handleBroadcastPush}
+                disabled={isBroadcasting || !broadcastMessage.trim()}
+                className="px-5 py-2.5 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-700 hover:to-orange-800 text-white rounded-xl text-xs font-black transition flex items-center gap-2 shadow-sm shadow-orange-950/20 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+              >
+                {isBroadcasting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>กำลังส่งข้อความไปยังทุกเครื่อง...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    <span>ยืนยันและส่ง Push Notification ทันที</span>
                   </>
                 )}
               </button>

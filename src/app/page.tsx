@@ -43,6 +43,7 @@ import ThaiDatePicker from '@/components/ThaiDatePicker';
 import { compressImage, formatFileSize } from '@/lib/imageCompressor';
 import { DEFAULT_SYSTEM_SETTINGS, SystemSettings } from '@/lib/types';
 import ImageGalleryModal from '@/components/ImageGalleryModal';
+import NotificationPrompt from '@/components/NotificationPrompt';
 
 interface Slot {
   id: number;
@@ -684,6 +685,12 @@ export default function BookingPage() {
               </div>
             </div>
           )}
+
+          {/* Web Push Announcement Prompt for PWA Users */}
+          <NotificationPrompt
+            title="เปิดรับแจ้งเตือนและประกาศสำคัญจากคลังสินค้า (PWA Push)"
+            description="รับข้อความแจ้งเตือนด่วน ประกาศสำคัญ และข้อมูลคิวเด้งเตือนบนหน้าจอมือถือทันที"
+          />
 
 
 

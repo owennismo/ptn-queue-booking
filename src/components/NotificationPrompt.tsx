@@ -13,9 +13,11 @@ import { Booking } from '@/lib/types';
 
 interface NotificationPromptProps {
   booking?: Booking | null;
+  title?: string;
+  description?: string;
 }
 
-export default function NotificationPrompt({ booking }: NotificationPromptProps) {
+export default function NotificationPrompt({ booking, title, description }: NotificationPromptProps) {
   const [supported, setSupported] = useState<boolean>(false);
   const [permission, setPermission] = useState<NotificationPermission>('denied');
   const [requesting, setRequesting] = useState<boolean>(false);
@@ -37,14 +39,31 @@ export default function NotificationPrompt({ booking }: NotificationPromptProps)
     }
   }, []);
 
-  if (!supported) return null;
+  if (!supported) {
+    if (isIOS && !isStandalone) {
+      return (
+        <div className="no-print p-3.5 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-900 text-xs flex items-start gap-3 shadow-2xs">
+          <div className="p-2 bg-amber-200/80 rounded-xl text-amber-800 shrink-0 mt-0.5">
+            <Bell className="w-4 h-4 text-amber-800" />
+          </div>
+          <div>
+            <strong className="font-bold text-amber-950 block">คำแนะนำสำหรับผู้ใช้ iPhone / iPad เพื่อรับแจ้งเตือน:</strong>
+            <p className="text-[11px] text-amber-800 leading-relaxed mt-0.5">
+              เพื่อให้ระบบแจ้งเตือนและข้อความประกาศเด้งเตือนบนหน้าจอ กรุณากดปุ่มแชร์ <strong>⎋ (Share)</strong> ของ Safari ด้านล่าง แล้วเลือก <strong>&quot;เพิ่มไปยังหน้าจอโฮม (Add to Home Screen)&quot;</strong> จากนั้นเปิดเข้าใช้งานผ่านไอคอนบนหน้าจอโฮม
+            </p>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  }
 
   const handleEnableNotifications = async () => {
-    if (!booking?.booking_id) return;
+    const targetId = booking?.booking_id || 'GENERAL';
     setRequesting(true);
     try {
       // 1. Subscribe this device to Server-Side Web Push (VAPID)
-      const res = await subscribeDeviceToPush(booking.booking_id);
+      const res = await subscribeDeviceToPush(targetId);
       setPermission(getNotificationPermission());
 
       if (res.success) {
@@ -65,7 +84,7 @@ export default function NotificationPrompt({ booking }: NotificationPromptProps)
       title: '🎉 ทดสอบการแจ้งเตือน (PTN Pharma Center)',
       body: booking
         ? `คิว ${booking.booking_id} (${booking.carrier_name}) พร้อมรับการแจ้งเตือนสถานะแบบ Real-time!`
-        : 'ระบบแจ้งเตือนผ่านเบราว์เซอร์พร้อมทำงาน 100%!',
+        : 'ระบบแจ้งเตือนผ่านเบราว์เซอร์พร้อมทำงาน 100%! พร้อมรับประกาศด่วนจากคลังสินค้า',
       booking_id: booking?.booking_id,
       url: booking ? `/booking/${booking.booking_id}` : '/',
     });
@@ -83,7 +102,7 @@ export default function NotificationPrompt({ booking }: NotificationPromptProps)
             <div>
               <div className="flex items-center gap-1.5 flex-wrap">
                 <h4 className="font-bold text-xs sm:text-sm text-emerald-950">
-                  เปิดรับการแจ้งเตือนบนอุปกรณ์นี้แล้ว
+                  {title || 'เปิดรับการแจ้งเตือนบนอุปกรณ์นี้แล้ว'}
                 </h4>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-900 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3 text-emerald-700" />
@@ -91,7 +110,9 @@ export default function NotificationPrompt({ booking }: NotificationPromptProps)
                 </span>
               </div>
               <p className="text-[11px] text-emerald-800 mt-0.5">
-                ระบบจะส่ง Web Push Notification และเสียงเตือนเข้าเครื่องทันทีเมื่อเจ้าหน้าที่อนุมัติหรือเปลี่ยนสถานะคิว
+                {description || (booking
+                  ? 'ระบบจะส่ง Web Push Notification และเสียงเตือนเข้าเครื่องทันทีเมื่อเจ้าหน้าที่อนุมัติหรือเปลี่ยนสถานะคิว'
+                  : 'ระบบจะส่ง Web Push Notification และเสียงเตือนเข้าเครื่องทันทีเมื่อมีประกาศสำคัญจากคลังสินค้า')}
               </p>
             </div>
           </div>
@@ -117,7 +138,7 @@ export default function NotificationPrompt({ booking }: NotificationPromptProps)
               การแจ้งเตือนถูกปิดไว้ในการตั้งค่าเบราว์เซอร์
             </strong>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              หากต้องการให้ระบบแจ้งเตือนเมื่ออนุมัติคิว กรุณาแตะที่ไอคอนรูปกุญแจ 🔒 หรือการตั้งค่าเว็บไซต์บนเบราว์เซอร์ แล้วเลือก <strong>อนุญาตการแจ้งเตือน (Allow Notifications)</strong>
+              หากต้องการให้ระบบแจ้งเตือนเมื่ออนุมัติคิวหรือมีประกาศสำคัญ กรุณาแตะที่ไอคอนรูปกุญแจ 🔒 หรือการตั้งค่าเว็บไซต์บนเบราว์เซอร์ แล้วเลือก <strong>อนุญาตการแจ้งเตือน (Allow Notifications)</strong>
             </p>
           </div>
         </div>
@@ -130,11 +151,15 @@ export default function NotificationPrompt({ booking }: NotificationPromptProps)
             <div>
               <div className="flex items-center gap-1.5">
                 <h4 className="font-bold text-xs sm:text-sm text-white">
-                  เปิดรับการแจ้งเตือนบนมือถือ (Push Notification)
+                  {title || (booking
+                    ? 'เปิดรับการแจ้งเตือนบนมือถือ (Push Notification)'
+                    : 'เปิดรับแจ้งเตือนและประกาศสำคัญจากคลังสินค้า')}
                 </h4>
               </div>
               <p className="text-[11px] text-emerald-200/90 mt-0.5">
-                รับการแจ้งเตือนทันทีเมื่อเจ้าหน้าที่อนุมัติคิว, สแกนรับรถ หรือตรวจรับสินค้าเสร็จสิ้น
+                {description || (booking
+                  ? 'รับการแจ้งเตือนทันทีเมื่อเจ้าหน้าที่อนุมัติคิว, สแกนรับรถ หรือตรวจรับสินค้าเสร็จสิ้น'
+                  : 'รับข้อความแจ้งเตือนด่วนและประกาศสำคัญจากคลังสินค้าเด้งเตือนบนหน้าจอมือถือทันที')}
               </p>
             </div>
           </div>

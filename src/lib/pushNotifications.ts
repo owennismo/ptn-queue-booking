@@ -223,3 +223,9 @@ export async function subscribeDeviceToPush(bookingId: string): Promise<{ succes
     return { success: false, error: err.message || 'เกิดข้อผิดพลาดในการเปิดรับแจ้งเตือน' };
   }
 }
+
+// Subscribe current device for General Announcements (from Home or anywhere)
+export async function subscribeGeneralPush(): Promise<{ success: boolean; error?: string }> {
+  return subscribeDeviceToPush('GENERAL');
+}
+

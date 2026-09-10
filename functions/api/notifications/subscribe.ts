@@ -26,11 +26,14 @@ export async function onRequestPost(context: { request: Request; env: any }) {
 
     // Send an immediate welcome confirmation push
     try {
+      const isGeneral = booking_id === 'GENERAL' || booking_id === 'ANNOUNCEMENT' || booking_id === 'ALL';
       await sendWebPushNotification(subscription, {
         title: '✅ เปิดรับการแจ้งเตือนสำเร็จ!',
-        body: `อุปกรณ์นี้พร้อมรับแจ้งเตือนเมื่อคิว ${booking_id} มีการเปลี่ยนสถานะหรือได้รับการอนุมัติ`,
-        booking_id,
-        url: `/booking/${booking_id}`,
+        body: isGeneral
+          ? 'อุปกรณ์นี้พร้อมรับข่าวสาร ประกาศด่วน และแจ้งเตือนสำคัญจากคลังสินค้า PTN'
+          : `อุปกรณ์นี้พร้อมรับแจ้งเตือนเมื่อคิว ${booking_id} มีการเปลี่ยนสถานะหรือได้รับการอนุมัติ`,
+        booking_id: isGeneral ? undefined : booking_id,
+        url: isGeneral ? '/' : `/booking/${booking_id}`,
       });
     } catch (pushErr) {
       console.warn('Welcome push delivery note:', pushErr);

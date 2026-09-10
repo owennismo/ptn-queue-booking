@@ -50,7 +50,7 @@ export interface BlockedDate {
 
 export interface AuditLog {
   id: number;
-  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'CHECKIN_QUEUE' | 'RECEIVING_QUEUE' | 'COMPLETE_QUEUE' | 'UPDATE_SLOT' | 'REORDER_SLOTS' | 'BLOCK_DATE' | 'UNBLOCK_DATE' | 'ADD_STAFF' | 'UPDATE_STAFF' | 'DELETE_STAFF' | 'RESET_PIN' | 'DELETE_QUEUE' | 'BACKUP_DATA' | 'RESTORE_DATA' | 'UPDATE_SETTINGS' | 'UPDATE_DAILY_SLOTS' | 'UPDATE_DAILY_SLOT' | 'RESET_DAILY_SLOTS' | 'BATCH_DAILY_CAPACITY';
+  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'CHECKIN_QUEUE' | 'RECEIVING_QUEUE' | 'COMPLETE_QUEUE' | 'UPDATE_SLOT' | 'REORDER_SLOTS' | 'BLOCK_DATE' | 'UNBLOCK_DATE' | 'ADD_STAFF' | 'UPDATE_STAFF' | 'DELETE_STAFF' | 'RESET_PIN' | 'DELETE_QUEUE' | 'BACKUP_DATA' | 'RESTORE_DATA' | 'UPDATE_SETTINGS' | 'UPDATE_DAILY_SLOTS' | 'UPDATE_DAILY_SLOT' | 'RESET_DAILY_SLOTS' | 'BATCH_DAILY_CAPACITY' | 'BROADCAST_PUSH';
   details: string;
   operator: string;
   ip_address: string;
@@ -1992,14 +1992,28 @@ export class DataStore {
   }
 
   async getPushSubscriptions(bookingId: string): Promise<PushSubscriptionRecord[]> {
-    const cleanBookingId = bookingId.trim().toUpperCase();
+    const cleanBookingId = (bookingId || '').trim().toUpperCase();
     const subs: PushSubscriptionRecord[] = (await this.getKV<PushSubscriptionRecord[]>('push_subscriptions', [])) || globalStore.pushSubscriptions || [];
-    return subs.filter((s: PushSubscriptionRecord) => s.booking_id.toUpperCase() === cleanBookingId);
+    return subs.filter((s: PushSubscriptionRecord) => s.booking_id && s.booking_id.toUpperCase() === cleanBookingId);
+  }
+
+  async getAllPushSubscriptions(): Promise<PushSubscriptionRecord[]> {
+    const subs: PushSubscriptionRecord[] = (await this.getKV<PushSubscriptionRecord[]>('push_subscriptions', [])) || globalStore.pushSubscriptions || [];
+    return subs;
   }
 
   async removePushSubscription(endpoint: string): Promise<void> {
     const subs: PushSubscriptionRecord[] = (await this.getKV<PushSubscriptionRecord[]>('push_subscriptions', [])) || globalStore.pushSubscriptions || [];
     const filtered = subs.filter((s: PushSubscriptionRecord) => s.endpoint !== endpoint);
+    globalStore.pushSubscriptions = filtered;
+    await this.putKV('push_subscriptions', filtered);
+  }
+
+  async removePushSubscriptions(endpoints: string[]): Promise<void> {
+    if (!endpoints || endpoints.length === 0) return;
+    const endpointSet = new Set(endpoints);
+    const subs: PushSubscriptionRecord[] = (await this.getKV<PushSubscriptionRecord[]>('push_subscriptions', [])) || globalStore.pushSubscriptions || [];
+    const filtered = subs.filter((s: PushSubscriptionRecord) => !endpointSet.has(s.endpoint));
     globalStore.pushSubscriptions = filtered;
     await this.putKV('push_subscriptions', filtered);
   }
