@@ -62,6 +62,7 @@ import {
   Tag,
   CalendarDays,
   RotateCcw,
+  Zap,
 } from 'lucide-react';
 import AdminAnalytics from '@/components/AdminAnalytics';
 import PalletTagModal from '@/components/PalletTagModal';
@@ -72,6 +73,7 @@ import ThaiDatePicker from '@/components/ThaiDatePicker';
 import { formatThaiDate, formatThaiShortDate, formatThaiNumericDate, formatThaiDateTime } from '@/lib/dateUtils';
 import { sendQueueNotification, getNotificationPermission, requestNotificationPermission } from '@/lib/pushNotifications';
 import { compressImage, formatFileSize } from '@/lib/imageCompressor';
+import { checkAnnouncementStatus } from '@/lib/announcementUtils';
 
 interface AuditLog {
   id: number;
@@ -254,6 +256,17 @@ export default function AdminDashboardPage() {
     failed: number;
     message: string;
   } | null>(null);
+
+  // Periodic timer to re-evaluate announcement schedule status
+  const [adminNowTime, setAdminNowTime] = useState<Date>(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setAdminNowTime(new Date()), 15000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const bookingAnnouncementStatus = useMemo(() => {
+    return checkAnnouncementStatus(systemSettings, adminNowTime);
+  }, [systemSettings, adminNowTime]);
 
   // Staff Management state
   const [staffList, setStaffList] = useState<StaffUser[]>([]);
@@ -1837,6 +1850,38 @@ export default function AdminDashboardPage() {
       default:
         return <span className="px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold bg-amber-100 text-amber-900 flex items-center gap-1.5 shadow-2xs"><Clock className="w-4 h-4 text-amber-600 animate-pulse shrink-0" /> รอการตรวจสอบ</span>;
     }
+  };
+
+  const setQuickAnnouncementSchedule = (preset: '24h' | '3d' | '7d' | 'clear') => {
+    if (preset === 'clear') {
+      setSystemSettings({
+        ...systemSettings,
+        booking_announcement_start_datetime: '',
+        booking_announcement_end_datetime: '',
+      });
+      return;
+    }
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const formatLocalISO = (d: Date) =>
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    
+    const now = new Date();
+    const startStr = formatLocalISO(now);
+    const end = new Date(now);
+    if (preset === '24h') {
+      end.setHours(end.getHours() + 24);
+    } else if (preset === '3d') {
+      end.setDate(end.getDate() + 3);
+    } else if (preset === '7d') {
+      end.setDate(end.getDate() + 7);
+    }
+    const endStr = formatLocalISO(end);
+    setSystemSettings({
+      ...systemSettings,
+      booking_announcement_schedule_enabled: true,
+      booking_announcement_start_datetime: startStr,
+      booking_announcement_end_datetime: endStr,
+    });
   };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -3883,14 +3928,18 @@ export default function AdminDashboardPage() {
 
                   {/* แถบประกาศด่วน */}
                   <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-amber-600" />
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                         <label className="text-xs font-extrabold text-amber-950">
                           แถบประกาศด่วน / ฉุกเฉิน หน้าจองคิว
                         </label>
+                        <span className={`px-2 py-0.5 rounded-full text-2xs font-extrabold border flex items-center gap-1 ${bookingAnnouncementStatus.badgeClass}`}>
+                          <Clock className="w-3 h-3 shrink-0" />
+                          <span>{bookingAnnouncementStatus.badgeText}</span>
+                        </span>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
                         <input
                           type="checkbox"
                           checked={systemSettings.booking_announcement_active}
@@ -3899,7 +3948,7 @@ export default function AdminDashboardPage() {
                         />
                         <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
                         <span className="ml-2 text-2xs font-bold text-amber-900">
-                          {systemSettings.booking_announcement_active ? 'เปิดแสดงผล' : 'ปิดการแสดง'}
+                          {systemSettings.booking_announcement_active ? 'เปิดระบบประกาศ' : 'ปิดการแสดง'}
                         </span>
                       </label>
                     </div>
@@ -3915,6 +3964,151 @@ export default function AdminDashboardPage() {
                         placeholder="ตัวอย่าง: รบกวนถ่ายรูปบิลส่งของ หรือสินค้า เข้ามาด้วยนะครับ"
                         className="w-full px-3.5 py-2.5 bg-white border border-amber-300 rounded-xl text-sm sm:text-base font-bold text-amber-950 focus:ring-2 focus:ring-amber-500 shadow-2xs"
                       />
+                    </div>
+
+                    {/* ⏰ แผงตั้งเวลาเปิด-ปิด ประกาศอัตโนมัติ (Schedule) */}
+                    <div className="p-3.5 bg-white rounded-xl border border-amber-200/90 shadow-2xs space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-amber-100">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                          <div>
+                            <span className="text-xs font-extrabold text-amber-950">⏰ ตั้งเวลาเปิด-ปิด ประกาศอัตโนมัติ (Schedule)</span>
+                            <p className="text-2xs text-amber-800/80">กำหนดช่วงวัน-เวลาที่ต้องการให้แสดงผล หรือแสดงเฉพาะเวลาทำการ</p>
+                          </div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={!!systemSettings.booking_announcement_schedule_enabled}
+                            onChange={(e) => setSystemSettings({ ...systemSettings, booking_announcement_schedule_enabled: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+                          <span className="ml-2 text-2xs font-bold text-amber-900">
+                            {systemSettings.booking_announcement_schedule_enabled ? 'เปิดตั้งเวลา' : 'ปิด (เปิดตลอด 24 ชม.)'}
+                          </span>
+                        </label>
+                      </div>
+
+                      {systemSettings.booking_announcement_schedule_enabled && (
+                        <div className="space-y-3 pt-1 animate-in fade-in duration-200">
+                          {/* ปุ่มตั้งเวลาด่วน (Quick Presets) */}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-2xs font-bold text-amber-900 mr-1">ตั้งค่าด่วน:</span>
+                            <button
+                              type="button"
+                              onClick={() => setQuickAnnouncementSchedule('24h')}
+                              className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-2xs font-bold transition flex items-center gap-1 border border-amber-300/80 active:scale-95"
+                            >
+                              <Zap className="w-3 h-3 text-amber-600" />
+                              <span>เปิด 24 ชม. จากนี้</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setQuickAnnouncementSchedule('3d')}
+                              className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-2xs font-bold transition flex items-center gap-1 border border-amber-300/80 active:scale-95"
+                            >
+                              <CalendarDays className="w-3 h-3 text-amber-600" />
+                              <span>เปิด 3 วัน</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setQuickAnnouncementSchedule('7d')}
+                              className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-2xs font-bold transition flex items-center gap-1 border border-amber-300/80 active:scale-95"
+                            >
+                              <Calendar className="w-3 h-3 text-amber-600" />
+                              <span>เปิด 7 วัน</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setQuickAnnouncementSchedule('clear')}
+                              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-2xs font-bold transition flex items-center gap-1 border border-slate-300/80 active:scale-95"
+                            >
+                              <X className="w-3 h-3 text-slate-500" />
+                              <span>ล้างวันเวลา</span>
+                            </button>
+                          </div>
+
+                          {/* Datetime Pickers */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-2xs font-bold text-slate-700 flex items-center gap-1">
+                                <span>วันและเวลาเริ่มต้น (Start)</span>
+                                <span className="text-slate-400 font-normal">(เว้นว่างหากเริ่มทันที)</span>
+                              </label>
+                              <input
+                                type="datetime-local"
+                                value={systemSettings.booking_announcement_start_datetime || ''}
+                                onChange={(e) => setSystemSettings({ ...systemSettings, booking_announcement_start_datetime: e.target.value })}
+                                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-800 focus:ring-2 focus:ring-amber-500"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-2xs font-bold text-slate-700 flex items-center gap-1">
+                                <span>วันและเวลาสิ้นสุด (End)</span>
+                                <span className="text-slate-400 font-normal">(เว้นว่างหากไม่มีวันหมดอายุ)</span>
+                              </label>
+                              <input
+                                type="datetime-local"
+                                value={systemSettings.booking_announcement_end_datetime || ''}
+                                onChange={(e) => setSystemSettings({ ...systemSettings, booking_announcement_end_datetime: e.target.value })}
+                                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-800 focus:ring-2 focus:ring-amber-500"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Daily Recurring hours */}
+                          <div className="pt-2 border-t border-slate-100 space-y-2">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={!!systemSettings.booking_announcement_daily_recurring}
+                                onChange={(e) => setSystemSettings({ ...systemSettings, booking_announcement_daily_recurring: e.target.checked })}
+                                className="rounded text-amber-600 focus:ring-amber-500"
+                              />
+                              <span className="text-2xs font-bold text-slate-800">
+                                จำกัดเฉพาะช่วงเวลาในแต่ละวัน (Daily Recurring Hours เช่น แสดงเฉพาะเวลาเปิดคลัง)
+                              </span>
+                            </label>
+
+                            {systemSettings.booking_announcement_daily_recurring && (
+                              <div className="flex items-center gap-2 pl-6 pt-1 animate-in fade-in duration-150">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-2xs text-slate-500">ตั้งแต่</span>
+                                  <input
+                                    type="time"
+                                    value={systemSettings.booking_announcement_daily_start_time || '08:00'}
+                                    onChange={(e) => setSystemSettings({ ...systemSettings, booking_announcement_daily_start_time: e.target.value })}
+                                    className="px-2.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-slate-800 focus:ring-2 focus:ring-amber-500"
+                                  />
+                                </div>
+                                <span className="text-2xs text-slate-500">ถึง</span>
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    type="time"
+                                    value={systemSettings.booking_announcement_daily_end_time || '17:00'}
+                                    onChange={(e) => setSystemSettings({ ...systemSettings, booking_announcement_daily_end_time: e.target.value })}
+                                    className="px-2.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-slate-800 focus:ring-2 focus:ring-amber-500"
+                                  />
+                                  <span className="text-2xs text-slate-500">น.</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Real-time status display banner */}
+                          <div className={`p-2.5 rounded-xl border flex items-start gap-2.5 text-xs ${bookingAnnouncementStatus.badgeClass}`}>
+                            <Clock className="w-4 h-4 shrink-0 mt-0.5" />
+                            <div className="space-y-0.5">
+                              <div className="font-extrabold flex items-center gap-1.5">
+                                <span>สถานะปัจจุบัน:</span>
+                                <span>{bookingAnnouncementStatus.badgeText}</span>
+                              </div>
+                              <p className="text-2xs opacity-90">{bookingAnnouncementStatus.detailText}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* PWA Push Notification Broadcast Action */}
@@ -4106,11 +4300,26 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
                   </div>
-                  {/* Emergency Banner Preview */}
-                  {systemSettings.booking_announcement_active && systemSettings.booking_announcement && (
+                  {/* Emergency Banner Preview with Scheduler State */}
+                  {systemSettings.booking_announcement && (
                     <div>
-                      <span className="text-2xs text-slate-400 block mb-1 font-bold">ตัวอย่างแถบประกาศบนหน้าจองคิว (Public Banner Preview):</span>
-                      <div className="relative overflow-hidden bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-2xl p-4 text-white shadow-md border border-amber-300">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-2xs text-slate-400 font-bold">ตัวอย่างแถบประกาศบนหน้าจองคิว (Public Banner Preview):</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 ${bookingAnnouncementStatus.badgeClass}`}>
+                          <Clock className="w-3 h-3 shrink-0" />
+                          <span>{bookingAnnouncementStatus.badgeText}</span>
+                        </span>
+                      </div>
+                      <div className={`relative overflow-hidden rounded-2xl p-4 text-white shadow-md border transition-all ${
+                        bookingAnnouncementStatus.isVisible
+                          ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 border-amber-300 ring-2 ring-emerald-500/30'
+                          : 'bg-gradient-to-r from-slate-700 via-slate-800 to-slate-700 border-slate-600 opacity-60'
+                      }`}>
+                        {!bookingAnnouncementStatus.isVisible && (
+                          <div className="absolute top-2 right-2 z-20 bg-slate-900/90 text-amber-300 text-[10px] px-2 py-0.5 rounded-md font-bold border border-amber-400/30 backdrop-blur-xs flex items-center gap-1">
+                            <span>ขณะนี้ไม่แสดงบนหน้าเว็บ ({bookingAnnouncementStatus.badgeText})</span>
+                          </div>
+                        )}
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-white text-amber-600 flex items-center justify-center shrink-0 shadow-sm">
                             <Bell className="w-5 h-5 text-amber-600" />
@@ -4127,6 +4336,12 @@ export default function AdminDashboardPage() {
                             <p className="text-sm sm:text-base font-black text-white leading-snug truncate">
                               {systemSettings.booking_announcement}
                             </p>
+                            {systemSettings.booking_announcement_schedule_enabled && bookingAnnouncementStatus.detailText && (
+                              <p className="text-[11px] text-amber-100/90 font-medium pt-0.5 flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-amber-200 shrink-0" />
+                                <span>{bookingAnnouncementStatus.detailText}</span>
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>

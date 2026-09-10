@@ -71,6 +71,12 @@ export interface SystemSettings {
   booking_notice_text: string;
   booking_announcement?: string;
   booking_announcement_active: boolean;
+  booking_announcement_schedule_enabled?: boolean;
+  booking_announcement_start_datetime?: string;
+  booking_announcement_end_datetime?: string;
+  booking_announcement_daily_recurring?: boolean;
+  booking_announcement_daily_start_time?: string;
+  booking_announcement_daily_end_time?: string;
   warehouse_address: string;
   ticket_instruction?: string;
   admin_announcement?: string;
@@ -91,6 +97,12 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   booking_notice_text: 'คลังเปิดรับสินค้าจันทร์ - เสาร์ (หยุดวันอาทิตย์) ล่วงหน้าได้ 14 วัน',
   booking_announcement: 'รบกวนถ่ายรูป บิลส่งของ หรือ สินค้า เข้ามาด้วยนะครับ',
   booking_announcement_active: false,
+  booking_announcement_schedule_enabled: false,
+  booking_announcement_start_datetime: '',
+  booking_announcement_end_datetime: '',
+  booking_announcement_daily_recurring: false,
+  booking_announcement_daily_start_time: '08:00',
+  booking_announcement_daily_end_time: '17:00',
   warehouse_address: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
   ticket_instruction: 'กรุณานำรถและสินค้าเข้าส่งตามวันและเวลาที่ระบุ พร้อมแสดงบัตรคิวและ QR Code นี้ต่อเจ้าหน้าที่รักษาความปลอดภัยและฝ่ายรับสินค้า',
   admin_announcement: 'รับสินค้าเสร็จแล้ว ถ่ายรูปสินค้า หรือ บิล แนบมาให้ด้วยนะครับ',
@@ -1856,6 +1868,15 @@ export class DataStore {
     if (newSettings.contact_line_id && newSettings.contact_line_id !== current.contact_line_id) changedFields.push(`LINE: ${newSettings.contact_line_id}`);
     if (newSettings.booking_announcement_active !== undefined && newSettings.booking_announcement_active !== current.booking_announcement_active) {
       changedFields.push(`ประกาศหน้าแรก: ${newSettings.booking_announcement_active ? 'เปิด' : 'ปิด'}`);
+    }
+    if (newSettings.booking_announcement_schedule_enabled !== undefined && newSettings.booking_announcement_schedule_enabled !== current.booking_announcement_schedule_enabled) {
+      changedFields.push(`ตั้งเวลาประกาศ: ${newSettings.booking_announcement_schedule_enabled ? 'เปิดใช้งาน' : 'ปิด'}`);
+    }
+    if (newSettings.booking_announcement_start_datetime !== undefined && newSettings.booking_announcement_start_datetime !== current.booking_announcement_start_datetime) {
+      changedFields.push(`เวลาเริ่มประกาศ`);
+    }
+    if (newSettings.booking_announcement_end_datetime !== undefined && newSettings.booking_announcement_end_datetime !== current.booking_announcement_end_datetime) {
+      changedFields.push(`เวลาสิ้นสุดประกาศ`);
     }
     if (newSettings.booking_notice_text && newSettings.booking_notice_text !== current.booking_notice_text) {
       changedFields.push(`คำแนะนำเวลาคลัง`);

@@ -115,6 +115,12 @@ export interface SystemSettings {
   booking_notice_text: string;
   booking_announcement?: string;
   booking_announcement_active: boolean;
+  booking_announcement_schedule_enabled?: boolean;
+  booking_announcement_start_datetime?: string; // ISO datetime string or YYYY-MM-DDTHH:mm
+  booking_announcement_end_datetime?: string; // ISO datetime string or YYYY-MM-DDTHH:mm
+  booking_announcement_daily_recurring?: boolean;
+  booking_announcement_daily_start_time?: string; // e.g. "08:00"
+  booking_announcement_daily_end_time?: string; // e.g. "17:00"
   warehouse_address: string;
   ticket_instruction?: string;
   admin_announcement?: string;
@@ -135,6 +141,12 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   booking_notice_text: 'คลังเปิดรับสินค้าจันทร์ - เสาร์ (หยุดวันอาทิตย์) ล่วงหน้าได้ 14 วัน',
   booking_announcement: 'รบกวนถ่ายรูป บิลส่งของ หรือ สินค้า เข้ามาด้วยนะครับ',
   booking_announcement_active: false,
+  booking_announcement_schedule_enabled: false,
+  booking_announcement_start_datetime: '',
+  booking_announcement_end_datetime: '',
+  booking_announcement_daily_recurring: false,
+  booking_announcement_daily_start_time: '08:00',
+  booking_announcement_daily_end_time: '17:00',
   warehouse_address: 'บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)',
   ticket_instruction: 'กรุณานำรถและสินค้าเข้าส่งตามวันและเวลาที่ระบุ พร้อมแสดงบัตรคิวและ QR Code นี้ต่อเจ้าหน้าที่รักษาความปลอดภัยและฝ่ายรับสินค้า',
   admin_announcement: 'รับสินค้าเสร็จแล้ว ถ่ายรูปสินค้า หรือ บิล แนบมาให้ด้วยนะครับ',

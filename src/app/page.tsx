@@ -44,6 +44,7 @@ import { compressImage, formatFileSize } from '@/lib/imageCompressor';
 import { DEFAULT_SYSTEM_SETTINGS, SystemSettings } from '@/lib/types';
 import ImageGalleryModal from '@/components/ImageGalleryModal';
 import { subscribeDeviceToPush } from '@/lib/pushNotifications';
+import { checkAnnouncementStatus } from '@/lib/announcementUtils';
 
 interface Slot {
   id: number;
@@ -98,6 +99,17 @@ export default function BookingPage() {
       isMounted = false;
     };
   }, []);
+
+  // Periodic re-evaluation of scheduled announcement (every 15s)
+  const [nowTime, setNowTime] = useState<Date>(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTime(new Date());
+    }, 15000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const announcementStatus = checkAnnouncementStatus(systemSettings, nowTime);
 
   // Today string YYYY-MM-DD in Thai Timezone (UTC+7)
   const getTodayStr = () => {
@@ -683,8 +695,8 @@ export default function BookingPage() {
             <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
           </div>
 
-          {/* 📢 Announcement Banner (Large & Eye-catching) */}
-          {settingsLoaded && systemSettings.booking_announcement_active && systemSettings.booking_announcement && (
+          {/* 📢 Announcement Banner (Large & Eye-catching with Scheduler Support) */}
+          {settingsLoaded && announcementStatus.isVisible && (
             <div className="relative overflow-hidden bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-3xl p-5 sm:p-7 text-white shadow-xl shadow-amber-500/25 border-2 border-amber-300 animate-in fade-in duration-300">
               {/* Background ambient blur */}
               <div className="absolute -right-8 -bottom-8 w-44 h-44 bg-white/15 rounded-full blur-2xl pointer-events-none" />
@@ -701,10 +713,22 @@ export default function BookingPage() {
                     <span className="bg-rose-500 text-white text-xs font-black px-3 py-1 rounded-full shadow-xs animate-pulse">
                       แจ้งเตือน
                     </span>
+                    {systemSettings.booking_announcement_schedule_enabled && (
+                      <span className="inline-flex items-center gap-1 bg-black/20 text-white text-xs px-2.5 py-0.5 rounded-full backdrop-blur-xs">
+                        <Clock className="w-3 h-3 text-amber-200" />
+                        <span>ตามกำหนดเวลา</span>
+                      </span>
+                    )}
                   </div>
                   <p className="text-lg sm:text-2xl md:text-3xl font-black text-white leading-snug whitespace-pre-line tracking-tight drop-shadow-sm">
                     {systemSettings.booking_announcement}
                   </p>
+                  {systemSettings.booking_announcement_schedule_enabled && announcementStatus.detailText && (
+                    <div className="flex items-center gap-1.5 text-xs text-amber-100/90 font-medium pt-0.5">
+                      <Clock className="w-3.5 h-3.5 shrink-0 text-amber-200" />
+                      <span>{announcementStatus.detailText}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
