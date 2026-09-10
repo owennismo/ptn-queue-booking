@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ptn-queue-cache-v3';
+const CACHE_NAME = 'ptn-queue-cache-v4';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
