@@ -82,16 +82,20 @@ interface AuditLog {
 
 const IDLE_TIMEOUT_SECONDS = 60 * 60; // 1 hour (3600 seconds)
 
+function getBangkokToday(): string {
+  const bangkokDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+  const year = bangkokDate.getFullYear();
+  const month = String(bangkokDate.getMonth() + 1).padStart(2, '0');
+  const day = String(bangkokDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function AdminDashboardPage() {
   const router = useRouter();
 
   // Helper date in Thai Timezone (UTC+7)
   const getTodayStr = useCallback(() => {
-    const bangkokDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
-    const year = bangkokDate.getFullYear();
-    const month = String(bangkokDate.getMonth() + 1).padStart(2, '0');
-    const day = String(bangkokDate.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return getBangkokToday();
   }, []);
 
   const getTomorrowStr = useCallback(() => {
@@ -145,12 +149,12 @@ export default function AdminDashboardPage() {
   // Active Tab
   const [activeTab, setActiveTab] = useState<'queues' | 'capacity' | 'blocking' | 'staff' | 'audit' | 'settings' | 'analytics'>('queues');
 
-  // Queues state (Default to 'All' to show all incoming bookings)
+  // Queues state (Default to today's date in Bangkok time)
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [isRevalidating, setIsRevalidating] = useState(false);
   const bookingsRef = useRef<Booking[]>([]);
-  const [filterDate, setFilterDate] = useState<string>('All');
+  const [filterDate, setFilterDate] = useState<string>(() => getBangkokToday());
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -2222,7 +2226,7 @@ export default function AdminDashboardPage() {
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    📅 ทุกวัน ({bookings.length})
+                    📅 ทุกวัน
                   </button>
                   <button
                     type="button"
