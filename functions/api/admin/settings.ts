@@ -20,6 +20,7 @@ export async function onRequestGet(context: { request: Request; env: any }) {
         success: true,
         slots: settingsData.slots,
         blockedDates: settingsData.blockedDates,
+        dailyOverrides: settingsData.dailyOverrides || {},
         settings: systemSettings,
       }),
       {
@@ -54,11 +55,73 @@ export async function onRequestPost(context: { request: Request; env: any }) {
     const operatorName = auth.payload?.operator || 'Admin';
     const clientIp = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
 
-    // 1. UPDATE SINGLE SLOT
+    // 1. UPDATE SINGLE GLOBAL SLOT
     if (action === 'update_slot') {
       const { id, max_capacity, is_active } = body;
       await store.updateSlot(id, parseInt(max_capacity, 10), !!is_active, operatorName, clientIp);
       return new Response(JSON.stringify({ success: true, message: 'บันทึกการตั้งค่ารอบเวลาสำเร็จ (มีผลทันทีทุกวัน)' }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      });
+    }
+
+    // 1.1 UPDATE SINGLE DAILY SLOT OVERRIDE
+    if (action === 'update_daily_slot') {
+      const { date, id, max_capacity, is_active } = body;
+      if (!date) {
+        return new Response(JSON.stringify({ error: 'กรุณาระบุวันที่ที่ต้องการตั้งค่า' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        });
+      }
+      const updatedSlots = await store.updateDailySlot(date, id, parseInt(max_capacity, 10), !!is_active, operatorName, clientIp);
+      return new Response(JSON.stringify({
+        success: true,
+        message: `บันทึกการตั้งค่ารอบเวลาเฉพาะวันที่ ${date} สำเร็จ`,
+        slots: updatedSlots,
+        date,
+      }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      });
+    }
+
+    // 1.2 RESET DAILY SLOTS TO DEFAULT
+    if (action === 'reset_daily_slots') {
+      const { date } = body;
+      if (!date) {
+        return new Response(JSON.stringify({ error: 'กรุณาระบุวันที่ที่ต้องการคืนค่า' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        });
+      }
+      await store.resetDailySlotOverride(date, operatorName, clientIp);
+      const defaultSlots = await store.getTimeSlots();
+      return new Response(JSON.stringify({
+        success: true,
+        message: `คืนค่ารอบเวลาเฉพาะวันที่ ${date} กลับเป็นค่ามาตรฐานเรียบร้อยแล้ว`,
+        slots: defaultSlots,
+        date,
+      }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      });
+    }
+
+    // 1.3 BATCH UPDATE DAILY CAPACITY
+    if (action === 'batch_daily_capacity') {
+      const { date, max_capacity } = body;
+      const cap = parseInt(max_capacity, 10);
+      if (!date || isNaN(cap) || cap < 1) {
+        return new Response(JSON.stringify({ error: 'ข้อมูลวันที่หรือความจุไม่ถูกต้อง' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        });
+      }
+      const updatedSlots = await store.batchUpdateDailySlots(date, cap, operatorName, clientIp);
+      return new Response(JSON.stringify({
+        success: true,
+        message: `ปรับความจุทุกรอบเวลาเฉพาะวันที่ ${date} เป็น ${cap} คิวเรียบร้อยแล้ว`,
+        slots: updatedSlots,
+        date,
+      }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       });
     }

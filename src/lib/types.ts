@@ -48,6 +48,13 @@ export interface BlockedDate {
   created_at: string;
 }
 
+export interface DailySlotOverride {
+  date: string; // 'YYYY-MM-DD'
+  slots: TimeSlot[];
+  updated_at?: string;
+  updated_by?: string;
+}
+
 export interface AvailabilityResponse {
   date: string;
   is_blocked: boolean;

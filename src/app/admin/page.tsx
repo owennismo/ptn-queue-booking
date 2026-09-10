@@ -60,6 +60,8 @@ import {
   BarChart3,
   Send,
   Tag,
+  CalendarDays,
+  RotateCcw,
 } from 'lucide-react';
 import AdminAnalytics from '@/components/AdminAnalytics';
 import PalletTagModal from '@/components/PalletTagModal';
@@ -188,9 +190,34 @@ export default function AdminDashboardPage() {
 
   // Settings state (Capacity & Blocked dates)
   const [slots, setSlots] = useState<TimeSlot[]>([]);
+  const [dailyOverrides, setDailyOverrides] = useState<Record<string, TimeSlot[]>>({});
+  const [capacityMode, setCapacityMode] = useState<'standard' | 'daily'>('standard');
+  const [selectedDailyDate, setSelectedDailyDate] = useState<string>(() => getBangkokToday());
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
   const [newBlockedDate, setNewBlockedDate] = useState('');
   const [newBlockedReason, setNewBlockedReason] = useState('');
+
+  // Slots currently active for selectedDailyDate
+  const currentDailySlots: TimeSlot[] = useMemo(() => {
+    if (
+      selectedDailyDate &&
+      dailyOverrides[selectedDailyDate] &&
+      Array.isArray(dailyOverrides[selectedDailyDate]) &&
+      dailyOverrides[selectedDailyDate].length > 0
+    ) {
+      return dailyOverrides[selectedDailyDate];
+    }
+    return slots;
+  }, [selectedDailyDate, dailyOverrides, slots]);
+
+  const hasDailyOverride = useMemo(() => {
+    return !!(
+      selectedDailyDate &&
+      dailyOverrides[selectedDailyDate] &&
+      Array.isArray(dailyOverrides[selectedDailyDate]) &&
+      dailyOverrides[selectedDailyDate].length > 0
+    );
+  }, [selectedDailyDate, dailyOverrides]);
 
   // System Settings state (Contact info & Announcements)
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
@@ -674,6 +701,9 @@ export default function AdminDashboardPage() {
       const data = await res.json();
       setSlots(data.slots || []);
       setBlockedDates(data.blockedDates || []);
+      if (data.dailyOverrides) {
+        setDailyOverrides(data.dailyOverrides);
+      }
       if (data.settings) {
         setSystemSettings(data.settings);
         setSettingsLoaded(true);
@@ -1347,6 +1377,97 @@ export default function AdminDashboardPage() {
     } catch (err: any) {
       showToast(err.message || 'เกิดข้อผิดพลาดในการบันทึก', 'error');
       fetchSettings();
+    }
+  };
+
+  // Daily slot capacity/active change with optimistic UI update
+  const handleDailySlotChange = async (slotId: number, max_capacity: number, is_active: boolean) => {
+    if (!selectedDailyDate) return;
+    const nextSlots = currentDailySlots.map((s) =>
+      s.id === slotId ? { ...s, max_capacity, is_active: is_active ? 1 : 0 } : { ...s }
+    );
+    setDailyOverrides((prev) => ({
+      ...prev,
+      [selectedDailyDate]: nextSlots,
+    }));
+
+    try {
+      const res = await authFetch('/api/admin/settings', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'update_daily_slot',
+          date: selectedDailyDate,
+          id: slotId,
+          max_capacity,
+          is_active,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showToast(data.message || `บันทึกการตั้งค่ารอบเวลาเฉพาะวันที่ ${formatThaiDate(selectedDailyDate)} สำเร็จ`);
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการบันทึก', 'error');
+      fetchSettings();
+    }
+  };
+
+  // Reset daily slots override to default template
+  const handleResetDailySlots = async (dateToReset: string) => {
+    if (!confirm(`ต้องการคืนค่ารอบเวลาของวันที่ ${formatThaiDate(dateToReset)} กลับเป็นค่ามาตรฐานของระบบ ใช่หรือไม่?`)) {
+      return;
+    }
+    setDailyOverrides((prev) => {
+      const copy = { ...prev };
+      delete copy[dateToReset];
+      return copy;
+    });
+
+    try {
+      const res = await authFetch('/api/admin/settings', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'reset_daily_slots',
+          date: dateToReset,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showToast(data.message || 'คืนค่ารอบเวลากลับเป็นค่ามาตรฐานเรียบร้อยแล้ว');
+      fetchSettings();
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการคืนค่า', 'error');
+      fetchSettings();
+    }
+  };
+
+  // Batch update capacity for selected daily date
+  const handleBatchDailyCapacity = async () => {
+    if (!selectedDailyDate) return;
+    const val = prompt(`กรุณาระบุจำนวนความจุ (คิว) ที่ต้องการตั้งให้กับทุกรอบของวันที่ ${formatThaiDate(selectedDailyDate)}:`, '4');
+    if (val && !isNaN(parseInt(val, 10)) && parseInt(val, 10) > 0) {
+      const newCap = parseInt(val, 10);
+      const nextSlots = currentDailySlots.map((s) => ({ ...s, max_capacity: newCap }));
+      setDailyOverrides((prev) => ({
+        ...prev,
+        [selectedDailyDate]: nextSlots,
+      }));
+
+      try {
+        const res = await authFetch('/api/admin/settings', {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'batch_daily_capacity',
+            date: selectedDailyDate,
+            max_capacity: newCap,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        showToast(data.message || `ปรับความจุทุกรอบของวันที่ ${formatThaiDate(selectedDailyDate)} เรียบร้อย`);
+      } catch (err: any) {
+        showToast(err.message || 'เกิดข้อผิดพลาด', 'error');
+        fetchSettings();
+      }
     }
   };
 
@@ -2662,237 +2783,534 @@ export default function AdminDashboardPage() {
 
         {/* 🌟 TAB 2: CAPACITY & TIME SLOTS */}
         {!isSecurityOnly && activeTab === 'capacity' && (
-          <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-6">
-            {/* Real-time & Permanent Effect Rule Notice */}
-            <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl flex items-start gap-3.5 text-xs text-emerald-900">
-              <div className="p-2 bg-emerald-600 text-white rounded-xl shrink-0 mt-0.5">
+          <div className="space-y-6">
+            {/* Mode Switcher Tabs */}
+            <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/90 border border-slate-200/80 rounded-2xl w-fit">
+              <button
+                type="button"
+                onClick={() => setCapacityMode('standard')}
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 ${
+                  capacityMode === 'standard'
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
                 <Clock className="w-4 h-4" />
-              </div>
-              <div className="space-y-0.5">
-                <strong className="block text-sm text-emerald-950 font-bold">
-                  ⚡ มีผลบังคับใช้ทันทีกับทุกวันในระบบ (Real-Time & Permanent Setting)
-                </strong>
-                <p className="text-slate-600 leading-relaxed">
-                  เมื่อมีการปรับเปลี่ยนรอบเวลา หรือแก้ไขจำนวนความจุสูงสุด (คิว) ระบบจะบันทึกและมีผลทันทีกับ <strong>ทุกวันเปิดทำการ (จันทร์-เสาร์)</strong> ในระบบการจองของผู้ส่งสินค้า และจะคงอยู่ตลอดไปจนกว่าเจ้าหน้าที่จะเข้ามาแก้ไขใหม่อีกครั้ง
-                </p>
-              </div>
+                <span>🌐 รอบเวลามาตรฐาน (ใช้กับทุกวัน)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCapacityMode('daily')}
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 ${
+                  capacityMode === 'daily'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <CalendarDays className="w-4 h-4" />
+                <span>📅 กำหนดเฉพาะวัน (รายวัน)</span>
+                {Object.keys(dailyOverrides).length > 0 && (
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                      capacityMode === 'daily' ? 'bg-white text-emerald-700' : 'bg-emerald-100 text-emerald-800'
+                    }`}
+                  >
+                    {Object.keys(dailyOverrides).length} วันพิเศษ
+                  </span>
+                )}
+              </button>
             </div>
 
-            {/* Header and Action Tools */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-100">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">ตั้งค่ารอบเวลาและความจุสูงสุดต่อรอบ</h3>
-                <p className="text-xs text-slate-500">กำหนดจำนวนรถขนส่งที่สามารถเข้าส่งสินค้าได้พร้อมกันในแต่ละช่วงเวลา</p>
-              </div>
+            {/* MODE 1: STANDARD (GLOBAL) TEMPLATE */}
+            {capacityMode === 'standard' && (
+              <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-6">
+                {/* Real-time & Permanent Effect Rule Notice */}
+                <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl flex items-start gap-3.5 text-xs text-emerald-900">
+                  <div className="p-2 bg-emerald-600 text-white rounded-xl shrink-0 mt-0.5">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <strong className="block text-sm text-emerald-950 font-bold">
+                      ⚡ รอบเวลามาตรฐานหลัก (มีผลกับทุกวันเปิดทำการทั่วไป)
+                    </strong>
+                    <p className="text-slate-600 leading-relaxed">
+                      รอบเวลาและความจุที่กำหนดที่นี่ จะเป็นค่าเริ่มต้นของ <strong>ทุกวันเปิดทำการ (จันทร์-เสาร์)</strong> ในระบบการจอง หากต้องการเปิด-ปิดรอบหรือปรับความจุเจาะจงเฉพาะวันใดวันหนึ่ง ให้สลับไปที่แท็บ <strong>&ldquo;📅 กำหนดเฉพาะวัน (รายวัน)&rdquo;</strong> ด้านบน
+                    </p>
+                  </div>
+                </div>
 
-              {/* Batch Capacity Tool, Auto Sort & Add Slot Button */}
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleAutoSortSlots}
-                  className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
-                  title="จัดเรียงรอบเวลาทั้งหมดตามลำดับเวลาเริ่มต้น (08:00 -> 17:00)"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                  <span>จัดเรียงตามเวลาอัตโนมัติ</span>
-                </button>
+                {/* Header and Action Tools */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-100">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">ตั้งค่ารอบเวลามาตรฐานหลัก</h3>
+                    <p className="text-xs text-slate-500">กำหนดช่วงเวลาและจำนวนคิวมาตรฐานสำหรับใช้งานในวันทำการทั่วไป</p>
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    const val = prompt('กรุณาระบุจำนวนความจุที่ต้องการตั้งค่าให้กับทุกรอบเวลา (เช่น 4):', '4');
-                    if (val && !isNaN(parseInt(val, 10)) && parseInt(val, 10) > 0) {
-                      const newCap = parseInt(val, 10);
-                      // Optimistic UI update
-                      setSlots((prev) => prev.map((s) => ({ ...s, max_capacity: newCap })));
-                      authFetch('/api/admin/settings', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                          action: 'batch_update_capacity',
-                          max_capacity: newCap,
-                        }),
-                      })
-                        .then((res) => res.json())
-                        .then((data) => {
-                          if (data.error) throw new Error(data.error);
-                          showToast(data.message || 'บันทึกความจุทุกรอบเวลาสำเร็จ (มีผลทันทีทุกวัน)');
+                  {/* Batch Capacity Tool, Auto Sort & Add Slot Button */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAutoSortSlots}
+                      className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                      title="จัดเรียงรอบเวลาทั้งหมดตามลำดับเวลาเริ่มต้น (08:00 -> 17:00)"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                      <span>จัดเรียงตามเวลาอัตโนมัติ</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = prompt('กรุณาระบุจำนวนความจุที่ต้องการตั้งค่าให้กับทุกรอบเวลา (เช่น 4):', '4');
+                        if (val && !isNaN(parseInt(val, 10)) && parseInt(val, 10) > 0) {
+                          const newCap = parseInt(val, 10);
+                          // Optimistic UI update
+                          setSlots((prev) => prev.map((s) => ({ ...s, max_capacity: newCap })));
+                          authFetch('/api/admin/settings', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                              action: 'batch_update_capacity',
+                              max_capacity: newCap,
+                            }),
+                          })
+                            .then((res) => res.json())
+                            .then((data) => {
+                              if (data.error) throw new Error(data.error);
+                              showToast(data.message || 'บันทึกความจุทุกรอบเวลาสำเร็จ (มีผลทันทีทุกวัน)');
+                            })
+                            .catch((err) => {
+                              showToast(err.message || 'เกิดข้อผิดพลาด', 'error');
+                              fetchSettings();
+                            });
+                        }
+                      }}
+                      className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                      title="เปลี่ยนความจุทุกรอบเวลาให้เท่ากันในคลิกเดียว"
+                    >
+                      <Sliders className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>ปรับทุกรอบเท่ากัน</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const start = prompt('กรุณาระบุเวลาเริ่ม (เช่น 07:30):', '07:30');
+                        if (!start) return;
+                        const end = prompt('กรุณาระบุเวลาสิ้นสุด (เช่น 08:30):', '08:30');
+                        if (!end) return;
+                        const cap = prompt('ความจุสูงสุด (คิว):', '3');
+                        const slotName = `${start} - ${end}`;
+
+                        authFetch('/api/admin/settings', {
+                          method: 'POST',
+                          body: JSON.stringify({
+                            action: 'add_slot',
+                            slot_name: slotName,
+                            start_time: start,
+                            end_time: end,
+                            max_capacity: parseInt(cap || '3', 10) || 3,
+                          }),
                         })
-                        .catch((err) => {
-                          showToast(err.message || 'เกิดข้อผิดพลาด', 'error');
-                          fetchSettings();
-                        });
-                    }
-                  }}
-                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
-                  title="เปลี่ยนความจุทุกรอบเวลาให้เท่ากันในคลิกเดียว"
-                >
-                  <Sliders className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>ปรับทุกรอบเท่ากัน</span>
-                </button>
+                          .then((res) => res.json())
+                          .then((data) => {
+                            if (data.error) throw new Error(data.error);
+                            showToast(data.message || 'เพิ่มรอบเวลาสำเร็จ (มีผลทันทีทุกวัน)');
+                            fetchSettings();
+                          })
+                          .catch((err) => showToast(err.message || 'เกิดข้อผิดพลาด', 'error'));
+                      }}
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ เพิ่มรอบเวลาใหม่</span>
+                    </button>
+                  </div>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    const start = prompt('กรุณาระบุเวลาเริ่ม (เช่น 07:30):', '07:30');
-                    if (!start) return;
-                    const end = prompt('กรุณาระบุเวลาสิ้นสุด (เช่น 08:30):', '08:30');
-                    if (!end) return;
-                    const cap = prompt('ความจุสูงสุด (คิว):', '3');
-                    const slotName = `${start} - ${end}`;
+                {/* Time Slot Cards Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  {slots.map((slot, index) => (
+                    <div
+                      key={slot.id}
+                      className={`p-4 rounded-2xl border transition ${
+                        slot.is_active === 1
+                          ? 'border-emerald-200 bg-emerald-50/30'
+                          : 'border-slate-200 bg-slate-50 opacity-60'
+                      } space-y-3 relative group`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-4 h-4 text-emerald-600" />
+                          <span className="font-bold text-slate-900 text-sm">{slot.slot_name}</span>
+                        </div>
 
-                    authFetch('/api/admin/settings', {
-                      method: 'POST',
-                      body: JSON.stringify({
-                        action: 'add_slot',
-                        slot_name: slotName,
-                        start_time: start,
-                        end_time: end,
-                        max_capacity: parseInt(cap || '3', 10) || 3,
-                      }),
-                    })
-                      .then((res) => res.json())
-                      .then((data) => {
-                        if (data.error) throw new Error(data.error);
-                        showToast(data.message || 'เพิ่มรอบเวลาสำเร็จ (มีผลทันทีทุกวัน)');
-                        fetchSettings();
-                      })
-                      .catch((err) => showToast(err.message || 'เกิดข้อผิดพลาด', 'error'));
-                  }}
-                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>+ เพิ่มรอบเวลาใหม่</span>
-                </button>
-              </div>
-            </div>
+                        <div className="flex items-center gap-1.5">
+                          {/* Reorder Stepper */}
+                          <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-lg p-0.5">
+                            <button
+                              type="button"
+                              disabled={index === 0}
+                              onClick={() => handleMoveSlot(index, 'up')}
+                              className="p-1 text-slate-400 hover:text-emerald-700 disabled:opacity-20 disabled:hover:text-slate-400 rounded hover:bg-slate-100 transition"
+                              title="ขยับรอบนี้ขึ้นก่อน"
+                            >
+                              <ArrowUp className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={index === slots.length - 1}
+                              onClick={() => handleMoveSlot(index, 'down')}
+                              className="p-1 text-slate-400 hover:text-emerald-700 disabled:opacity-20 disabled:hover:text-slate-400 rounded hover:bg-slate-100 transition"
+                              title="ขยับรอบนี้ลงหลัง"
+                            >
+                              <ArrowDown className="w-3 h-3" />
+                            </button>
+                          </div>
 
-            {/* Time Slot Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              {slots.map((slot, index) => (
-                <div
-                  key={slot.id}
-                  className={`p-4 rounded-2xl border transition ${
-                    slot.is_active === 1
-                      ? 'border-emerald-200 bg-emerald-50/30'
-                      : 'border-slate-200 bg-slate-50 opacity-60'
-                  } space-y-3 relative group`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="w-4 h-4 text-emerald-600" />
-                      <span className="font-bold text-slate-900 text-sm">{slot.slot_name}</span>
-                    </div>
+                          <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={slot.is_active === 1}
+                              onChange={(e) => handleSlotCapacityChange(slot.id, slot.max_capacity, e.target.checked)}
+                              className="w-4 h-4 text-emerald-600 rounded"
+                            />
+                            <span>{slot.is_active === 1 ? 'เปิด' : 'ปิด'}</span>
+                          </label>
 
-                    <div className="flex items-center gap-1.5">
-                      {/* Reorder Stepper */}
-                      <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-lg p-0.5">
-                        <button
-                          type="button"
-                          disabled={index === 0}
-                          onClick={() => handleMoveSlot(index, 'up')}
-                          className="p-1 text-slate-400 hover:text-emerald-700 disabled:opacity-20 disabled:hover:text-slate-400 rounded hover:bg-slate-100 transition"
-                          title="ขยับรอบนี้ขึ้นก่อน"
-                        >
-                          <ArrowUp className="w-3 h-3" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={index === slots.length - 1}
-                          onClick={() => handleMoveSlot(index, 'down')}
-                          className="p-1 text-slate-400 hover:text-emerald-700 disabled:opacity-20 disabled:hover:text-slate-400 rounded hover:bg-slate-100 transition"
-                          title="ขยับรอบนี้ลงหลัง"
-                        >
-                          <ArrowDown className="w-3 h-3" />
-                        </button>
+                          {slots.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`ต้องการลบรอบเวลา "${slot.slot_name}" ใช่หรือไม่?`)) {
+                                  setSlots((prev) => prev.filter((s) => s.id !== slot.id));
+                                  authFetch('/api/admin/settings', {
+                                    method: 'POST',
+                                    body: JSON.stringify({
+                                      action: 'delete_slot',
+                                      id: slot.id,
+                                    }),
+                                  })
+                                    .then((res) => res.json())
+                                    .then((data) => {
+                                      if (data.error) throw new Error(data.error);
+                                      showToast('ลบรอบเวลาเรียบร้อยแล้ว (มีผลทันทีทุกวัน)');
+                                      fetchSettings();
+                                    })
+                                    .catch((err) => {
+                                      showToast(err.message || 'เกิดข้อผิดพลาด', 'error');
+                                      fetchSettings();
+                                    });
+                                }
+                              }}
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition"
+                              title="ลบรอบเวลานี้"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
-                      <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={slot.is_active === 1}
-                          onChange={(e) => handleSlotCapacityChange(slot.id, slot.max_capacity, e.target.checked)}
-                          className="w-4 h-4 text-emerald-600 rounded"
-                        />
-                        <span>{slot.is_active === 1 ? 'เปิด' : 'ปิด'}</span>
-                      </label>
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600">
+                          <span>ความจุมาตรฐาน</span>
+                          <span className="text-emerald-700 font-bold">{slot.max_capacity} คิว/รอบ</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            disabled={slot.max_capacity <= 1}
+                            onClick={() => handleSlotCapacityChange(slot.id, Math.max(1, slot.max_capacity - 1), slot.is_active === 1)}
+                            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center transition disabled:opacity-40 shrink-0"
+                            title="ลดความจุลง 1"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
 
-                      {slots.length > 1 && (
+                          <input
+                            type="number"
+                            min="1"
+                            max="50"
+                            value={slot.max_capacity}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              if (!isNaN(val) && val >= 1) {
+                                handleSlotCapacityChange(slot.id, val, slot.is_active === 1);
+                              }
+                            }}
+                            className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-xl font-bold text-center text-slate-900 focus:ring-2 focus:ring-emerald-500 text-sm"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={() => handleSlotCapacityChange(slot.id, slot.max_capacity + 1, slot.is_active === 1)}
+                            className="w-8 h-8 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold flex items-center justify-center transition shrink-0"
+                            title="เพิ่มความจุขึ้น 1"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* MODE 2: DAILY CUSTOM OVERRIDES */}
+            {capacityMode === 'daily' && (
+              <div className="space-y-6">
+                <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-6">
+                  {/* Banner Notice */}
+                  <div className="p-4 bg-teal-50/90 border border-teal-200 rounded-2xl flex items-start gap-3.5 text-xs text-teal-950">
+                    <div className="p-2 bg-teal-600 text-white rounded-xl shrink-0 mt-0.5">
+                      <CalendarDays className="w-4 h-4" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <strong className="block text-sm text-teal-950 font-bold">
+                        📅 กำหนดรอบเวลาและความจุเฉพาะวัน (Daily Custom Overrides)
+                      </strong>
+                      <p className="text-slate-600 leading-relaxed">
+                        เลือกวันที่ต้องการเจาะจง เพื่อเปิด/ปิดรอบเวลา หรือปรับเพิ่ม/ลดจำนวนความจุสูงสุด (คิว) เฉพาะวันนั้นๆ โดย <strong>ไม่มีผลกระทบต่อวันอื่นๆ</strong> (หากไม่ได้ปรับแต่งเฉพาะวัน ระบบจะใช้รอบเวลามาตรฐานโดยอัตโนมัติ)
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Date Selector & Day Status Header */}
+                  <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold text-slate-700">เลือกวันที่ต้องการตั้งค่า:</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDailyDate(getTodayStr())}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                          selectedDailyDate === getTodayStr()
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        วันนี้
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDailyDate(getTomorrowStr())}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                          selectedDailyDate === getTomorrowStr()
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        พรุ่งนี้
+                      </button>
+                      <div className="w-44">
+                        <ThaiDatePicker
+                          value={selectedDailyDate}
+                          onChange={(d) => d && setSelectedDailyDate(d)}
+                          disableSundays={false}
+                          placeholder="เลือกวัน (พ.ศ.)"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Status Badge & Actions */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {hasDailyOverride ? (
+                        <span className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                          <span>✨ มีการตั้งค่าพิเศษเฉพาะวันนี้</span>
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>🟢 ใช้อยู่: ค่ามาตรฐานทั่วไป</span>
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={handleBatchDailyCapacity}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                        title="ปรับความจุทุกรอบของวันนี้ให้เท่ากัน"
+                      >
+                        <Sliders className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>ปรับความจุทุกรอบเท่ากัน</span>
+                      </button>
+
+                      {hasDailyOverride && (
                         <button
                           type="button"
-                          onClick={() => {
-                            if (confirm(`ต้องการลบรอบเวลา "${slot.slot_name}" ใช่หรือไม่?`)) {
-                              setSlots((prev) => prev.filter((s) => s.id !== slot.id));
-                              authFetch('/api/admin/settings', {
-                                method: 'POST',
-                                body: JSON.stringify({
-                                  action: 'delete_slot',
-                                  id: slot.id,
-                                }),
-                              })
-                                .then((res) => res.json())
-                                .then((data) => {
-                                  if (data.error) throw new Error(data.error);
-                                  showToast('ลบรอบเวลาเรียบร้อยแล้ว (มีผลทันทีทุกวัน)');
-                                  fetchSettings();
-                                })
-                                .catch((err) => {
-                                  showToast(err.message || 'เกิดข้อผิดพลาด', 'error');
-                                  fetchSettings();
-                                });
-                            }
-                          }}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition"
-                          title="ลบรอบเวลานี้"
+                          onClick={() => handleResetDailySlots(selectedDailyDate)}
+                          className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                          title="ลบการตั้งค่าเฉพาะวัน คืนค่ากลับเป็นรอบเวลามาตรฐาน"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                          <span>คืนค่าเป็นมาตรฐาน</span>
                         </button>
                       )}
                     </div>
                   </div>
 
-                  <div className="space-y-1.5 pt-1">
-                    <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600">
-                      <span>ความจุสูงสุดต่อวัน</span>
-                      <span className="text-emerald-700 font-bold">{slot.max_capacity} คิว/รอบ</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        disabled={slot.max_capacity <= 1}
-                        onClick={() => handleSlotCapacityChange(slot.id, Math.max(1, slot.max_capacity - 1), slot.is_active === 1)}
-                        className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center transition disabled:opacity-40 shrink-0"
-                        title="ลดความจุลง 1"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-
-                      <input
-                        type="number"
-                        min="1"
-                        max="50"
-                        value={slot.max_capacity}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value, 10);
-                          if (!isNaN(val) && val >= 1) {
-                            handleSlotCapacityChange(slot.id, val, slot.is_active === 1);
-                          }
-                        }}
-                        className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-xl font-bold text-center text-slate-900 focus:ring-2 focus:ring-emerald-500 text-sm"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() => handleSlotCapacityChange(slot.id, slot.max_capacity + 1, slot.is_active === 1)}
-                        className="w-8 h-8 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold flex items-center justify-center transition shrink-0"
-                        title="เพิ่มความจุขึ้น 1"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
+                  {/* Day Date Header Banner */}
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                    <div>
+                      <h4 className="text-base font-bold text-slate-900">
+                        รอบเวลาประจำ: <span className="text-emerald-700 font-extrabold">{formatThaiDate(selectedDailyDate)}</span>
+                      </h4>
+                      <p className="text-xs text-slate-500">
+                        {hasDailyOverride
+                          ? 'รอบเวลานี้ถูกปรับแต่งเฉพาะวัน หากแก้ไขจะมีผลเจาะจงเฉพาะวันที่เลือกนี้เท่านั้น'
+                          : 'กำลังแสดงผลตามรอบเวลามาตรฐาน หากแก้ไขสวิตช์เปิด/ปิด หรือความจุ จะถูกบันทึกเป็นการตั้งค่าพิเศษของวันนี้ทันที'}
+                      </p>
                     </div>
                   </div>
+
+                  {/* Daily Time Slot Cards Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    {currentDailySlots.map((slot) => (
+                      <div
+                        key={`daily-${selectedDailyDate}-${slot.id}`}
+                        className={`p-4 rounded-2xl border transition ${
+                          slot.is_active === 1
+                            ? 'border-emerald-200 bg-emerald-50/30'
+                            : 'border-slate-200 bg-slate-50 opacity-60'
+                        } space-y-3 relative group`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-4 h-4 text-emerald-600" />
+                            <span className="font-bold text-slate-900 text-sm">{slot.slot_name}</span>
+                          </div>
+
+                          <label className="flex items-center gap-1 text-xs font-bold text-slate-700 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={slot.is_active === 1}
+                              onChange={(e) => handleDailySlotChange(slot.id, slot.max_capacity, e.target.checked)}
+                              className="w-4 h-4 text-emerald-600 rounded"
+                            />
+                            <span className={slot.is_active === 1 ? 'text-emerald-700' : 'text-slate-400'}>
+                              {slot.is_active === 1 ? 'เปิด' : 'ปิด'}
+                            </span>
+                          </label>
+                        </div>
+
+                        <div className="space-y-1.5 pt-1">
+                          <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600">
+                            <span>ความจุเฉพาะวันนี้</span>
+                            <span className="text-emerald-700 font-bold">{slot.max_capacity} คิว/รอบ</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              disabled={slot.max_capacity <= 1}
+                              onClick={() => handleDailySlotChange(slot.id, Math.max(1, slot.max_capacity - 1), slot.is_active === 1)}
+                              className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center transition disabled:opacity-40 shrink-0"
+                              title="ลดความจุลง 1"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+
+                            <input
+                              type="number"
+                              min="1"
+                              max="50"
+                              value={slot.max_capacity}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                if (!isNaN(val) && val >= 1) {
+                                  handleDailySlotChange(slot.id, val, slot.is_active === 1);
+                                }
+                              }}
+                              className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-xl font-bold text-center text-slate-900 focus:ring-2 focus:ring-emerald-500 text-sm"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() => handleDailySlotChange(slot.id, slot.max_capacity + 1, slot.is_active === 1)}
+                              className="w-8 h-8 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold flex items-center justify-center transition shrink-0"
+                              title="เพิ่มความจุขึ้น 1"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
+
+                {/* Summary Card of All Configured Overrides */}
+                <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-600" />
+                        <span>รายการวันที่มีการตั้งค่ารอบเวลาพิเศษล่วงหน้า (Active Date Overrides)</span>
+                      </h4>
+                      <p className="text-xs text-slate-500">วันที่มีการปรับแต่งเฉพาะกิจ จะแสดงในรายการนี้ สามารถคลิกเพื่อดูหรือคืนค่าเป็นมาตรฐานได้</p>
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 font-bold text-xs">
+                      {Object.keys(dailyOverrides).length} วัน
+                    </span>
+                  </div>
+
+                  {Object.keys(dailyOverrides).length === 0 ? (
+                    <div className="py-8 text-center text-slate-400 text-xs">
+                      ยังไม่มีวันใดในระบบที่ถูกตั้งค่ารอบเวลาพิเศษ (ทุกวันเปิดทำการใช้รอบเวลามาตรฐานทั้งหมด)
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {Object.entries(dailyOverrides)
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([overrideDate, oSlots]) => {
+                          const openSlotsCount = oSlots.filter((s) => s.is_active === 1).length;
+                          const totalSlotsCount = oSlots.length;
+                          const isSelected = selectedDailyDate === overrideDate;
+                          return (
+                            <div
+                              key={overrideDate}
+                              onClick={() => setSelectedDailyDate(overrideDate)}
+                              className={`p-4 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+                                isSelected
+                                  ? 'border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-400/30'
+                                  : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <span className="block font-bold text-sm text-slate-900 truncate">
+                                  {formatThaiDate(overrideDate)}
+                                </span>
+                                <span className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                  <span className={openSlotsCount < totalSlotsCount ? 'text-amber-700 font-bold' : 'text-emerald-700'}>
+                                    เปิด {openSlotsCount}/{totalSlotsCount} รอบ
+                                  </span>
+                                  <span>•</span>
+                                  <span>{overrideDate}</span>
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleResetDailySlots(overrideDate);
+                                  }}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                                  title="คืนค่าเป็นมาตรฐาน"
+                                >
+                                  <RotateCcw className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

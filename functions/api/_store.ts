@@ -50,7 +50,7 @@ export interface BlockedDate {
 
 export interface AuditLog {
   id: number;
-  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'CHECKIN_QUEUE' | 'RECEIVING_QUEUE' | 'COMPLETE_QUEUE' | 'UPDATE_SLOT' | 'REORDER_SLOTS' | 'BLOCK_DATE' | 'UNBLOCK_DATE' | 'ADD_STAFF' | 'UPDATE_STAFF' | 'DELETE_STAFF' | 'RESET_PIN' | 'DELETE_QUEUE' | 'BACKUP_DATA' | 'RESTORE_DATA' | 'UPDATE_SETTINGS';
+  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'CHECKIN_QUEUE' | 'RECEIVING_QUEUE' | 'COMPLETE_QUEUE' | 'UPDATE_SLOT' | 'REORDER_SLOTS' | 'BLOCK_DATE' | 'UNBLOCK_DATE' | 'ADD_STAFF' | 'UPDATE_STAFF' | 'DELETE_STAFF' | 'RESET_PIN' | 'DELETE_QUEUE' | 'BACKUP_DATA' | 'RESTORE_DATA' | 'UPDATE_SETTINGS' | 'UPDATE_DAILY_SLOTS' | 'UPDATE_DAILY_SLOT' | 'RESET_DAILY_SLOTS' | 'BATCH_DAILY_CAPACITY';
   details: string;
   operator: string;
   ip_address: string;
@@ -220,6 +220,7 @@ const DEFAULT_BOOKINGS: Booking[] = [];
 const globalStore = (globalThis as any).__PTN_STORE__ || {
   bookings: [...DEFAULT_BOOKINGS] as Booking[],
   timeSlots: [...DEFAULT_SLOTS] as TimeSlot[],
+  dailySlotOverrides: {} as Record<string, TimeSlot[]>,
   blockedDates: [] as BlockedDate[],
   staffUsers: [...DEFAULT_STAFF] as StaffUser[],
   auditLogs: [
@@ -608,6 +609,115 @@ export class DataStore {
     return updated;
   }
 
+  // --- DAILY SLOT OVERRIDES PERSISTENCE ---
+  async getDailySlotOverrides(): Promise<Record<string, TimeSlot[]>> {
+    if (this.kv) {
+      const kvOverrides = await this.getKV<Record<string, TimeSlot[]>>('daily_slot_overrides', globalStore.dailySlotOverrides || {});
+      if (kvOverrides && typeof kvOverrides === 'object') {
+        globalStore.dailySlotOverrides = kvOverrides;
+        return kvOverrides;
+      }
+    }
+    if (!globalStore.dailySlotOverrides) {
+      globalStore.dailySlotOverrides = {};
+    }
+    return globalStore.dailySlotOverrides;
+  }
+
+  async getSlotsForDate(date: string): Promise<TimeSlot[]> {
+    const defaultSlots = await this.getTimeSlots();
+    if (!date) return defaultSlots;
+    const overrides = await this.getDailySlotOverrides();
+    if (overrides && overrides[date] && Array.isArray(overrides[date]) && overrides[date].length > 0) {
+      const customSlots = [...overrides[date]];
+      customSlots.sort((a, b) => {
+        if (a.order_index !== undefined && b.order_index !== undefined) {
+          return a.order_index - b.order_index;
+        }
+        return a.start_time.localeCompare(b.start_time);
+      });
+      return customSlots;
+    }
+    return defaultSlots;
+  }
+
+  async setDailySlotOverride(date: string, slots: TimeSlot[], operator = 'Admin', ip = '127.0.0.1') {
+    if (!date || !Array.isArray(slots)) return false;
+    const overrides = await this.getDailySlotOverrides();
+    overrides[date] = slots;
+    globalStore.dailySlotOverrides = overrides;
+    await this.putKV('daily_slot_overrides', overrides);
+
+    await this.addAuditLog(
+      'UPDATE_DAILY_SLOTS',
+      `ปรับแต่งรอบเวลาและความจุเฉพาะวันที่ ${date} (${slots.filter(s => s.is_active === 1).length}/${slots.length} รอบเปิดทำการ)`,
+      operator,
+      ip
+    );
+    return true;
+  }
+
+  async updateDailySlot(date: string, slotId: number, maxCapacity: number, isActive: boolean, operator = 'Admin', ip = '127.0.0.1') {
+    if (!date) return false;
+    const currentSlots = await this.getSlotsForDate(date);
+    const updatedSlots = currentSlots.map(s => {
+      if (s.id === slotId) {
+        return { ...s, max_capacity: maxCapacity, is_active: isActive ? 1 : 0 };
+      }
+      return { ...s };
+    });
+
+    const overrides = await this.getDailySlotOverrides();
+    overrides[date] = updatedSlots;
+    globalStore.dailySlotOverrides = overrides;
+    await this.putKV('daily_slot_overrides', overrides);
+
+    const targetSlot = updatedSlots.find(s => s.id === slotId);
+    await this.addAuditLog(
+      'UPDATE_DAILY_SLOT',
+      `ปรับแต่งรอบเวลาเฉพาะวันที่ ${date} [${targetSlot?.slot_name || slotId}]: ความจุ ${maxCapacity} คิว, สถานะ: ${isActive ? 'เปิดรับ' : 'ปิด'}`,
+      operator,
+      ip
+    );
+    return updatedSlots;
+  }
+
+  async resetDailySlotOverride(date: string, operator = 'Admin', ip = '127.0.0.1') {
+    if (!date) return false;
+    const overrides = await this.getDailySlotOverrides();
+    if (overrides[date]) {
+      delete overrides[date];
+      globalStore.dailySlotOverrides = overrides;
+      await this.putKV('daily_slot_overrides', overrides);
+
+      await this.addAuditLog(
+        'RESET_DAILY_SLOTS',
+        `คืนค่ารอบเวลาเฉพาะวันที่ ${date} กลับเป็นค่ามาตรฐานของระบบ`,
+        operator,
+        ip
+      );
+    }
+    return true;
+  }
+
+  async batchUpdateDailySlots(date: string, maxCapacity: number, operator = 'Admin', ip = '127.0.0.1') {
+    if (!date) return false;
+    const currentSlots = await this.getSlotsForDate(date);
+    const updatedSlots = currentSlots.map(s => ({ ...s, max_capacity: maxCapacity }));
+    const overrides = await this.getDailySlotOverrides();
+    overrides[date] = updatedSlots;
+    globalStore.dailySlotOverrides = overrides;
+    await this.putKV('daily_slot_overrides', overrides);
+
+    await this.addAuditLog(
+      'BATCH_DAILY_CAPACITY',
+      `ปรับความจุทุกรอบเวลาเฉพาะวันที่ ${date} เป็น ${maxCapacity} คิว`,
+      operator,
+      ip
+    );
+    return updatedSlots;
+  }
+
   // --- BLOCKED DATES PERSISTENCE ---
   async getBlockedDates(): Promise<BlockedDate[]> {
     if (this.kv) {
@@ -863,7 +973,7 @@ export class DataStore {
 
   // --- AVAILABILITY ---
   async getAvailability(date: string) {
-    const slots = await this.getTimeSlots();
+    const slots = await this.getSlotsForDate(date);
     const blockedDates = await this.getBlockedDates();
     const bookings = await this.getAllBookings();
     const { todayStr, currentTimeStr } = getBangkokDateTime();
@@ -902,9 +1012,7 @@ export class DataStore {
       }
     }
 
-    const activeSlots = slots.filter((s: TimeSlot) => s.is_active === 1);
-
-    const computedSlots = activeSlots.map((s: TimeSlot) => {
+    const computedSlots = slots.map((s: TimeSlot) => {
       const booked = countMap.get(s.slot_name) || 0;
       const available = Math.max(0, s.max_capacity - booked);
 
@@ -926,16 +1034,20 @@ export class DataStore {
         max_capacity: s.max_capacity,
         booked_count: booked,
         available_slots: available,
-        is_available: !isBlocked && !isPast && available > 0,
+        is_available: !isBlocked && !isPast && s.is_active === 1 && available > 0,
         is_past: isPast,
         is_active: s.is_active,
       };
     });
 
+    const overrides = await this.getDailySlotOverrides();
+    const hasCustomOverride = !!(overrides && overrides[date] && overrides[date].length > 0);
+
     return {
       date,
       is_blocked: isBlocked,
       block_reason: blockReason,
+      has_custom_override: hasCustomOverride,
       slots: computedSlots,
     };
   }
@@ -1258,7 +1370,7 @@ export class DataStore {
 
   async createBooking(data: any): Promise<Booking> {
     const blockedDates = await this.getBlockedDates();
-    const slots = await this.getTimeSlots();
+    const slots = await this.getSlotsForDate(data.requested_date);
     const { todayStr, currentTimeStr } = getBangkokDateTime();
 
     // Check if date is in the past
@@ -1287,7 +1399,7 @@ export class DataStore {
     const slotObj = slots.find((s: TimeSlot) => s.slot_name === data.requested_time);
     if (slotObj) {
       if (slotObj.is_active === 0) {
-        throw new Error(`รอบเวลา ${data.requested_time} ปิดรับจองแล้ว กรุณาเลือกรอบเวลาอื่น`);
+        throw new Error(`รอบเวลา ${data.requested_time} ของวันที่ ${data.requested_date} ปิดรับจองแล้ว กรุณาเลือกรอบเวลาอื่น`);
       }
       let targetEndTime = slotObj.end_time;
       if (!targetEndTime && slotObj.slot_name) {
@@ -1297,6 +1409,17 @@ export class DataStore {
       const slotEndMinutes = timeStrToMinutes(targetEndTime || slotObj.start_time);
       if (data.requested_date === todayStr && timeStrToMinutes(currentTimeStr) >= slotEndMinutes) {
         throw new Error(`รอบเวลา ${data.requested_time} เลยกำหนดเวลาจองแล้ว กรุณาเลือกรอบเวลาอื่น`);
+      }
+
+      // Check slot capacity limit for this specific date
+      const allBookings = await this.getAllBookings();
+      const currentBooked = allBookings.filter(
+        (b) => b.requested_date === data.requested_date &&
+               b.requested_time === data.requested_time &&
+               (b.status === 'Pending' || b.status === 'Approved')
+      ).length;
+      if (currentBooked >= slotObj.max_capacity) {
+        throw new Error(`รอบเวลา ${data.requested_time} ของวันที่ ${data.requested_date} เต็มแล้ว (${currentBooked}/${slotObj.max_capacity} คิว) กรุณาเลือกรอบเวลาอื่น`);
       }
     }
 
@@ -1696,9 +1819,10 @@ export class DataStore {
   async getSettings() {
     const slots = await this.getTimeSlots();
     const blockedDates = await this.getBlockedDates();
+    const dailyOverrides = await this.getDailySlotOverrides();
     let settings = { ...globalStore.settings };
 
-    return { slots, blockedDates, settings };
+    return { slots, blockedDates, dailyOverrides, settings };
   }
 
   // --- SYSTEM SETTINGS (CONTACTS & ANNOUNCEMENTS) ---
