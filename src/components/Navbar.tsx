@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { CalendarClock, Search, Phone, MessageCircle } from 'lucide-react';
 import { DEFAULT_SYSTEM_SETTINGS, SystemSettings } from '@/lib/types';
+import NotificationBell from '@/components/NotificationBell';
 
 export default function Navbar() {
   const pathname = usePathname() || '';
@@ -102,8 +103,10 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Contact Badges (Phone & LINE) */}
+          {/* Badges & Notification Bell */}
           <div className="flex items-center gap-1.5 sm:gap-2">
+            <NotificationBell />
+
             <a
               href={`tel:${settings.contact_phone.replace(/[^0-9]/g, '')}`}
               className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-xs sm:text-sm font-bold transition shadow-2xs group"
