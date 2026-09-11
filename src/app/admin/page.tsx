@@ -84,7 +84,7 @@ interface AuditLog {
   created_at: string;
 }
 
-const IDLE_TIMEOUT_SECONDS = 60 * 60; // 1 hour (3600 seconds)
+const IDLE_TIMEOUT_SECONDS = 2 * 60 * 60; // 2 hours (7200 seconds)
 
 function getBangkokToday(): string {
   const bangkokDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
@@ -619,7 +619,7 @@ export default function AdminDashboardPage() {
       }
     } catch (e) {}
 
-    // Check if session has exceeded 1 hour
+    // Check if session has exceeded 2 hours
     if (savedLoginTime) {
       const loginTime = parseInt(savedLoginTime, 10);
       if (Date.now() - loginTime > IDLE_TIMEOUT_SECONDS * 1000) {
@@ -634,7 +634,7 @@ export default function AdminDashboardPage() {
     setUserRoleName(savedRoleName);
   }, [router, handleLogout]);
 
-  // 2. Idle Timer (Auto-Logout after 1 hour of inactivity)
+  // 2. Idle Timer (Auto-Logout after 2 hours of inactivity)
   const lastActivityRef = useRef<number>(Date.now());
 
   useEffect(() => {
@@ -2128,11 +2128,6 @@ export default function AdminDashboardPage() {
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-slate-200 truncate max-w-[120px] sm:max-w-none">{operatorName}</span>
                 {getRoleBadge(userRole)}
-              </div>
-              <span className="text-slate-600 hidden sm:inline">|</span>
-              <div className="hidden sm:flex items-center gap-1 text-slate-400 text-xs" title="เซสชันจะหมดอายุหากไม่มีการใช้งาน">
-                <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span>Auto-Logout: <strong className="text-amber-300 font-mono text-xs">{formatIdleTime(idleSecondsRemaining)}</strong></span>
               </div>
             </div>
 

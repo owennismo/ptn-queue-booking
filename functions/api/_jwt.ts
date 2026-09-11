@@ -36,14 +36,14 @@ async function getKey(): Promise<CryptoKey> {
   );
 }
 
-export async function createAdminToken(payload: Record<string, any> = {}, expiresInSeconds = 3600): Promise<string> {
+export async function createAdminToken(payload: Record<string, any> = {}, expiresInSeconds = 7200): Promise<string> {
   const header = { alg: 'HS256', typ: 'JWT' };
   const now = Math.floor(Date.now() / 1000);
   const fullPayload = {
     role: payload.role || 'admin',
     ...payload,
     iat: now,
-    exp: now + expiresInSeconds, // 1 hour default (3600 seconds)
+    exp: now + expiresInSeconds, // 2 hours default (7200 seconds)
   };
 
   const headerB64 = base64UrlEncode(JSON.stringify(header));

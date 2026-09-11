@@ -52,7 +52,7 @@ export async function onRequestPost(context: { request: Request; env: any }) {
           success: true,
           message: `เข้าสู่ระบบสำเร็จ: ยินดีต้อนรับ ${staff.full_name}`,
           token,
-          expires_in: 3600,
+          expires_in: 7200,
           staff: {
             id: staff.id,
             username: staff.username,
