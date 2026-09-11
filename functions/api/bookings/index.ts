@@ -28,6 +28,19 @@ export async function onRequestPost(context: { request: Request; env: any }) {
       );
     }
 
+    const normalizedCarrier = String(carrier_name || '').trim().replace(/\s+/g, '');
+    if (
+      normalizedCarrier === 'ขนส่งเอกชน' ||
+      normalizedCarrier === 'บริษัทขนส่งเอกชน' ||
+      normalizedCarrier === 'บ.ขนส่งเอกชน' ||
+      normalizedCarrier === 'รถขนส่งเอกชน'
+    ) {
+      return new Response(
+        JSON.stringify({ error: 'ห้ามระบุเพียง "ขนส่งเอกชน" กรุณาระบุชื่อบริษัทขนส่งจริง เช่น Kerry Express, Flash, J&T, นิ่มซี่เส็ง, SCG ฯลฯ' }),
+        { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+      );
+    }
+
     const store = new DataStore(env);
     const avail = await store.getAvailability(requested_date);
     if (avail.is_blocked) {

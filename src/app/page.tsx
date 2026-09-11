@@ -236,6 +236,17 @@ export default function BookingPage() {
       .catch(() => {});
   }, []);
 
+  // Helper to detect generic placeholder carrier name
+  const isInvalidCarrier = (name: string): boolean => {
+    const norm = name.trim().replace(/\s+/g, '');
+    return (
+      norm === 'ขนส่งเอกชน' ||
+      norm === 'บริษัทขนส่งเอกชน' ||
+      norm === 'บ.ขนส่งเอกชน' ||
+      norm === 'รถขนส่งเอกชน'
+    );
+  };
+
   // Validation function per step
   const validateStep = (stepNum: number): boolean => {
     setErrorMessage(null);
@@ -267,6 +278,10 @@ export default function BookingPage() {
       }
       if (!carrierName.trim()) {
         setErrorMessage('กรุณาระบุชื่อบริษัทขนส่ง');
+        return false;
+      }
+      if (isInvalidCarrier(carrierName)) {
+        setErrorMessage('ห้ามระบุเพียง "ขนส่งเอกชน" กรุณาระบุชื่อบริษัทขนส่งจริง เช่น Kerry Express, Flash, J&T, นิ่มซี่เส็ง ฯลฯ');
         return false;
       }
       if (!clientName.trim()) {
@@ -517,6 +532,11 @@ export default function BookingPage() {
     }
     if (!carrierName.trim()) {
       setErrorMessage('กรุณาระบุชื่อบริษัทขนส่ง');
+      return;
+    }
+    if (isInvalidCarrier(carrierName)) {
+      setErrorMessage('ห้ามระบุเพียง "ขนส่งเอกชน" กรุณาระบุชื่อบริษัทขนส่งจริง เช่น Kerry Express, Flash, J&T, นิ่มซี่เส็ง ฯลฯ');
+      setCurrentStep(2);
       return;
     }
     if (!clientName.trim()) {
@@ -1041,12 +1061,24 @@ export default function BookingPage() {
                       type="text"
                       required
                       list="carrier-suggestions"
-                      placeholder="เช่น Kerry Express, Flash Express, ขนส่งเอกชน..."
+                      placeholder="เช่น Kerry Express, Flash Express, SCG Logistics, นิ่มซี่เส็ง..."
                       value={carrierName}
                       onChange={(e) => setCarrierName(e.target.value)}
-                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-slate-900 text-base"
+                      className={`w-full pl-11 pr-4 py-3 border rounded-xl focus:ring-2 transition text-slate-900 text-base ${
+                        isInvalidCarrier(carrierName)
+                          ? 'border-rose-400 bg-rose-50/50 focus:ring-rose-400 text-rose-900'
+                          : 'bg-slate-50 border-slate-300 focus:ring-emerald-500 focus:bg-white'
+                      }`}
                     />
                   </div>
+                  {isInvalidCarrier(carrierName) ? (
+                    <p className="text-xs text-rose-600 font-bold flex items-center gap-1.5 mt-1 animate-in fade-in">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-rose-600" />
+                      <span>ห้ามระบุเพียง &quot;ขนส่งเอกชน&quot; กรุณาระบุชื่อบริษัทขนส่งจริง เช่น Kerry, Flash, J&amp;T, นิ่มซี่เส็ง</span>
+                    </p>
+                  ) : (
+                    <p className="text-xs text-slate-500">ระบุชื่อบริษัทขนส่งจริง เช่น Kerry, Flash, SCG (ห้ามระบุเพียง &quot;ขนส่งเอกชน&quot;)</p>
+                  )}
                 </div>
 
                 {/* Cloud Profile Suggestion Card (If phone matches past bookings) */}

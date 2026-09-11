@@ -1556,9 +1556,9 @@ export class DataStore {
       'DHL Supply Chain',
       'J&T Express',
       'ไปรษณีย์ไทย (EMS)',
-      'ขนส่งเอกชน',
       'นิ่มซี่เส็งขนส่ง',
-      'รถร่วมบริการ',
+      'KEX Express',
+      'Ninja Van',
     ];
 
     const bookings = await this.getAllBookings();
@@ -1570,7 +1570,10 @@ export class DataStore {
     bookings.forEach((b) => {
       if (b.carrier_name) {
         const c = b.carrier_name.trim();
-        if (c) carrierCounts.set(c, (carrierCounts.get(c) || 0) + 2);
+        const norm = c.replace(/\s+/g, '');
+        if (c && norm !== 'ขนส่งเอกชน' && norm !== 'บริษัทขนส่งเอกชน' && norm !== 'บ.ขนส่งเอกชน') {
+          carrierCounts.set(c, (carrierCounts.get(c) || 0) + 2);
+        }
       }
       if (b.client_name) {
         const cl = b.client_name.trim();
