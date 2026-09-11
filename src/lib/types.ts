@@ -125,6 +125,8 @@ export interface SystemSettings {
   ticket_instruction?: string;
   admin_announcement?: string;
   admin_announcement_active: boolean;
+  block_saturday?: boolean;
+  block_sunday?: boolean;
 }
 
 export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
@@ -151,4 +153,6 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   ticket_instruction: 'กรุณานำรถและสินค้าเข้าส่งตามวันและเวลาที่ระบุ พร้อมแสดงบัตรคิวและ QR Code นี้ต่อเจ้าหน้าที่รักษาความปลอดภัยและฝ่ายรับสินค้า',
   admin_announcement: 'รับสินค้าเสร็จแล้ว ถ่ายรูปสินค้า หรือ บิล แนบมาให้ด้วยนะครับ',
   admin_announcement_active: false,
+  block_saturday: false,
+  block_sunday: true,
 };

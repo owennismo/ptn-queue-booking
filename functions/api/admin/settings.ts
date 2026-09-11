@@ -207,6 +207,22 @@ export async function onRequestPost(context: { request: Request; env: any }) {
       });
     }
 
+    // 7. UPDATE WEEKEND BLOCKING (SATURDAY & SUNDAY)
+    if (action === 'update_weekend_blocking') {
+      const { block_saturday, block_sunday } = body;
+      const updated = await store.updateSettings({
+        block_saturday: typeof block_saturday === 'boolean' ? block_saturday : false,
+        block_sunday: typeof block_sunday === 'boolean' ? block_sunday : true,
+      }, operatorName, clientIp);
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'บันทึกการตั้งค่าวันปิดรับจองประจำสัปดาห์เรียบร้อยแล้ว (มีผลทันที)',
+        settings: updated,
+      }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      });
+    }
+
     return new Response(JSON.stringify({ error: 'Unknown action' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },

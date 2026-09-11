@@ -81,6 +81,8 @@ export interface SystemSettings {
   ticket_instruction?: string;
   admin_announcement?: string;
   admin_announcement_active: boolean;
+  block_saturday?: boolean;
+  block_sunday?: boolean;
 }
 
 export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
@@ -107,6 +109,8 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   ticket_instruction: 'กรุณานำรถและสินค้าเข้าส่งตามวันและเวลาที่ระบุ พร้อมแสดงบัตรคิวและ QR Code นี้ต่อเจ้าหน้าที่รักษาความปลอดภัยและฝ่ายรับสินค้า',
   admin_announcement: 'รับสินค้าเสร็จแล้ว ถ่ายรูปสินค้า หรือ บิล แนบมาให้ด้วยนะครับ',
   admin_announcement_active: false,
+  block_saturday: false,
+  block_sunday: true,
 };
 
 export interface PushSubscriptionRecord {
@@ -999,14 +1003,21 @@ export class DataStore {
       blockReason = 'วันที่เลือกได้ผ่านพ้นไปแล้ว ไม่สามารถจองคิวย้อนหลังได้';
     }
 
-    // Check if date is Sunday (Default Blocked)
+    // Check if weekend is blocked according to system settings
     if (date) {
       const parts = date.split('-');
       if (parts.length === 3) {
         const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-        if (d.getDay() === 0) {
+        const systemSettings = await this.getPublicSettings();
+        const isSundayBlocked = systemSettings.block_sunday !== false;
+        const isSaturdayBlocked = systemSettings.block_saturday === true;
+
+        if (d.getDay() === 0 && isSundayBlocked) {
           isBlocked = true;
           blockReason = 'คลังสินค้าปิดทำการทุกวันอาทิตย์ (งดรับจองคิว)';
+        } else if (d.getDay() === 6 && isSaturdayBlocked) {
+          isBlocked = true;
+          blockReason = 'คลังสินค้าปิดทำการทุกวันเสาร์ (งดรับจองคิว)';
         }
       }
     }
@@ -1390,13 +1401,20 @@ export class DataStore {
       throw new Error('ไม่อนุญาตให้จองคิวย้อนหลัง กรุณาเลือกวันปัจจุบันหรือล่วงหน้า');
     }
 
-    // Check if date is Sunday (Default Blocked)
+    // Check if weekend is blocked according to system settings
     if (data.requested_date) {
       const parts = data.requested_date.split('-');
       if (parts.length === 3) {
         const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-        if (d.getDay() === 0) {
+        const systemSettings = await this.getPublicSettings();
+        const isSundayBlocked = systemSettings.block_sunday !== false;
+        const isSaturdayBlocked = systemSettings.block_saturday === true;
+
+        if (d.getDay() === 0 && isSundayBlocked) {
           throw new Error('คลังสินค้าปิดทำการทุกวันอาทิตย์ ไม่อนุญาตให้จองคิวในวันอาทิตย์');
+        }
+        if (d.getDay() === 6 && isSaturdayBlocked) {
+          throw new Error('คลังสินค้าปิดทำการทุกวันเสาร์ ไม่อนุญาตให้จองคิวในวันเสาร์');
         }
       }
     }
@@ -1886,6 +1904,12 @@ export class DataStore {
     }
     if (newSettings.admin_announcement_active !== undefined && newSettings.admin_announcement_active !== current.admin_announcement_active) {
       changedFields.push(`ประกาศใน Admin: ${newSettings.admin_announcement_active ? 'เปิด' : 'ปิด'}`);
+    }
+    if (newSettings.block_saturday !== undefined && newSettings.block_saturday !== current.block_saturday) {
+      changedFields.push(`ปิดรับจองวันเสาร์: ${newSettings.block_saturday ? 'เปิดใช้งาน (ปิดรับจอง)' : 'ปิดใช้งาน (เปิดรับจอง)'}`);
+    }
+    if (newSettings.block_sunday !== undefined && newSettings.block_sunday !== current.block_sunday) {
+      changedFields.push(`ปิดรับจองวันอาทิตย์: ${newSettings.block_sunday ? 'เปิดใช้งาน (ปิดรับจอง)' : 'ปิดใช้งาน (เปิดรับจอง)'}`);
     }
 
     const detailMsg = changedFields.length > 0

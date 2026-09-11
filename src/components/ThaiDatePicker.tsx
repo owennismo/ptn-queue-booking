@@ -19,6 +19,7 @@ interface ThaiDatePickerProps {
   maxDate?: string; // YYYY-MM-DD
   disabledDates?: string[];
   disableSundays?: boolean;
+  disableSaturdays?: boolean;
   placeholder?: string;
   required?: boolean;
   className?: string;
@@ -53,6 +54,7 @@ export default function ThaiDatePicker({
   maxDate,
   disabledDates = [],
   disableSundays = true,
+  disableSaturdays = false,
   placeholder = 'เลือกวันที่ (วัน/เดือน/พ.ศ.)',
   required = false,
   className = '',
@@ -149,6 +151,7 @@ export default function ThaiDatePicker({
     if (disabledDates.includes(dateStr)) return true;
     const dayOfWeek = new Date(viewYear, viewMonth, day).getDay();
     if (disableSundays && dayOfWeek === 0) return true;
+    if (disableSaturdays && dayOfWeek === 6) return true;
     return false;
   };
 
@@ -211,7 +214,7 @@ export default function ThaiDatePicker({
         <div className="absolute top-full left-0 mt-2 z-50 w-full sm:w-88 bg-white rounded-3xl border border-slate-200 shadow-2xl p-4 space-y-3 animate-in fade-in zoom-in-95 duration-150">
           {/* Quick Shortcuts */}
           <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
-            {(!disableSundays || today.getDay() !== 0) && (!minDate || todayStr >= minDate) && !disabledDates.includes(todayStr) && (
+            {(!disableSundays || today.getDay() !== 0) && (!disableSaturdays || today.getDay() !== 6) && (!minDate || todayStr >= minDate) && !disabledDates.includes(todayStr) && (
               <button
                 type="button"
                 onClick={() => handleQuickSelect(todayStr)}
@@ -220,7 +223,7 @@ export default function ThaiDatePicker({
                 วันนี้ ({formatThaiNumericDate(todayStr)})
               </button>
             )}
-            {(!disableSundays || tomorrow.getDay() !== 0) && (!minDate || tomorrowStr >= minDate) && !disabledDates.includes(tomorrowStr) && (
+            {(!disableSundays || tomorrow.getDay() !== 0) && (!disableSaturdays || tomorrow.getDay() !== 6) && (!minDate || tomorrowStr >= minDate) && !disabledDates.includes(tomorrowStr) && (
               <button
                 type="button"
                 onClick={() => handleQuickSelect(tomorrowStr)}
@@ -229,9 +232,10 @@ export default function ThaiDatePicker({
                 พรุ่งนี้ ({formatThaiNumericDate(tomorrowStr)})
               </button>
             )}
-            {disableSundays && (today.getDay() === 0 || tomorrow.getDay() === 0) && (
+            {((disableSundays && (today.getDay() === 0 || tomorrow.getDay() === 0)) ||
+              (disableSaturdays && (today.getDay() === 6 || tomorrow.getDay() === 6))) && (
               <span className="text-xs text-rose-600 font-bold px-2 py-1 bg-rose-50 rounded-lg flex items-center gap-1">
-                🚫 วันอาทิตย์ปิดทำการ
+                🚫 {disableSundays && disableSaturdays ? 'เสาร์-อาทิตย์ ปิด' : disableSundays ? 'วันอาทิตย์ปิด' : 'วันเสาร์ปิด'}
               </span>
             )}
           </div>
@@ -271,7 +275,13 @@ export default function ThaiDatePicker({
             {THAI_DAYS_SHORT.map((dayName, idx) => (
               <div
                 key={dayName}
-                className={`py-1 ${idx === 0 ? 'text-rose-600 font-extrabold' : 'text-slate-600'}`}
+                className={`py-1 ${
+                  idx === 0
+                    ? disableSundays ? 'text-rose-600 font-extrabold' : 'text-slate-600 font-bold'
+                    : idx === 6
+                    ? disableSaturdays ? 'text-rose-600 font-extrabold' : 'text-slate-600 font-bold'
+                    : 'text-slate-600'
+                }`}
               >
                 {dayName}
               </div>
@@ -294,6 +304,8 @@ export default function ThaiDatePicker({
               const disabled = isDayDisabled(dayNum);
               const dayOfWeek = new Date(viewYear, viewMonth, dayNum).getDay();
               const isSunday = dayOfWeek === 0;
+              const isSaturday = dayOfWeek === 6;
+              const isWeekendDisabled = (isSunday && disableSundays) || (isSaturday && disableSaturdays);
 
               return (
                 <button
@@ -306,15 +318,27 @@ export default function ThaiDatePicker({
                       ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200 scale-105'
                       : isToday
                       ? 'bg-emerald-100 text-emerald-900 border border-emerald-300 font-extrabold'
-                      : disabled && isSunday
+                      : isWeekendDisabled
                       ? 'text-rose-300 bg-rose-50/40 cursor-not-allowed line-through opacity-60'
                       : disabled
                       ? 'text-slate-300 cursor-not-allowed opacity-40'
                       : isSunday
                       ? 'text-rose-600 hover:bg-rose-50'
+                      : isSaturday
+                      ? 'text-purple-600 hover:bg-purple-50'
                       : 'text-slate-700 hover:bg-slate-100'
                   }`}
-                  title={isSunday && disabled ? 'วันอาทิตย์ (คลังสินค้าปิดทำการ - งดรับจองคิว)' : isSunday ? 'วันอาทิตย์' : dateStr}
+                  title={
+                    isSunday && disableSundays
+                      ? 'วันอาทิตย์ (คลังสินค้าปิดทำการ - งดรับจองคิว)'
+                      : isSaturday && disableSaturdays
+                      ? 'วันเสาร์ (คลังสินค้าปิดทำการ - งดรับจองคิว)'
+                      : isSunday
+                      ? 'วันอาทิตย์'
+                      : isSaturday
+                      ? 'วันเสาร์'
+                      : dateStr
+                  }
                 >
                   {dayNum}
                 </button>
@@ -327,9 +351,16 @@ export default function ThaiDatePicker({
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block" /> วันที่เลือก
             </span>
-            <span className="flex items-center gap-1.5 font-bold text-rose-600">
-              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" /> วันอาทิตย์ (ปิดทำการ)
-            </span>
+            {(disableSundays || disableSaturdays) && (
+              <span className="flex items-center gap-1.5 font-bold text-rose-600">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />
+                {disableSundays && disableSaturdays
+                  ? 'ส. - อา. (ปิดทำการ)'
+                  : disableSundays
+                  ? 'วันอาทิตย์ (ปิดทำการ)'
+                  : 'วันเสาร์ (ปิดทำการ)'}
+              </span>
+            )}
           </div>
         </div>
       )}

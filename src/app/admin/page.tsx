@@ -241,6 +241,7 @@ export default function AdminDashboardPage() {
     return false;
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [isUpdatingWeekend, setIsUpdatingWeekend] = useState(false);
 
   // Push Notification Broadcast state
   const [pushSubscriberCount, setPushSubscriberCount] = useState<number | null>(null);
@@ -1914,6 +1915,49 @@ export default function AdminDashboardPage() {
     });
   };
 
+  const handleToggleWeekendBlocking = async (targetDay: 'saturday' | 'sunday') => {
+    try {
+      setIsUpdatingWeekend(true);
+      const currentSat = systemSettings.block_saturday === true;
+      const currentSun = systemSettings.block_sunday !== false;
+      const newSat = targetDay === 'saturday' ? !currentSat : currentSat;
+      const newSun = targetDay === 'sunday' ? !currentSun : currentSun;
+
+      const res = await authFetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_weekend_blocking',
+          block_saturday: newSat,
+          block_sunday: newSun,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'ไม่สามารถบันทึกการตั้งค่าได้');
+      }
+      const updated = data.settings || {
+        ...systemSettings,
+        block_saturday: newSat,
+        block_sunday: newSun,
+      };
+      setSystemSettings(updated);
+      try {
+        localStorage.setItem('ptn_system_settings', JSON.stringify(updated));
+      } catch (e) {}
+
+      showToast(
+        targetDay === 'saturday'
+          ? (newSat ? 'ปิดรับจองวันเสาร์เรียบร้อยแล้ว (มีผลทันที)' : 'เปิดรับจองวันเสาร์เรียบร้อยแล้ว (มีผลทันที)')
+          : (newSun ? 'ปิดรับจองวันอาทิตย์เรียบร้อยแล้ว (มีผลทันที)' : 'เปิดรับจองวันอาทิตย์เรียบร้อยแล้ว (มีผลทันที)')
+      );
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการบันทึกการตั้งค่า', 'error');
+    } finally {
+      setIsUpdatingWeekend(false);
+    }
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSuperAdmin) {
@@ -3487,22 +3531,173 @@ export default function AdminDashboardPage() {
         {/* 🌟 TAB 3: BLOCK DATES */}
         {!isSecurityOnly && activeTab === 'blocking' && (
           <div className="space-y-4">
-            {/* Default Sunday Blocking Banner */}
-            <div className="p-4 bg-rose-50/90 border border-rose-200 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-rose-950 text-xs shadow-xs">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
-                  อา.
+            {/* Weekend Blocking Control Card */}
+            <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center font-black text-sm shrink-0 shadow-2xs">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                      <span>วันปิดรับจองประจำสัปดาห์ (วันเสาร์ - วันอาทิตย์)</span>
+                      <span className="text-2xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                        ตั้งค่าเปิด-ปิดได้
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      สลับเปิดหรือปิดรับการจองคิวในวันเสาร์และวันอาทิตย์ได้ตามความต้องการ มีผลต่อปฏิทินหน้าจองคิวและการตรวจสอบของระบบทันที
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <strong className="block font-bold text-sm text-rose-900">คลังสินค้าปิดทำการทุกวันอาทิตย์ (Default Closed)</strong>
-                  <span className="text-rose-700 text-xs">
-                    ระบบตั้งค่าปิดรับการจองคิวทุกวันอาทิตย์เป็นค่าเริ่มต้นอัตโนมัติ ผู้จองจะไม่สามารถเลือกวันอาทิตย์ในปฏิทินได้
+
+                {isUpdatingWeekend && (
+                  <span className="text-xs text-emerald-700 font-bold flex items-center gap-1.5 animate-pulse shrink-0">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    กำลังบันทึก...
                   </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 1. วันเสาร์ (Saturday) */}
+                <div
+                  className={`p-4 rounded-2xl border transition flex flex-col justify-between gap-4 ${
+                    systemSettings.block_saturday === true
+                      ? 'bg-rose-50/70 border-rose-200'
+                      : 'bg-emerald-50/60 border-emerald-200'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs ${
+                          systemSettings.block_saturday === true
+                            ? 'bg-rose-600 text-white'
+                            : 'bg-emerald-600 text-white'
+                        }`}
+                      >
+                        ส.
+                      </div>
+                      <div>
+                        <span className="font-bold text-sm text-slate-900 block">วันเสาร์ (Saturday)</span>
+                        <span className="text-xs text-slate-600 block">
+                          {systemSettings.block_saturday === true
+                            ? 'ปิดรับการจองคิวทุกวันเสาร์ (ผู้จองเลือกวันเสาร์ไม่ได้)'
+                            : 'เปิดรับการจองคิวส่งของในวันเสาร์ตามปกติ'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-2xs font-bold shrink-0 border ${
+                        systemSettings.block_saturday === true
+                          ? 'bg-rose-100 text-rose-800 border-rose-300'
+                          : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      }`}
+                    >
+                      {systemSettings.block_saturday === true ? '🔒 ปิดรับจอง' : '🟢 เปิดรับจอง'}
+                    </span>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-3">
+                    <span className="text-2xs text-slate-500">
+                      สถานะ: {systemSettings.block_saturday === true ? 'ระบบระงับการจองวันเสาร์' : 'เปิดให้จองคิวปกติ'}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={isUpdatingWeekend}
+                      onClick={() => handleToggleWeekendBlocking('saturday')}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs active:scale-95 ${
+                        systemSettings.block_saturday === true
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                          : 'bg-rose-600 hover:bg-rose-700 text-white'
+                      }`}
+                    >
+                      {systemSettings.block_saturday === true ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>เปิดรับจองวันเสาร์</span>
+                        </>
+                      ) : (
+                        <>
+                          <X className="w-3.5 h-3.5" />
+                          <span>ปิดรับจองวันเสาร์</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. วันอาทิตย์ (Sunday) */}
+                <div
+                  className={`p-4 rounded-2xl border transition flex flex-col justify-between gap-4 ${
+                    systemSettings.block_sunday !== false
+                      ? 'bg-rose-50/70 border-rose-200'
+                      : 'bg-emerald-50/60 border-emerald-200'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs ${
+                          systemSettings.block_sunday !== false
+                            ? 'bg-rose-600 text-white'
+                            : 'bg-emerald-600 text-white'
+                        }`}
+                      >
+                        อา.
+                      </div>
+                      <div>
+                        <span className="font-bold text-sm text-slate-900 block">วันอาทิตย์ (Sunday)</span>
+                        <span className="text-xs text-slate-600 block">
+                          {systemSettings.block_sunday !== false
+                            ? 'ปิดรับการจองคิวทุกวันอาทิตย์ (ผู้จองเลือกวันอาทิตย์ไม่ได้)'
+                            : 'เปิดรับการจองคิวส่งของในวันอาทิตย์ตามปกติ'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-2xs font-bold shrink-0 border ${
+                        systemSettings.block_sunday !== false
+                          ? 'bg-rose-100 text-rose-800 border-rose-300'
+                          : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      }`}
+                    >
+                      {systemSettings.block_sunday !== false ? '🔒 ปิดรับจอง' : '🟢 เปิดรับจอง'}
+                    </span>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-3">
+                    <span className="text-2xs text-slate-500">
+                      สถานะ: {systemSettings.block_sunday !== false ? 'ระบบระงับการจองวันอาทิตย์' : 'เปิดให้จองคิวปกติ'}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={isUpdatingWeekend}
+                      onClick={() => handleToggleWeekendBlocking('sunday')}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs active:scale-95 ${
+                        systemSettings.block_sunday !== false
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                          : 'bg-rose-600 hover:bg-rose-700 text-white'
+                      }`}
+                    >
+                      {systemSettings.block_sunday !== false ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>เปิดรับจองวันอาทิตย์</span>
+                        </>
+                      ) : (
+                        <>
+                          <X className="w-3.5 h-3.5" />
+                          <span>ปิดรับจองวันอาทิตย์</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
-              <span className="px-3 py-1.5 bg-rose-100 text-rose-800 rounded-full font-bold text-xs shrink-0 border border-rose-200">
-                🔒 ปิดรับจองอัตโนมัติทุกสัปดาห์
-              </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -4176,17 +4371,104 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
 
+                  {/* วันปิดรับจองประจำสัปดาห์ (วันเสาร์ - วันอาทิตย์) */}
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-800 block">วันปิดรับจองประจำสัปดาห์</label>
+                      <p className="text-2xs text-slate-500">เลือกวันที่ต้องการปิดรับการจองคิวอัตโนมัติทุกสัปดาห์</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <label className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                        systemSettings.block_saturday === true
+                          ? 'bg-rose-50 border-rose-300 text-rose-900'
+                          : 'bg-white border-slate-200 text-slate-700'
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={systemSettings.block_saturday === true}
+                            onChange={(e) => setSystemSettings({ ...systemSettings, block_saturday: e.target.checked })}
+                            className="rounded text-rose-600 focus:ring-rose-500"
+                          />
+                          <span className="text-xs font-bold">ปิดรับจองวันเสาร์</span>
+                        </div>
+                        <span className={`text-2xs font-bold px-2 py-0.5 rounded-full ${
+                          systemSettings.block_saturday === true ? 'bg-rose-200 text-rose-900' : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          {systemSettings.block_saturday === true ? '🔒 ปิดรับจอง' : '🟢 เปิดให้จอง'}
+                        </span>
+                      </label>
+
+                      <label className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                        systemSettings.block_sunday !== false
+                          ? 'bg-rose-50 border-rose-300 text-rose-900'
+                          : 'bg-white border-slate-200 text-slate-700'
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={systemSettings.block_sunday !== false}
+                            onChange={(e) => setSystemSettings({ ...systemSettings, block_sunday: e.target.checked })}
+                            className="rounded text-rose-600 focus:ring-rose-500"
+                          />
+                          <span className="text-xs font-bold">ปิดรับจองวันอาทิตย์</span>
+                        </div>
+                        <span className={`text-2xs font-bold px-2 py-0.5 rounded-full ${
+                          systemSettings.block_sunday !== false ? 'bg-rose-200 text-rose-900' : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          {systemSettings.block_sunday !== false ? '🔒 ปิดรับจอง' : '🟢 เปิดให้จอง'}
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
                   {/* ข้อกำหนดและเงื่อนไขหน้าจองคิว */}
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-700">
-                      ข้อกำหนด/เงื่อนไขการส่งสินค้า (แสดงขั้นตอนที่ 1) <span className="text-rose-500">*</span>
-                    </label>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700">
+                        ข้อกำหนด/เงื่อนไขการส่งสินค้า (แสดงขั้นตอนที่ 1) <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="flex items-center gap-1.5 text-2xs">
+                        <span className="text-slate-400">ข้อความแนะนำด่วน:</span>
+                        <button
+                          type="button"
+                          onClick={() => setSystemSettings({
+                            ...systemSettings,
+                            booking_notice_text: 'คลังเปิดรับสินค้าจันทร์ - เสาร์ (หยุดวันอาทิตย์) ล่วงหน้าได้ 14 วัน',
+                          })}
+                          className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium"
+                        >
+                          หยุดวันอาทิตย์
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSystemSettings({
+                            ...systemSettings,
+                            booking_notice_text: 'คลังเปิดรับสินค้าจันทร์ - ศุกร์ (หยุดวันเสาร์และอาทิตย์) ล่วงหน้าได้ 14 วัน',
+                          })}
+                          className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium"
+                        >
+                          หยุดเสาร์-อาทิตย์
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSystemSettings({
+                            ...systemSettings,
+                            booking_notice_text: 'คลังเปิดรับสินค้าทุกวัน ล่วงหน้าได้ 14 วัน',
+                          })}
+                          className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium"
+                        >
+                          เปิดทุกวัน
+                        </button>
+                      </div>
+                    </div>
                     <textarea
                       rows={3}
                       required
                       value={systemSettings.booking_notice_text}
                       onChange={(e) => setSystemSettings({ ...systemSettings, booking_notice_text: e.target.value })}
-                      placeholder="เช่น กรุณามาถึงก่อนเวลา 15 นาที และเตรียมเอกสารใบส่งของให้พร้อม..."
+                      placeholder="เช่น คลังเปิดรับสินค้าจันทร์ - เสาร์ (หยุดวันอาทิตย์) ล่วงหน้าได้ 14 วัน"
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>

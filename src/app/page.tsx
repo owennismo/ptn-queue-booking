@@ -258,8 +258,14 @@ export default function BookingPage() {
       const parts = requestedDate.split('-');
       if (parts.length === 3) {
         const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-        if (d.getDay() === 0) {
-          setErrorMessage('คลังสินค้าปิดทำการทุกวันอาทิตย์ กรุณาเลือกวันจันทร์ - เสาร์');
+        const isSundayBlocked = systemSettings.block_sunday !== false;
+        const isSaturdayBlocked = systemSettings.block_saturday === true;
+        if (d.getDay() === 0 && isSundayBlocked) {
+          setErrorMessage('คลังสินค้าปิดทำการทุกวันอาทิตย์ กรุณาเลือกวันอื่น');
+          return false;
+        }
+        if (d.getDay() === 6 && isSaturdayBlocked) {
+          setErrorMessage('คลังสินค้าปิดทำการทุกวันเสาร์ กรุณาเลือกวันอื่น');
           return false;
         }
       }
@@ -509,12 +515,18 @@ export default function BookingPage() {
       setErrorMessage('กรุณาเลือกวันที่ต้องการเข้าส่งของ');
       return;
     }
-    // Check if Sunday (Default Blocked)
+    // Check if weekend is blocked
     const parts = requestedDate.split('-');
     if (parts.length === 3) {
       const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-      if (d.getDay() === 0) {
-        setErrorMessage('คลังสินค้าปิดทำการทุกวันอาทิตย์ กรุณาเลือกวันจันทร์ - เสาร์');
+      const isSundayBlocked = systemSettings.block_sunday !== false;
+      const isSaturdayBlocked = systemSettings.block_saturday === true;
+      if (d.getDay() === 0 && isSundayBlocked) {
+        setErrorMessage('คลังสินค้าปิดทำการทุกวันอาทิตย์ กรุณาเลือกวันอื่น');
+        return;
+      }
+      if (d.getDay() === 6 && isSaturdayBlocked) {
+        setErrorMessage('คลังสินค้าปิดทำการทุกวันเสาร์ กรุณาเลือกวันอื่น');
         return;
       }
     }
@@ -810,7 +822,16 @@ export default function BookingPage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold">เลือกวันและรอบเวลาที่ต้องการเข้าส่ง</h2>
-                  <p className="text-xs text-slate-500">{systemSettings.booking_notice_text || 'คลังเปิดรับสินค้าจันทร์ - เสาร์ (หยุดวันอาทิตย์) ล่วงหน้าได้ 14 วัน'}</p>
+                  <p className="text-xs text-slate-500">
+                    {systemSettings.booking_notice_text ||
+                      (systemSettings.block_sunday !== false && systemSettings.block_saturday === true
+                        ? 'คลังเปิดรับสินค้าจันทร์ - ศุกร์ (หยุดวันเสาร์และอาทิตย์) ล่วงหน้าได้ 14 วัน'
+                        : systemSettings.block_sunday !== false
+                        ? 'คลังเปิดรับสินค้าจันทร์ - เสาร์ (หยุดวันอาทิตย์) ล่วงหน้าได้ 14 วัน'
+                        : systemSettings.block_saturday === true
+                        ? 'คลังเปิดรับสินค้าอาทิตย์ - ศุกร์ (หยุดวันเสาร์) ล่วงหน้าได้ 14 วัน'
+                        : 'คลังเปิดรับสินค้าทุกวัน ล่วงหน้าได้ 14 วัน')}
+                  </p>
                 </div>
               </div>
 
@@ -825,6 +846,8 @@ export default function BookingPage() {
                       value={requestedDate}
                       onChange={(newDate) => setRequestedDate(newDate)}
                       minDate={getTodayStr()}
+                      disableSundays={systemSettings.block_sunday !== false}
+                      disableSaturdays={systemSettings.block_saturday === true}
                       placeholder="คลิกเพื่อเลือกวันที่ (ปฏิทินไทย พ.ศ.)"
                       required
                     />
