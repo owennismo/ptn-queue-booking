@@ -2102,6 +2102,25 @@ export default function AdminDashboardPage() {
               <span>{soundEnabled ? 'เสียง: เปิด' : 'เสียง: ปิด'}</span>
             </button>
 
+            {/* Quick Broadcast Push Notification Button (Super Admin Only) */}
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBroadcastTitle('📢 ประกาศสำคัญจากคลังสินค้า PTN');
+                  setBroadcastMessage(systemSettings.booking_announcement || '');
+                  setBroadcastResult(null);
+                  setBroadcastModalOpen(true);
+                  fetchPushSubscriberCount();
+                }}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-amber-500/40 bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 shadow-sm shrink-0"
+                title="บรอดแคสต์ส่งข้อความแจ้งเตือนด่วนไปยังอุปกรณ์ PWA ทุกเครื่อง (เฉพาะ Super Admin)"
+              >
+                <Send className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="hidden md:inline">บรอดแคสต์ประกาศ</span>
+                <span className="md:hidden">ประกาศ</span>
+              </button>
+            )}
 
             {/* Operator info with Role Badge */}
             <div className="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs shrink-0">
