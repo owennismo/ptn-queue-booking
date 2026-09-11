@@ -579,15 +579,45 @@ export default function AdminDashboardPage() {
   // 1. Initial Authentication Check
   useEffect(() => {
     const savedToken = sessionStorage.getItem('ptn_admin_jwt') || localStorage.getItem('ptn_admin_jwt');
-    const savedOperator = sessionStorage.getItem('ptn_admin_operator') || localStorage.getItem('ptn_admin_operator') || 'เจ้าหน้าที่คลังสินค้า';
-    const savedRole = ((sessionStorage.getItem('ptn_admin_role') || localStorage.getItem('ptn_admin_role')) as StaffRole) || 'warehouse_officer';
-    const savedRoleName = sessionStorage.getItem('ptn_admin_role_name') || localStorage.getItem('ptn_admin_role_name') || 'เจ้าหน้าที่';
+    let savedOperator = sessionStorage.getItem('ptn_admin_operator') || localStorage.getItem('ptn_admin_operator') || 'เจ้าหน้าที่คลังสินค้า';
+    let savedRole = ((sessionStorage.getItem('ptn_admin_role') || localStorage.getItem('ptn_admin_role')) as StaffRole) || 'warehouse_officer';
+    let savedRoleName = sessionStorage.getItem('ptn_admin_role_name') || localStorage.getItem('ptn_admin_role_name') || 'เจ้าหน้าที่';
     const savedLoginTime = sessionStorage.getItem('ptn_admin_login_time') || localStorage.getItem('ptn_admin_login_time');
 
     if (!savedToken) {
       router.replace('/admin/login');
       return;
     }
+
+    // Decode token payload to ensure role is completely in sync with the authenticated token
+    try {
+      const parts = savedToken.split('.');
+      if (parts.length >= 2) {
+        const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const json = decodeURIComponent(
+          atob(b64)
+            .split('')
+            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        const payload = JSON.parse(json);
+        if (payload.role) {
+          savedRole = payload.role as StaffRole;
+          sessionStorage.setItem('ptn_admin_role', payload.role);
+          localStorage.setItem('ptn_admin_role', payload.role);
+        }
+        if (payload.operator) {
+          savedOperator = payload.operator;
+          sessionStorage.setItem('ptn_admin_operator', payload.operator);
+          localStorage.setItem('ptn_admin_operator', payload.operator);
+        }
+        if (payload.role_name) {
+          savedRoleName = payload.role_name;
+          sessionStorage.setItem('ptn_admin_role_name', payload.role_name);
+          localStorage.setItem('ptn_admin_role_name', payload.role_name);
+        }
+      }
+    } catch (e) {}
 
     // Check if session has exceeded 1 hour
     if (savedLoginTime) {
@@ -2072,23 +2102,6 @@ export default function AdminDashboardPage() {
               <span>{soundEnabled ? 'เสียง: เปิด' : 'เสียง: ปิด'}</span>
             </button>
 
-            {/* Quick Broadcast Push Notification Button */}
-            <button
-              type="button"
-              onClick={() => {
-                setBroadcastTitle('📢 ประกาศสำคัญจากคลังสินค้า PTN');
-                setBroadcastMessage(systemSettings.booking_announcement || '');
-                setBroadcastResult(null);
-                setBroadcastModalOpen(true);
-                fetchPushSubscriberCount();
-              }}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-amber-500/40 bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 shadow-sm shrink-0"
-              title="บรอดแคสต์ส่งข้อความแจ้งเตือนด่วนไปยังอุปกรณ์ PWA ทุกเครื่อง"
-            >
-              <Send className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span className="hidden md:inline">บรอดแคสต์ประกาศ</span>
-              <span className="md:hidden">ประกาศ</span>
-            </button>
 
             {/* Operator info with Role Badge */}
             <div className="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs shrink-0">
@@ -5951,7 +5964,7 @@ export default function AdminDashboardPage() {
       )}
 
       {/* 📢 Broadcast Push Notification Modal */}
-      {broadcastModalOpen && (
+      {broadcastModalOpen && isSuperAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200">
             {/* Header */}

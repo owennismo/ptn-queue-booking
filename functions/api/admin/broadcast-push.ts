@@ -46,6 +46,18 @@ export async function onRequestPost(context: { request: Request; env: any }) {
       return auth.errorResponse!;
     }
 
+    // Strict Authorization: ONLY Super Admin can send broadcast announcements
+    const userRole = auth.payload?.role;
+    if (userRole !== 'super_admin') {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'คุณไม่มีสิทธิ์ส่งบรอดแคสต์ประกาศ (สงวนสิทธิ์เฉพาะ Super Admin เท่านั้น)',
+        }),
+        { status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+      );
+    }
+
     const body: any = await request.json();
     const announcementText = (body.body || body.announcement || '').trim();
     const announcementTitle = (body.title || '📢 ประกาศสำคัญจากคลังสินค้า PTN').trim();
