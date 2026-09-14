@@ -400,6 +400,8 @@ export default function AdminDashboardPage() {
   const [newReturnBookingId, setNewReturnBookingId] = useState<string>('');
   const [newReturnInvoicePo, setNewReturnInvoicePo] = useState<string>('');
   const [newReturnNotes, setNewReturnNotes] = useState<string>('');
+  const [newReturnPhotos, setNewReturnPhotos] = useState<ReceivingPhotoItem[]>([]);
+  const [compressingNewReturnPhoto, setCompressingNewReturnPhoto] = useState<boolean>(false);
   const [submittingNewReturn, setSubmittingNewReturn] = useState<boolean>(false);
 
   // View Return Ticket Details / POD Modal State
@@ -1846,6 +1848,57 @@ export default function AdminDashboardPage() {
   };
 
   // Manual create return ticket
+  const openCreateReturnModal = () => {
+    setNewReturnSupplier('');
+    setNewReturnCarrier('');
+    setNewReturnPhone('');
+    setNewReturnItems('');
+    setNewReturnQuantity('1 ลัง');
+    setNewReturnReason('ส่งผิดสเปก / ชำรุดเสียหาย');
+    setNewReturnLocation('โซนพักสินค้าตีคืน (RTV)');
+    setNewReturnBookingId('');
+    setNewReturnInvoicePo('');
+    setNewReturnNotes('');
+    setNewReturnPhotos([]);
+    setCreateReturnModalOpen(true);
+  };
+
+  const handleNewReturnPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (newReturnPhotos.length + files.length > 10) {
+      showToast('⚠️ สามารถแนบรูปภาพสินค้าตีคืนได้สูงสุดไม่เกิน 10 รูป', 'error');
+      return;
+    }
+
+    try {
+      setCompressingNewReturnPhoto(true);
+      const newItems: ReceivingPhotoItem[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const compressed = await compressImage(files[i], 1600, 0.82);
+        newItems.push({
+          file: compressed.file,
+          dataUrl: compressed.dataUrl,
+          stats: {
+            originalSize: compressed.originalSize,
+            compressedSize: compressed.compressedSize,
+          },
+        });
+      }
+      setNewReturnPhotos((prev) => [...prev, ...newItems]);
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการประมวลผลรูปภาพ', 'error');
+    } finally {
+      setCompressingNewReturnPhoto(false);
+      e.target.value = '';
+    }
+  };
+
+  const removeNewReturnPhoto = (index: number) => {
+    setNewReturnPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleCreateReturnSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newReturnSupplier.trim() || !newReturnItems.trim()) {
@@ -1855,6 +1908,30 @@ export default function AdminDashboardPage() {
 
     setSubmittingNewReturn(true);
     try {
+      const finalPhotoUrls: string[] = [];
+
+      // Upload any new photo files
+      for (const item of newReturnPhotos) {
+        if (item.savedUrl) {
+          finalPhotoUrls.push(item.savedUrl);
+        } else if (item.file) {
+          const uploadFormData = new FormData();
+          uploadFormData.append('file', item.file);
+          uploadFormData.append('booking_id', newReturnBookingId.trim() || 'return');
+          uploadFormData.append('type', 'return');
+
+          const uploadRes = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: uploadFormData,
+          });
+          const uploadData = await uploadRes.json();
+          if (uploadRes.ok && uploadData.url) {
+            finalPhotoUrls.push(uploadData.url);
+          }
+        }
+      }
+
       const res = await authFetch('/api/admin/returns', {
         method: 'POST',
         body: JSON.stringify({
@@ -1868,6 +1945,7 @@ export default function AdminDashboardPage() {
           quantity: newReturnQuantity.trim() || '1 ลัง',
           reason: newReturnReason.trim() || 'ส่งผิดสเปก / ชำรุด',
           storage_location: newReturnLocation.trim() || 'โซนพักสินค้าตีคืน (RTV)',
+          photos: finalPhotoUrls,
         }),
       });
 
@@ -1886,6 +1964,7 @@ export default function AdminDashboardPage() {
       setNewReturnBookingId('');
       setNewReturnInvoicePo('');
       setNewReturnNotes('');
+      setNewReturnPhotos([]);
       fetchReturnTickets();
     } catch (err: any) {
       showToast(err.message || 'เกิดข้อผิดพลาดในการสร้างรายการตีคืน', 'error');
@@ -3663,7 +3742,7 @@ export default function AdminDashboardPage() {
 
                   <button
                     type="button"
-                    onClick={() => setCreateReturnModalOpen(true)}
+                    onClick={openCreateReturnModal}
                     className="px-4 py-2.5 bg-white hover:bg-amber-50 text-amber-900 text-xs sm:text-sm font-black rounded-2xl shadow-md transition flex items-center gap-2 active:scale-95"
                   >
                     <Plus className="w-4 h-4 text-amber-700" />
@@ -3829,7 +3908,7 @@ export default function AdminDashboardPage() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setCreateReturnModalOpen(true)}
+                  onClick={openCreateReturnModal}
                   className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs sm:text-sm rounded-xl transition inline-flex items-center gap-1.5 shadow-sm"
                 >
                   <Plus className="w-4 h-4" />
@@ -7777,18 +7856,39 @@ export default function AdminDashboardPage() {
                   )}
 
                   {handoverPhotos.length < 5 && (
-                    <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-blue-300 hover:border-blue-500 rounded-xl bg-blue-50/40 hover:bg-blue-50 text-blue-700 cursor-pointer transition text-xs font-bold">
-                      <Camera className="w-5 h-5 mb-1 text-blue-600" />
-                      <span>{compressingHandoverPhoto ? 'กำลังประมวลผลรูป...' : 'แตะเพื่อถ่ายรูปหรือแนบเอกสารเซ็นรับ'}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        disabled={compressingHandoverPhoto}
-                        onChange={handleHandoverPhotoChange}
-                        className="hidden"
-                      />
-                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-blue-300 hover:border-blue-500 rounded-xl bg-blue-50/40 hover:bg-blue-50 text-blue-700 cursor-pointer transition text-xs font-bold text-center group">
+                        <Camera className="w-5 h-5 mb-1 text-blue-600 group-hover:scale-110 transition-transform" />
+                        <span>ถ่ายรูปทันที</span>
+                        <span className="text-[10px] text-slate-500 font-normal">เปิดกล้องมือถือ</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          disabled={compressingHandoverPhoto}
+                          onChange={handleHandoverPhotoChange}
+                          className="hidden"
+                        />
+                      </label>
+                      <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-blue-300 hover:border-blue-500 rounded-xl bg-blue-50/40 hover:bg-blue-50 text-blue-700 cursor-pointer transition text-xs font-bold text-center group">
+                        <ImageIcon className="w-5 h-5 mb-1 text-blue-600 group-hover:scale-110 transition-transform" />
+                        <span>เลือกจากคลังภาพ</span>
+                        <span className="text-[10px] text-slate-500 font-normal">เลือกได้หลายรูป (สูงสุด 5)</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          disabled={compressingHandoverPhoto}
+                          onChange={handleHandoverPhotoChange}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  )}
+                  {compressingHandoverPhoto && (
+                    <p className="text-xs text-blue-600 animate-pulse flex items-center gap-1.5 mt-1.5">
+                      <RefreshCw className="w-4 h-4 animate-spin" /> กำลังประมวลผลและบีบอัดรูปภาพ...
+                    </p>
                   )}
                 </div>
 
@@ -8010,6 +8110,85 @@ export default function AdminDashboardPage() {
                   placeholder="เช่น สินค้าชำรุดแตกรั่วระหว่างขนส่ง รอประสานงานฝ่ายจัดซื้อและเซลล์..."
                   className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white"
                 />
+              </div>
+
+              {/* Photo Upload & Gallery for New Return Goods */}
+              <div className="space-y-2 pt-2 border-t border-slate-200">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                    <Camera className="w-4 h-4 text-amber-600" />
+                    <span>รูปภาพสินค้าตีคืน / สภาพสินค้า (ถ่ายรูปหรือแนบไฟล์)</span>
+                  </label>
+                  <span className="text-[11px] text-slate-500 font-medium">{newReturnPhotos.length}/10 รูป</span>
+                </div>
+
+                {newReturnPhotos.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 p-2 bg-slate-50 rounded-xl border border-slate-200">
+                    {newReturnPhotos.map((photo, idx) => (
+                      <div key={`new-return-photo-${idx}`} className="relative aspect-square rounded-lg overflow-hidden border border-slate-300 group">
+                        <img
+                          src={photo.dataUrl}
+                          alt={`รูปสินค้าตีคืน ${idx + 1}`}
+                          className="w-full h-full object-cover cursor-pointer hover:opacity-95 transition"
+                          onClick={() => {
+                            setGalleryImages(newReturnPhotos.map((p) => p.dataUrl));
+                            setGalleryIndex(idx);
+                            setGalleryTitle(`รูปถ่ายสินค้าตีคืน (${idx + 1}/${newReturnPhotos.length})`);
+                            setGalleryOpen(true);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeNewReturnPhoto(idx);
+                          }}
+                          className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded-full hover:bg-rose-700 shadow transition"
+                          title="ลบรูปนี้"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {newReturnPhotos.length < 10 && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-amber-300 hover:border-amber-500 rounded-xl bg-amber-50/40 hover:bg-amber-50 text-amber-800 cursor-pointer transition text-xs font-bold text-center group">
+                      <Camera className="w-5 h-5 mb-1 text-amber-600 group-hover:scale-110 transition-transform" />
+                      <span>ถ่ายรูปทันที</span>
+                      <span className="text-[10px] text-slate-500 font-normal">เปิดกล้องมือถือ</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        disabled={compressingNewReturnPhoto}
+                        onChange={handleNewReturnPhotoChange}
+                        className="hidden"
+                      />
+                    </label>
+                    <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-amber-300 hover:border-amber-500 rounded-xl bg-amber-50/40 hover:bg-amber-50 text-amber-800 cursor-pointer transition text-xs font-bold text-center group">
+                      <ImageIcon className="w-5 h-5 mb-1 text-amber-600 group-hover:scale-110 transition-transform" />
+                      <span>เลือกจากคลังภาพ</span>
+                      <span className="text-[10px] text-slate-500 font-normal">เลือกได้หลายรูป (สูงสุด 10)</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        disabled={compressingNewReturnPhoto}
+                        onChange={handleNewReturnPhotoChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {compressingNewReturnPhoto && (
+                  <p className="text-xs text-amber-600 animate-pulse flex items-center gap-1.5">
+                    <RefreshCw className="w-4 h-4 animate-spin" /> กำลังประมวลผลและบีบอัดรูปภาพ...
+                  </p>
+                )}
               </div>
             </form>
 
@@ -8409,19 +8588,40 @@ export default function AdminDashboardPage() {
                 )}
 
                 {editReturnPhotos.length < 10 && (
-                  <label className="flex flex-col items-center justify-center p-3.5 border-2 border-dashed border-amber-300 hover:border-amber-500 rounded-xl bg-amber-50/40 hover:bg-amber-50 text-amber-800 cursor-pointer transition text-xs font-bold">
-                    <Camera className="w-5 h-5 mb-1 text-amber-600" />
-                    <span>{compressingEditReturnPhoto ? 'กำลังประมวลผลรูปภาพ...' : 'แตะเพื่อถ่ายรูปด้วยกล้อง หรือแนบรูปภาพสินค้า'}</span>
-                    <span className="text-[10px] text-slate-400 font-normal mt-0.5">รองรับรูปถ่ายหลายรูป (อัดไฟล์อัตโนมัติ)</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      disabled={compressingEditReturnPhoto}
-                      onChange={handleEditReturnPhotoChange}
-                      className="hidden"
-                    />
-                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-amber-300 hover:border-amber-500 rounded-xl bg-amber-50/40 hover:bg-amber-50 text-amber-800 cursor-pointer transition text-xs font-bold text-center group">
+                      <Camera className="w-5 h-5 mb-1 text-amber-600 group-hover:scale-110 transition-transform" />
+                      <span>ถ่ายรูปทันที</span>
+                      <span className="text-[10px] text-slate-500 font-normal">เปิดกล้องมือถือ</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        disabled={compressingEditReturnPhoto}
+                        onChange={handleEditReturnPhotoChange}
+                        className="hidden"
+                      />
+                    </label>
+                    <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-amber-300 hover:border-amber-500 rounded-xl bg-amber-50/40 hover:bg-amber-50 text-amber-800 cursor-pointer transition text-xs font-bold text-center group">
+                      <ImageIcon className="w-5 h-5 mb-1 text-amber-600 group-hover:scale-110 transition-transform" />
+                      <span>เลือกจากคลังภาพ</span>
+                      <span className="text-[10px] text-slate-500 font-normal">เลือกได้หลายรูป (สูงสุด 10)</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        disabled={compressingEditReturnPhoto}
+                        onChange={handleEditReturnPhotoChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {compressingEditReturnPhoto && (
+                  <p className="text-xs text-amber-600 animate-pulse flex items-center gap-1.5">
+                    <RefreshCw className="w-4 h-4 animate-spin" /> กำลังประมวลผลและบีบอัดรูปภาพ...
+                  </p>
                 )}
               </div>
             </form>
