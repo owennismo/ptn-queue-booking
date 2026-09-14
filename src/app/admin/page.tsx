@@ -3893,19 +3893,6 @@ export default function AdminDashboardPage() {
                                 <span>ป้ายปะ</span>
                               </button>
 
-                              {/* Print Handover Slip Button */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setHandoverPrintTicket(ticket);
-                                  setHandoverPrintModalOpen(true);
-                                }}
-                                className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition flex items-center gap-1"
-                                title="พิมพ์ใบส่งมอบสินค้าตีคืน (Handover Slip)"
-                              >
-                                <FileText className="w-3.5 h-3.5" />
-                                <span>ใบส่งมอบ</span>
-                              </button>
 
                               {/* Edit Return Ticket Button */}
                               <button
