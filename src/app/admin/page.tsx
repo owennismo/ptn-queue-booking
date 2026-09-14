@@ -1302,6 +1302,11 @@ export default function AdminDashboardPage() {
     setStatusChangeReason('');
     setEditActualPalletInput(booking.actual_pallet_count !== undefined && booking.actual_pallet_count !== null ? booking.actual_pallet_count : booking.pallet_count);
     setEditReceivingNotesInput(booking.receiving_notes || '');
+    setHasReturnGoods(Boolean(booking.has_return));
+    setReturnItemsInput('');
+    setReturnQuantityInput('1 ลัง');
+    setReturnReasonInput('สินค้าส่งมาผิดสเปก / ชำรุดเสียหาย');
+    setReturnLocationInput('โซนพักสินค้าตีคืน (RTV)');
     setEditRequestedDate(booking.requested_date);
     setEditRequestedTime(booking.requested_time);
     fetchModalSlots(booking.requested_date);
@@ -1349,6 +1354,19 @@ export default function AdminDashboardPage() {
         if (editReceivingNotesInput.trim()) {
           payload.receiving_notes = editReceivingNotesInput.trim();
         }
+
+        if (targetStatus === 'Completed' && hasReturnGoods) {
+          if (!returnItemsInput.trim()) {
+            showToast('⚠️ กรุณาระบุชื่อหรือรายละเอียดสินค้าที่ส่งผิด/ตีคืน (RTV)', 'error');
+            setStatusSubmitting(false);
+            return;
+          }
+          payload.has_return = true;
+          payload.return_items_detail = returnItemsInput.trim();
+          payload.return_quantity = returnQuantityInput.trim() || '1 ลัง';
+          payload.return_reason = returnReasonInput.trim() || 'สินค้าส่งผิด / ชำรุด';
+          payload.return_storage_location = returnLocationInput.trim() || 'โซนพักสินค้าตีคืน (RTV)';
+        }
       }
 
       const res = await authFetch(`/api/admin/bookings/${editingStatusBooking.booking_id}`, {
@@ -1369,6 +1387,7 @@ export default function AdminDashboardPage() {
       setStatusChangeReason('');
       fetchBookings();
       fetchForecast();
+      fetchReturnTickets();
       if (selectedBooking?.booking_id === editingStatusBooking.booking_id) {
         setSelectedBooking(data.booking);
       }
@@ -5906,6 +5925,87 @@ export default function AdminDashboardPage() {
                     />
                   </div>
                 </div>
+
+                {/* ⚠️ Return Goods / Wrong Items Section (RTV) */}
+                {targetStatus === 'Completed' && (
+                  <div className="p-3 bg-amber-50/90 border border-amber-300 rounded-xl space-y-2.5 mt-2">
+                    <label className="flex items-center gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={hasReturnGoods}
+                        onChange={(e) => setHasReturnGoods(e.target.checked)}
+                        className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-amber-300"
+                      />
+                      <div>
+                        <span className="font-extrabold text-amber-950 text-xs sm:text-sm flex items-center gap-1.5">
+                          ⚠️ พบสินค้าส่งผิด / มีสินค้าต้องตีคืน (RTV - Return to Vendor)
+                        </span>
+                        <span className="text-[11px] text-amber-800 block">
+                          ระบบจะสร้างใบรอส่งมอบในศูนย์สินค้าตีคืน (Return Hub) ให้อัตโนมัติ
+                        </span>
+                      </div>
+                    </label>
+
+                    {hasReturnGoods && (
+                      <div className="space-y-2.5 pt-2 border-t border-amber-200 animate-in fade-in duration-150 text-xs">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="text-[11px] font-bold text-amber-900 block mb-1">
+                              รายการสินค้าที่ส่งผิด / ตีคืน <span className="text-rose-600">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              required={hasReturnGoods}
+                              value={returnItemsInput}
+                              onChange={(e) => setReturnItemsInput(e.target.value)}
+                              placeholder="เช่น ยาพาราเซตามอล 500mg (Lot: 23A01)"
+                              className="w-full p-2 bg-white border border-amber-300 rounded-lg text-xs text-slate-900 focus:outline-amber-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-amber-900 block mb-1">
+                              จำนวนที่ตีคืน
+                            </label>
+                            <input
+                              type="text"
+                              value={returnQuantityInput}
+                              onChange={(e) => setReturnQuantityInput(e.target.value)}
+                              placeholder="เช่น 1 ลัง หรือ 24 กล่อง"
+                              className="w-full p-2 bg-white border border-amber-300 rounded-lg text-xs text-slate-900 focus:outline-amber-500"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="text-[11px] font-bold text-amber-900 block mb-1">
+                              สาเหตุการตีคืน
+                            </label>
+                            <input
+                              type="text"
+                              value={returnReasonInput}
+                              onChange={(e) => setReturnReasonInput(e.target.value)}
+                              placeholder="เช่น ส่งผิดสเปก, ชำรุดเสียหาย"
+                              className="w-full p-2 bg-white border border-amber-300 rounded-lg text-xs text-slate-900 focus:outline-amber-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-amber-900 block mb-1">
+                              จุดพักของในคลัง (Storage Location)
+                            </label>
+                            <input
+                              type="text"
+                              value={returnLocationInput}
+                              onChange={(e) => setReturnLocationInput(e.target.value)}
+                              placeholder="เช่น โซนพักสินค้าตีคืน (RTV)"
+                              className="w-full p-2 bg-white border border-amber-300 rounded-lg text-xs text-slate-900 focus:outline-amber-500 font-mono"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -6632,6 +6732,23 @@ export default function AdminDashboardPage() {
                   >
                     <Tag className="w-4 h-4 sm:w-5 sm:h-5" />
                     <span>ป้ายพาเลท</span>
+                  </button>
+                )}
+
+                {/* 1.5. Complete Receiving & Goods Inspection (RTV) */}
+                {!isSecurityOnly && (selectedBooking.status === 'Approved' || selectedBooking.status === 'CheckedIn' || selectedBooking.status === 'Receiving') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const b = selectedBooking;
+                      setSelectedBooking(null);
+                      openCompleteModal(b);
+                    }}
+                    className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl text-sm sm:text-base font-bold transition flex items-center justify-center gap-2 shadow-sm hover:shadow"
+                    title="ตรวจรับสินค้าหน้างาน และบันทึกสินค้าตีคืน (RTV)"
+                  >
+                    <CheckCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span>ตรวจรับสินค้า (RTV)</span>
                   </button>
                 )}
 
