@@ -7315,7 +7315,7 @@ export default function AdminDashboardPage() {
       {/* 🖼️ Fullscreen Photo Lightbox Modal */}
       {lightboxImage && (
         <div
-          className="fixed inset-0 z-60 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4"
+          className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4"
           onClick={() => setLightboxImage(null)}
         >
           <div className="absolute top-4 right-4 flex items-center gap-3 z-10">
@@ -7757,14 +7757,6 @@ export default function AdminDashboardPage() {
         onClose={() => setPalletTagModalOpen(false)}
       />
 
-      {/* 🖼️ Multi-Photo Lightbox Gallery Modal */}
-      <ImageGalleryModal
-        images={galleryImages}
-        initialIndex={galleryIndex}
-        title={galleryTitle}
-        isOpen={galleryOpen}
-        onClose={() => setGalleryOpen(false)}
-      />
 
       {/* 🏷️ Return Pallet Tag Print Modal */}
       <ReturnTagModal
@@ -8744,6 +8736,15 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* 🖼️ Multi-Photo Lightbox Gallery Modal (Rendered at top-level to sit above all modals) */}
+      <ImageGalleryModal
+        images={galleryImages}
+        initialIndex={galleryIndex}
+        title={galleryTitle}
+        isOpen={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+      />
     </div>
   );
 }

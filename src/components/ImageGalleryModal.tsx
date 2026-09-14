@@ -243,7 +243,7 @@ export default function ImageGalleryModal({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between p-2 sm:p-5 no-print animate-in fade-in duration-200 select-none"
+      className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col justify-between p-2 sm:p-5 no-print animate-in fade-in duration-200 select-none"
     >
       {/* Top Bar */}
       <div
