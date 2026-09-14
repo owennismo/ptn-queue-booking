@@ -124,7 +124,7 @@ export default function ReturnTagModal({ ticket, isOpen, onClose }: ReturnTagMod
           <div className="py-4 space-y-4 overflow-y-auto flex-1 pr-1 text-sm">
             <div className="flex items-center gap-3 bg-amber-50/70 p-3 rounded-2xl border border-amber-200">
               <div className="flex-1">
-                <label className="text-xs font-bold text-amber-900 block mb-1">
+                <label className="text-xs font-black text-slate-900 block mb-1">
                   จำนวนชุดที่ต้องการพิมพ์ (Copies)
                 </label>
                 <div className="flex items-center gap-2">
@@ -134,14 +134,14 @@ export default function ReturnTagModal({ ticket, isOpen, onClose }: ReturnTagMod
                     max="10"
                     value={tagCopies}
                     onChange={(e) => setTagCopies(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                    className="w-24 p-2 rounded-xl border border-amber-300 bg-white font-bold text-center text-sm"
+                    className="w-24 p-2 rounded-xl border-2 border-slate-400 bg-white font-black text-center text-sm text-slate-950 text-black shadow-inner focus:outline-amber-600 focus:border-amber-600"
                   />
-                  <span className="text-xs text-amber-800 font-medium">แผ่น (สำหรับปะกล่องหรือพาเลท)</span>
+                  <span className="text-xs text-slate-800 font-bold">แผ่น (สำหรับปะกล่องหรือพาเลท)</span>
                 </div>
               </div>
 
               <div className="flex-1">
-                <label className="text-xs font-bold text-amber-900 block mb-1">
+                <label className="text-xs font-black text-slate-900 block mb-1">
                   หมายเหตุเพิ่มเติมบนป้าย (ถ้ามี)
                 </label>
                 <input
@@ -149,7 +149,7 @@ export default function ReturnTagModal({ ticket, isOpen, onClose }: ReturnTagMod
                   placeholder="เช่น ย้ายไปรอห้องควบคุมอุณหภูมิ..."
                   value={customNote}
                   onChange={(e) => setCustomNote(e.target.value)}
-                  className="w-full p-2 rounded-xl border border-amber-300 bg-white text-xs"
+                  className="w-full p-2.5 rounded-xl border-2 border-slate-400 bg-white text-xs sm:text-sm font-bold text-slate-950 text-black placeholder:text-slate-400 focus:outline-amber-600 focus:border-amber-600 shadow-inner"
                 />
               </div>
             </div>

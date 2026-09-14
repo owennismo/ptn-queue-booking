@@ -68,6 +68,7 @@ import {
 import AdminAnalytics from '@/components/AdminAnalytics';
 import PalletTagModal from '@/components/PalletTagModal';
 import ReturnTagModal from '@/components/ReturnTagModal';
+import ReturnHandoverPrintModal from '@/components/ReturnHandoverPrintModal';
 import ImageGalleryModal from '@/components/ImageGalleryModal';
 import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole, BookingStatus, SystemSettings, DEFAULT_SYSTEM_SETTINGS, ReturnTicket, ReturnStatus } from '@/lib/types';
 import QRScannerModal from '@/components/QRScannerModal';
@@ -357,6 +358,10 @@ export default function AdminDashboardPage() {
   const [returnTagTicket, setReturnTagTicket] = useState<ReturnTicket | null>(null);
   const [returnTagModalOpen, setReturnTagModalOpen] = useState<boolean>(false);
 
+  // Return Handover Slip Print Modal State
+  const [handoverPrintTicket, setHandoverPrintTicket] = useState<ReturnTicket | null>(null);
+  const [handoverPrintModalOpen, setHandoverPrintModalOpen] = useState<boolean>(false);
+
   // Return Handover (Carrier Pickup) Modal State
   const [handoverTicket, setHandoverTicket] = useState<ReturnTicket | null>(null);
   const [handoverModalOpen, setHandoverModalOpen] = useState<boolean>(false);
@@ -366,6 +371,20 @@ export default function AdminDashboardPage() {
   const [handoverPhotos, setHandoverPhotos] = useState<ReceivingPhotoItem[]>([]);
   const [compressingHandoverPhoto, setCompressingHandoverPhoto] = useState<boolean>(false);
   const [submittingHandover, setSubmittingHandover] = useState<boolean>(false);
+
+  // Edit Return Ticket Modal State
+  const [editReturnModalOpen, setEditReturnModalOpen] = useState<boolean>(false);
+  const [editingReturnTicket, setEditingReturnTicket] = useState<ReturnTicket | null>(null);
+  const [editReturnSupplier, setEditReturnSupplier] = useState<string>('');
+  const [editReturnCarrier, setEditReturnCarrier] = useState<string>('');
+  const [editReturnPhone, setEditReturnPhone] = useState<string>('');
+  const [editReturnItems, setEditReturnItems] = useState<string>('');
+  const [editReturnQuantity, setEditReturnQuantity] = useState<string>('1 ลัง');
+  const [editReturnReason, setEditReturnReason] = useState<string>('ส่งผิดสเปก / ชำรุดเสียหาย');
+  const [editReturnLocation, setEditReturnLocation] = useState<string>('โซนพักสินค้าตีคืน (RTV)');
+  const [editReturnInvoicePo, setEditReturnInvoicePo] = useState<string>('');
+  const [editReturnNotes, setEditReturnNotes] = useState<string>('');
+  const [submittingEditReturn, setSubmittingEditReturn] = useState<boolean>(false);
 
   // Manual Create Return Ticket Modal State
   const [createReturnModalOpen, setCreateReturnModalOpen] = useState<boolean>(false);
@@ -1870,6 +1889,63 @@ export default function AdminDashboardPage() {
       showToast(err.message || 'เกิดข้อผิดพลาดในการสร้างรายการตีคืน', 'error');
     } finally {
       setSubmittingNewReturn(false);
+    }
+  };
+
+  // Open Edit Return Ticket Modal
+  const openEditReturnModal = (ticket: ReturnTicket) => {
+    setEditingReturnTicket(ticket);
+    setEditReturnSupplier(ticket.supplier_name || '');
+    setEditReturnCarrier(ticket.carrier_name || '');
+    setEditReturnPhone(ticket.contact_phone || '');
+    setEditReturnItems(ticket.items_detail || '');
+    setEditReturnQuantity(ticket.quantity || '1 ลัง');
+    setEditReturnReason(ticket.reason || 'ส่งผิดสเปก / ชำรุดเสียหาย');
+    setEditReturnLocation(ticket.storage_location || 'โซนพักสินค้าตีคืน (RTV)');
+    setEditReturnInvoicePo(ticket.invoice_or_po_no || '');
+    setEditReturnNotes(ticket.notes || '');
+    setEditReturnModalOpen(true);
+  };
+
+  // Handle Edit Return Ticket Submit
+  const handleEditReturnSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingReturnTicket) return;
+    if (!editReturnSupplier.trim() || !editReturnItems.trim()) {
+      showToast('กรุณากรอกชื่อซัพพลายเออร์และรายการสินค้าที่ตีคืน', 'error');
+      return;
+    }
+
+    setSubmittingEditReturn(true);
+    try {
+      const res = await authFetch(`/api/admin/returns/${editingReturnTicket.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          supplier_name: editReturnSupplier.trim(),
+          carrier_name: editReturnCarrier.trim() || null,
+          contact_phone: editReturnPhone.trim() || null,
+          items_detail: editReturnItems.trim(),
+          quantity: editReturnQuantity.trim() || '1 ลัง',
+          reason: editReturnReason.trim() || 'ส่งผิดสเปก / ชำรุด',
+          storage_location: editReturnLocation.trim() || 'โซนพักสินค้าตีคืน (RTV)',
+          invoice_or_po_no: editReturnInvoicePo.trim() || null,
+          notes: editReturnNotes.trim() || null,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'แก้ไขข้อมูลไม่สำเร็จ');
+
+      showToast(`บันทึกการแก้ไขใบคืน ${editingReturnTicket.id} เรียบร้อยแล้ว`);
+      setEditReturnModalOpen(false);
+      fetchReturnTickets();
+      if (viewingTicket?.id === editingReturnTicket.id && data.return_ticket) {
+        setViewingTicket(data.return_ticket);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการแก้ไขข้อมูลสินค้าตีคืน', 'error');
+    } finally {
+      setSubmittingEditReturn(false);
     }
   };
 
@@ -3817,6 +3893,31 @@ export default function AdminDashboardPage() {
                                 <span>ป้ายปะ</span>
                               </button>
 
+                              {/* Print Handover Slip Button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setHandoverPrintTicket(ticket);
+                                  setHandoverPrintModalOpen(true);
+                                }}
+                                className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition flex items-center gap-1"
+                                title="พิมพ์ใบส่งมอบสินค้าตีคืน (Handover Slip)"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                <span>ใบส่งมอบ</span>
+                              </button>
+
+                              {/* Edit Return Ticket Button */}
+                              <button
+                                type="button"
+                                onClick={() => openEditReturnModal(ticket)}
+                                className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs transition flex items-center gap-1"
+                                title="แก้ไขข้อมูลสินค้าตีคืน"
+                              >
+                                <Edit className="w-3.5 h-3.5 text-slate-600" />
+                                <span>แก้ไข</span>
+                              </button>
+
                               {/* Handover Action or View Proof */}
                               {ticket.status === 'Pending_Pickup' ? (
                                 <button
@@ -3835,10 +3936,10 @@ export default function AdminDashboardPage() {
                                     setViewingTicket(ticket);
                                     setViewTicketModalOpen(true);
                                   }}
-                                  className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition flex items-center gap-1"
+                                  className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 transition flex items-center gap-1"
                                   title="ดูรายละเอียดและรูปถ่ายหลักฐาน POD"
                                 >
-                                  <FileText className="w-3.5 h-3.5" />
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
                                   <span>ดูหลักฐาน</span>
                                 </button>
                               )}
@@ -7649,32 +7750,47 @@ export default function AdminDashboardPage() {
               </form>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t shrink-0">
+            <div className="flex items-center justify-between gap-2 pt-3 border-t shrink-0">
               <button
                 type="button"
-                onClick={() => setHandoverModalOpen(false)}
-                className="px-4 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-100 text-xs sm:text-sm"
+                onClick={() => {
+                  setHandoverPrintTicket(handoverTicket);
+                  setHandoverPrintModalOpen(true);
+                }}
+                className="px-3.5 py-2.5 rounded-xl font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs sm:text-sm flex items-center gap-1.5 transition active:scale-95"
+                title="พิมพ์ใบส่งมอบสินค้าตีคืนให้คนขับรถเซ็น"
               >
-                ยกเลิก
+                <Printer className="w-4 h-4 text-emerald-600" />
+                <span>พิมพ์ใบส่งมอบ</span>
               </button>
-              <button
-                type="submit"
-                form="formHandover"
-                disabled={submittingHandover}
-                className="px-5 py-2.5 rounded-xl font-black bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm shadow-md transition flex items-center gap-1.5"
-              >
-                {submittingHandover ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>กำลังบันทึก...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>ยืนยันการส่งมอบคืน</span>
-                  </>
-                )}
-              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setHandoverModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-100 text-xs sm:text-sm"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  form="formHandover"
+                  disabled={submittingHandover}
+                  className="px-5 py-2.5 rounded-xl font-black bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm shadow-md transition flex items-center gap-1.5"
+                >
+                  {submittingHandover ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>กำลังบันทึก...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>ยืนยันการส่งมอบคืน</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -7964,23 +8080,233 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setReturnTagTicket(viewingTicket);
-                  setReturnTagModalOpen(true);
-                }}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white transition flex items-center gap-1.5"
-              >
-                <Printer className="w-4 h-4" />
-                <span>พิมพ์ป้ายปะ</span>
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReturnTagTicket(viewingTicket);
+                    setReturnTagModalOpen(true);
+                  }}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white transition flex items-center gap-1.5 shadow-xs"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>พิมพ์ป้ายปะ</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHandoverPrintTicket(viewingTicket);
+                    setHandoverPrintModalOpen(true);
+                  }}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-1.5 shadow-xs"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>พิมพ์ใบส่งมอบ</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    openEditReturnModal(viewingTicket);
+                  }}
+                  className="px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition flex items-center gap-1.5 shadow-xs"
+                >
+                  <Edit className="w-4 h-4 text-slate-600" />
+                  <span>แก้ไข</span>
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setViewTicketModalOpen(false)}
                 className="px-4 py-2 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm"
               >
                 ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📄 Return Handover Slip Print Modal */}
+      <ReturnHandoverPrintModal
+        ticket={handoverPrintTicket}
+        isOpen={handoverPrintModalOpen}
+        onClose={() => setHandoverPrintModalOpen(false)}
+      />
+
+      {/* ✏️ Edit Return Ticket Modal */}
+      {editReturnModalOpen && editingReturnTicket && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 max-h-[92vh] flex flex-col space-y-4">
+            <div className="flex items-center justify-between border-b pb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                  <Edit className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">แก้ไขรายการสินค้าตีคืน</h3>
+                  <p className="text-xs text-slate-500 font-mono">ใบคืน: {editingReturnTicket.id}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditReturnModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form id="formEditReturn" onSubmit={handleEditReturnSubmit} className="space-y-3 overflow-y-auto flex-1 pr-1 text-xs sm:text-sm">
+              <div>
+                <label className="block font-bold text-slate-700 text-xs mb-1">
+                  ชื่อซัพพลายเออร์ (Supplier) <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editReturnSupplier}
+                  onChange={(e) => setEditReturnSupplier(e.target.value)}
+                  placeholder="เช่น บจก. ฟาร์มาพลัส อินเตอร์"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 text-xs mb-1">
+                    บริษัทขนส่ง
+                  </label>
+                  <input
+                    type="text"
+                    value={editReturnCarrier}
+                    onChange={(e) => setEditReturnCarrier(e.target.value)}
+                    placeholder="เช่น SCG Logistics, Kerry"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 text-xs mb-1">
+                    เบอร์โทรศัพท์ติดต่อ
+                  </label>
+                  <input
+                    type="text"
+                    value={editReturnPhone}
+                    onChange={(e) => setEditReturnPhone(e.target.value)}
+                    placeholder="เช่น 02-123-4567"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 text-xs mb-1">
+                  รายการสินค้าที่ต้องตีคืน <span className="text-rose-600">*</span>
+                </label>
+                <textarea
+                  rows={2}
+                  required
+                  value={editReturnItems}
+                  onChange={(e) => setEditReturnItems(e.target.value)}
+                  placeholder="เช่น ยาพาราเซตามอล 500mg (Lot: 23A01) ส่งผิดสเปก"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 text-xs mb-1">
+                    จำนวน
+                  </label>
+                  <input
+                    type="text"
+                    value={editReturnQuantity}
+                    onChange={(e) => setEditReturnQuantity(e.target.value)}
+                    placeholder="เช่น 1 ลัง หรือ 24 กล่อง"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 text-xs mb-1">
+                    จุดพักของในคลัง (Storage Location)
+                  </label>
+                  <input
+                    type="text"
+                    value={editReturnLocation}
+                    onChange={(e) => setEditReturnLocation(e.target.value)}
+                    placeholder="เช่น โซนพักสินค้าตีคืน (RTV)"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 text-xs mb-1">
+                  สาเหตุการตีคืน
+                </label>
+                <input
+                  type="text"
+                  value={editReturnReason}
+                  onChange={(e) => setEditReturnReason(e.target.value)}
+                  placeholder="เช่น ส่งผิดสเปก, ชำรุดเสียหาย, ใกล้หมดอายุ"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 text-xs mb-1">
+                  เลขที่บิล / PO (ถ้ามี)
+                </label>
+                <input
+                  type="text"
+                  value={editReturnInvoicePo}
+                  onChange={(e) => setEditReturnInvoicePo(e.target.value)}
+                  placeholder="เช่น INV-6709-001 หรือ PO-8821"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 text-xs mb-1">
+                  หมายเหตุเพิ่มเติม (ถ้ามี)
+                </label>
+                <textarea
+                  rows={2}
+                  value={editReturnNotes}
+                  onChange={(e) => setEditReturnNotes(e.target.value)}
+                  placeholder="เช่น สินค้าชำรุดแตกรั่วระหว่างขนส่ง..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white font-medium"
+                />
+              </div>
+            </form>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t shrink-0">
+              <button
+                type="button"
+                onClick={() => setEditReturnModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-100 text-xs sm:text-sm"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="submit"
+                form="formEditReturn"
+                disabled={submittingEditReturn}
+                className="px-5 py-2.5 rounded-xl font-black bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm shadow-md transition flex items-center gap-1.5"
+              >
+                {submittingEditReturn ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>กำลังบันทึกการแก้ไข...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>บันทึกการแก้ไข</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
