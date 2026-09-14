@@ -38,6 +38,8 @@ export type ReturnStatus = 'Pending_Pickup' | 'Returned';
 export interface ReturnTicket {
   id: string; // RTV-YYYYMMDD-XXX
   booking_id?: string | null;
+  invoice_or_po_no?: string | null;
+  notes?: string | null;
   supplier_name: string;
   carrier_name?: string | null;
   contact_phone?: string | null;
@@ -1748,6 +1750,8 @@ export class DataStore {
       requested_date?: string;
       requested_time?: string;
       has_return?: boolean;
+      return_invoice_or_po_no?: string;
+      return_notes?: string;
       return_items_detail?: string;
       return_quantity?: string;
       return_reason?: string;
@@ -1824,6 +1828,8 @@ export class DataStore {
           if (!item.return_ticket_id) {
             const rtv = await this.createReturnTicket({
               booking_id: item.booking_id,
+              invoice_or_po_no: extra.return_invoice_or_po_no || null,
+              notes: extra.return_notes || null,
               supplier_name: item.client_name || item.carrier_name,
               carrier_name: item.carrier_name,
               contact_phone: item.user_phone,
@@ -2143,10 +2149,12 @@ export class DataStore {
       filtered = filtered.filter((r) =>
         r.id.toLowerCase().includes(q) ||
         (r.booking_id && r.booking_id.toLowerCase().includes(q)) ||
+        (r.invoice_or_po_no && r.invoice_or_po_no.toLowerCase().includes(q)) ||
         r.supplier_name.toLowerCase().includes(q) ||
         (r.carrier_name && r.carrier_name.toLowerCase().includes(q)) ||
         (r.items_detail && r.items_detail.toLowerCase().includes(q)) ||
         (r.reason && r.reason.toLowerCase().includes(q)) ||
+        (r.notes && r.notes.toLowerCase().includes(q)) ||
         (r.storage_location && r.storage_location.toLowerCase().includes(q))
       );
     }
@@ -2165,6 +2173,8 @@ export class DataStore {
   async createReturnTicket(
     data: {
       booking_id?: string | null;
+      invoice_or_po_no?: string | null;
+      notes?: string | null;
       supplier_name: string;
       carrier_name?: string | null;
       contact_phone?: string | null;
@@ -2192,6 +2202,8 @@ export class DataStore {
     const newTicket: ReturnTicket = {
       id: newId,
       booking_id: data.booking_id ? data.booking_id.trim().toUpperCase() : null,
+      invoice_or_po_no: data.invoice_or_po_no ? data.invoice_or_po_no.trim() : null,
+      notes: data.notes ? data.notes.trim() : null,
       supplier_name: data.supplier_name || 'ไม่ระบุซัพพลายเออร์',
       carrier_name: data.carrier_name || null,
       contact_phone: data.contact_phone || null,

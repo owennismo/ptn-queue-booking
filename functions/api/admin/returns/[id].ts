@@ -33,6 +33,8 @@ export async function onRequestPatch(context: { params: any; request: Request; e
       supplier_name,
       carrier_name,
       contact_phone,
+      invoice_or_po_no,
+      notes,
     } = body;
 
     const store = new DataStore(env);
@@ -60,6 +62,8 @@ export async function onRequestPatch(context: { params: any; request: Request; e
     if (supplier_name !== undefined) updates.supplier_name = supplier_name;
     if (carrier_name !== undefined) updates.carrier_name = carrier_name;
     if (contact_phone !== undefined) updates.contact_phone = contact_phone;
+    if (invoice_or_po_no !== undefined) updates.invoice_or_po_no = invoice_or_po_no;
+    if (notes !== undefined) updates.notes = notes;
 
     const updated = await store.updateReturnTicket(id, updates, operatorName, clientIp);
 

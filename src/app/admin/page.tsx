@@ -375,6 +375,8 @@ export default function AdminDashboardPage() {
   const [newReturnReason, setNewReturnReason] = useState<string>('ส่งผิดสเปก / ชำรุดเสียหาย');
   const [newReturnLocation, setNewReturnLocation] = useState<string>('โซนพักสินค้าตีคืน (RTV)');
   const [newReturnBookingId, setNewReturnBookingId] = useState<string>('');
+  const [newReturnInvoicePo, setNewReturnInvoicePo] = useState<string>('');
+  const [newReturnNotes, setNewReturnNotes] = useState<string>('');
   const [submittingNewReturn, setSubmittingNewReturn] = useState<boolean>(false);
 
   // View Return Ticket Details / POD Modal State
@@ -387,6 +389,8 @@ export default function AdminDashboardPage() {
   const [returnQuantityInput, setReturnQuantityInput] = useState<string>('1 ลัง');
   const [returnReasonInput, setReturnReasonInput] = useState<string>('สินค้าส่งมาผิดสเปก / ชำรุด');
   const [returnLocationInput, setReturnLocationInput] = useState<string>('โซนพักสินค้าตีคืน (RTV)');
+  const [returnInvoicePoInput, setReturnInvoicePoInput] = useState<string>('');
+  const [returnNotesInput, setReturnNotesInput] = useState<string>('');
 
   // Photo Lightbox & Gallery Modal State
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -1307,6 +1311,8 @@ export default function AdminDashboardPage() {
     setReturnQuantityInput('1 ลัง');
     setReturnReasonInput('สินค้าส่งมาผิดสเปก / ชำรุดเสียหาย');
     setReturnLocationInput('โซนพักสินค้าตีคืน (RTV)');
+    setReturnInvoicePoInput('');
+    setReturnNotesInput('');
     setEditRequestedDate(booking.requested_date);
     setEditRequestedTime(booking.requested_time);
     fetchModalSlots(booking.requested_date);
@@ -1366,6 +1372,8 @@ export default function AdminDashboardPage() {
           payload.return_quantity = returnQuantityInput.trim() || '1 ลัง';
           payload.return_reason = returnReasonInput.trim() || 'สินค้าส่งผิด / ชำรุด';
           payload.return_storage_location = returnLocationInput.trim() || 'โซนพักสินค้าตีคืน (RTV)';
+          payload.return_invoice_or_po_no = returnInvoicePoInput.trim() || undefined;
+          payload.return_notes = returnNotesInput.trim() || undefined;
         }
       }
 
@@ -1445,6 +1453,8 @@ export default function AdminDashboardPage() {
     setReturnQuantityInput('1 ลัง');
     setReturnReasonInput('สินค้าส่งมาผิดสเปก / ชำรุดเสียหาย');
     setReturnLocationInput('โซนพักสินค้าตีคืน (RTV)');
+    setReturnInvoicePoInput('');
+    setReturnNotesInput('');
     const existing = (booking.receiving_photo_urls && booking.receiving_photo_urls.length > 0)
       ? booking.receiving_photo_urls
       : (booking.receiving_photo_url ? [booking.receiving_photo_url] : []);
@@ -1536,6 +1546,8 @@ export default function AdminDashboardPage() {
         payload.return_quantity = returnQuantityInput.trim() || '1 ลัง';
         payload.return_reason = returnReasonInput.trim() || 'ตรวจพบระหว่างตรวจรับเข้าคลัง';
         payload.return_storage_location = returnLocationInput.trim() || 'โซนพักสินค้าตีคืน (RTV)';
+        payload.return_invoice_or_po_no = returnInvoicePoInput.trim() || undefined;
+        payload.return_notes = returnNotesInput.trim() || undefined;
         payload.return_photos = finalReceivingPhotoUrls;
       }
 
@@ -1559,6 +1571,8 @@ export default function AdminDashboardPage() {
       setReceivingPhotos([]);
       setHasReturnGoods(false);
       setReturnItemsInput('');
+      setReturnInvoicePoInput('');
+      setReturnNotesInput('');
       fetchBookings();
       fetchForecast();
       fetchReturnTickets();
@@ -1693,6 +1707,8 @@ export default function AdminDashboardPage() {
         method: 'POST',
         body: JSON.stringify({
           booking_id: newReturnBookingId.trim() || null,
+          invoice_or_po_no: newReturnInvoicePo.trim() || null,
+          notes: newReturnNotes.trim() || null,
           supplier_name: newReturnSupplier.trim(),
           carrier_name: newReturnCarrier.trim() || null,
           contact_phone: newReturnPhone.trim() || null,
@@ -1716,6 +1732,8 @@ export default function AdminDashboardPage() {
       setNewReturnReason('ส่งผิดสเปก / ชำรุดเสียหาย');
       setNewReturnLocation('โซนพักสินค้าตีคืน (RTV)');
       setNewReturnBookingId('');
+      setNewReturnInvoicePo('');
+      setNewReturnNotes('');
       fetchReturnTickets();
     } catch (err: any) {
       showToast(err.message || 'เกิดข้อผิดพลาดในการสร้างรายการตีคืน', 'error');
@@ -3478,7 +3496,7 @@ export default function AdminDashboardPage() {
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="ค้นหา RTV, ชื่อบริษัท, รายการยา..."
+                  placeholder="ค้นหา RTV, เลขที่บิล/PO, ชื่อบริษัท, รายการสินค้า..."
                   value={returnSearchInput}
                   onChange={(e) => {
                     setReturnSearchInput(e.target.value);
@@ -3545,6 +3563,14 @@ export default function AdminDashboardPage() {
                             ) : (
                               <div className="text-[11px] text-slate-400 mt-0.5">เปิดใบแบบแมนนวล</div>
                             )}
+                            {ticket.invoice_or_po_no && (
+                              <div className="mt-1">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                  <FileText className="w-3 h-3 text-indigo-500" />
+                                  <span className="font-mono">บิล/PO: {ticket.invoice_or_po_no}</span>
+                                </span>
+                              </div>
+                            )}
                           </td>
 
                           <td className="p-3.5 sm:p-4 align-top">
@@ -3565,11 +3591,17 @@ export default function AdminDashboardPage() {
 
                           <td className="p-3.5 sm:p-4 align-top">
                             <div className="font-semibold text-slate-800 leading-snug">{ticket.items_detail}</div>
-                            <div className="mt-1">
+                            <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                               <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
                                 {ticket.quantity || '1 รายการ'}
                               </span>
                             </div>
+                            {ticket.notes && (
+                              <div className="text-[11px] text-slate-500 mt-1.5 flex items-start gap-1 bg-slate-50 p-1.5 rounded-lg border border-slate-200/80">
+                                <span className="text-slate-400 shrink-0 font-bold">หมายเหตุ:</span>
+                                <span className="text-slate-700 font-medium">{ticket.notes}</span>
+                              </div>
+                            )}
                           </td>
 
                           <td className="p-3.5 sm:p-4 align-top">
@@ -6002,6 +6034,33 @@ export default function AdminDashboardPage() {
                             />
                           </div>
                         </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="text-[11px] font-bold text-amber-900 block mb-1">
+                              เลขที่บิล / PO (ถ้ามี)
+                            </label>
+                            <input
+                              type="text"
+                              value={returnInvoicePoInput}
+                              onChange={(e) => setReturnInvoicePoInput(e.target.value)}
+                              placeholder="เช่น INV-6709-001 หรือ PO-8821"
+                              className="w-full p-2 bg-white border border-amber-300 rounded-lg text-xs text-slate-900 focus:outline-amber-500 font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-amber-900 block mb-1">
+                              หมายเหตุสินค้าตีคืน (ถ้ามี)
+                            </label>
+                            <input
+                              type="text"
+                              value={returnNotesInput}
+                              onChange={(e) => setReturnNotesInput(e.target.value)}
+                              placeholder="เช่น สินค้าผิดล็อต รอประสานงานฝ่ายจัดซื้อ"
+                              className="w-full p-2 bg-white border border-amber-300 rounded-lg text-xs text-slate-900 focus:outline-amber-500"
+                            />
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -6270,6 +6329,33 @@ export default function AdminDashboardPage() {
                         onChange={(e) => setReturnLocationInput(e.target.value)}
                         placeholder="เช่น โซนพักสินค้าตีคืน A1"
                         className="w-full p-2.5 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-amber-900 block mb-1">
+                        เลขที่บิล / PO (ถ้ามี)
+                      </label>
+                      <input
+                        type="text"
+                        value={returnInvoicePoInput}
+                        onChange={(e) => setReturnInvoicePoInput(e.target.value)}
+                        placeholder="เช่น INV-6709-001 หรือ PO-8821"
+                        className="w-full p-2.5 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-amber-900 block mb-1">
+                        หมายเหตุสินค้าตีคืน (ถ้ามี)
+                      </label>
+                      <input
+                        type="text"
+                        value={returnNotesInput}
+                        onChange={(e) => setReturnNotesInput(e.target.value)}
+                        placeholder="เช่น สินค้าผิดล็อต รอประสานงานฝ่ายจัดซื้อ"
+                        className="w-full p-2.5 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500"
                       />
                     </div>
                   </div>
@@ -7554,16 +7640,43 @@ export default function AdminDashboardPage() {
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 text-xs mb-1">
+                    เลขที่บิล / PO (ถ้ามี)
+                  </label>
+                  <input
+                    type="text"
+                    value={newReturnInvoicePo}
+                    onChange={(e) => setNewReturnInvoicePo(e.target.value)}
+                    placeholder="เช่น INV-6709-001 หรือ PO-8821"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 text-xs mb-1">
+                    รหัสคิวอ้างอิง (ถ้ามี)
+                  </label>
+                  <input
+                    type="text"
+                    value={newReturnBookingId}
+                    onChange={(e) => setNewReturnBookingId(e.target.value)}
+                    placeholder="เช่น BK-20260914-001"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white font-mono"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block font-bold text-slate-700 text-xs mb-1">
-                  รหัสคิวอ้างอิง (ถ้ามี)
+                  หมายเหตุเพิ่มเติม (ถ้ามี)
                 </label>
-                <input
-                  type="text"
-                  value={newReturnBookingId}
-                  onChange={(e) => setNewReturnBookingId(e.target.value)}
-                  placeholder="เช่น BK-20260914-001"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white font-mono"
+                <textarea
+                  rows={2}
+                  value={newReturnNotes}
+                  onChange={(e) => setNewReturnNotes(e.target.value)}
+                  placeholder="เช่น สินค้าชำรุดแตกรั่วระหว่างขนส่ง รอประสานงานฝ่ายจัดซื้อและเซลล์..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white"
                 />
               </div>
             </form>
@@ -7632,6 +7745,17 @@ export default function AdminDashboardPage() {
                 </div>
                 <div><b>ซัพพลายเออร์:</b> {viewingTicket.supplier_name}</div>
                 <div><b>รายการที่ส่งคืน:</b> <span className="font-bold text-rose-800">{viewingTicket.items_detail}</span> ({viewingTicket.quantity || '1 ลัง'})</div>
+                {viewingTicket.invoice_or_po_no && (
+                  <div>
+                    <b>เลขที่บิล / PO:</b>{' '}
+                    <span className="font-mono font-bold text-indigo-900 bg-indigo-100/80 px-2 py-0.5 rounded border border-indigo-200">
+                      {viewingTicket.invoice_or_po_no}
+                    </span>
+                  </div>
+                )}
+                {viewingTicket.notes && (
+                  <div className="text-xs text-slate-700"><b>หมายเหตุสินค้า:</b> {viewingTicket.notes}</div>
+                )}
                 {viewingTicket.handover_at && (
                   <div className="text-xs text-slate-600">
                     <b>วันที่ส่งมอบ:</b> {formatThaiDateTime(viewingTicket.handover_at)} โดย {viewingTicket.handover_by || 'Admin'}
@@ -7642,7 +7766,7 @@ export default function AdminDashboardPage() {
                 )}
                 {viewingTicket.handover_notes && (
                   <div className="text-xs text-slate-600 pt-1 border-t border-emerald-200">
-                    <b>หมายเหตุ:</b> {viewingTicket.handover_notes}
+                    <b>หมายเหตุการส่งมอบ:</b> {viewingTicket.handover_notes}
                   </div>
                 )}
               </div>

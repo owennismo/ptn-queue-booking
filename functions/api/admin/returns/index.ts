@@ -54,6 +54,8 @@ export async function onRequestPost(context: { request: Request; env: any }) {
     const body: any = await request.json();
     const {
       booking_id,
+      invoice_or_po_no,
+      notes,
       supplier_name,
       carrier_name,
       contact_phone,
@@ -78,6 +80,8 @@ export async function onRequestPost(context: { request: Request; env: any }) {
     const newTicket = await store.createReturnTicket(
       {
         booking_id: booking_id || null,
+        invoice_or_po_no: invoice_or_po_no || null,
+        notes: notes || null,
         supplier_name: supplier_name || 'ไม่ระบุซัพพลายเออร์',
         carrier_name: carrier_name || null,
         contact_phone: contact_phone || null,

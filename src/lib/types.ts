@@ -36,6 +36,8 @@ export type ReturnStatus = 'Pending_Pickup' | 'Returned';
 export interface ReturnTicket {
   id: string; // RTV-YYYYMMDD-XXX
   booking_id?: string | null;
+  invoice_or_po_no?: string | null; // เลขที่บิล / PO
+  notes?: string | null;            // หมายเหตุเพิ่มเติม
   supplier_name: string;
   carrier_name?: string | null;
   contact_phone?: string | null;

@@ -103,6 +103,11 @@ export default function ReturnTagModal({ ticket, isOpen, onClose }: ReturnTagMod
                       (อ้างอิงคิว: {ticket.booking_id})
                     </span>
                   )}
+                  {ticket.invoice_or_po_no && (
+                    <span className="ml-2 text-indigo-700 font-bold">
+                      [บิล/PO: {ticket.invoice_or_po_no}]
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -182,6 +187,12 @@ export default function ReturnTagModal({ ticket, isOpen, onClose }: ReturnTagMod
                       <Phone className="w-3 h-3 text-slate-400" /> {ticket.contact_phone}
                     </div>
                   )}
+                  {ticket.invoice_or_po_no && (
+                    <div className="text-indigo-800 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg font-bold mt-1 inline-flex items-center gap-1.5">
+                      <FileText className="w-3 h-3 text-indigo-600" />
+                      <span>เลขที่บิล/PO: <span className="font-mono">{ticket.invoice_or_po_no}</span></span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
@@ -217,6 +228,11 @@ export default function ReturnTagModal({ ticket, isOpen, onClose }: ReturnTagMod
                 <div className="text-rose-700 font-semibold pt-1">
                   สาเหตุ: <span className="font-normal text-slate-700">{ticket.reason}</span>
                 </div>
+                {ticket.notes && (
+                  <div className="text-slate-700 font-medium pt-1 border-t border-rose-200/60">
+                    หมายเหตุ: <span className="font-normal text-slate-900">{ticket.notes}</span>
+                  </div>
+                )}
                 {customNote && (
                   <div className="text-amber-800 font-semibold pt-1 border-t border-rose-200/60">
                     หมายเหตุหน้างาน: <span className="font-normal text-slate-800">{customNote}</span>
@@ -379,6 +395,11 @@ export default function ReturnTagModal({ ticket, isOpen, onClose }: ReturnTagMod
                               โทร: {ticket.contact_phone}
                             </div>
                           )}
+                          {ticket.invoice_or_po_no && (
+                            <div style={{ fontSize: '15px', color: '#1e3a8a', fontWeight: 'bold', marginTop: '6px', backgroundColor: '#eff6ff', padding: '4px 8px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+                              เลขที่บิล / PO: {ticket.invoice_or_po_no}
+                            </div>
+                          )}
                         </td>
                         <td
                           style={{
@@ -464,6 +485,18 @@ export default function ReturnTagModal({ ticket, isOpen, onClose }: ReturnTagMod
                     <div style={{ fontSize: '15px', color: '#9f1239', marginTop: '12px', fontWeight: 'bold' }}>
                       สาเหตุ: <span style={{ color: '#334155', fontWeight: 'normal' }}>{ticket.reason}</span>
                     </div>
+                    {ticket.notes && (
+                      <div
+                        style={{
+                          fontSize: '15px',
+                          color: '#475569',
+                          marginTop: '8px',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        หมายเหตุ: <span style={{ color: '#0f172a', fontWeight: 'normal' }}>{ticket.notes}</span>
+                      </div>
+                    )}
                     {customNote && (
                       <div
                         style={{
@@ -475,7 +508,7 @@ export default function ReturnTagModal({ ticket, isOpen, onClose }: ReturnTagMod
                           paddingTop: '8px',
                         }}
                       >
-                        หมายเหตุ: <span style={{ color: '#1e293b', fontWeight: 'normal' }}>{customNote}</span>
+                        หมายเหตุหน้างาน: <span style={{ color: '#1e293b', fontWeight: 'normal' }}>{customNote}</span>
                       </div>
                     )}
                   </div>
