@@ -20,6 +20,8 @@ export interface Booking {
   photo_urls?: string[];
   receiving_photo_url?: string | null;
   receiving_photo_urls?: string[];
+  has_return?: boolean;
+  return_ticket_id?: string | null;
   status: 'Pending' | 'Approved' | 'CheckedIn' | 'Receiving' | 'Completed' | 'Rejected' | 'Cancelled';
   admin_reason?: string | null;
   admin_action_date?: string | null;
@@ -29,6 +31,31 @@ export interface Booking {
   received_by?: string | null;
   receiving_completed_at?: string | null;
   created_at: string;
+}
+
+export type ReturnStatus = 'Pending_Pickup' | 'Returned';
+
+export interface ReturnTicket {
+  id: string; // RTV-YYYYMMDD-XXX
+  booking_id?: string | null;
+  supplier_name: string;
+  carrier_name?: string | null;
+  contact_phone?: string | null;
+  items_detail: string;
+  quantity?: string | null;
+  reason: string;
+  storage_location?: string | null;
+  status: ReturnStatus;
+  created_at: string;
+  created_by?: string | null;
+  photos?: string[];
+  // Handover details (when carrier collects)
+  handover_at?: string | null;
+  handover_by?: string | null;
+  driver_name?: string | null;
+  driver_license_plate?: string | null;
+  handover_notes?: string | null;
+  pod_photo_urls?: string[];
 }
 
 export interface TimeSlot {
@@ -50,7 +77,7 @@ export interface BlockedDate {
 
 export interface AuditLog {
   id: number;
-  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'CHECKIN_QUEUE' | 'RECEIVING_QUEUE' | 'COMPLETE_QUEUE' | 'UPDATE_SLOT' | 'REORDER_SLOTS' | 'BLOCK_DATE' | 'UNBLOCK_DATE' | 'ADD_STAFF' | 'UPDATE_STAFF' | 'DELETE_STAFF' | 'RESET_PIN' | 'DELETE_QUEUE' | 'BACKUP_DATA' | 'RESTORE_DATA' | 'UPDATE_SETTINGS' | 'UPDATE_DAILY_SLOTS' | 'UPDATE_DAILY_SLOT' | 'RESET_DAILY_SLOTS' | 'BATCH_DAILY_CAPACITY' | 'BROADCAST_PUSH';
+  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'APPROVE_QUEUE' | 'REJECT_QUEUE' | 'CANCEL_QUEUE' | 'CHECKIN_QUEUE' | 'RECEIVING_QUEUE' | 'COMPLETE_QUEUE' | 'UPDATE_SLOT' | 'REORDER_SLOTS' | 'BLOCK_DATE' | 'UNBLOCK_DATE' | 'ADD_STAFF' | 'UPDATE_STAFF' | 'DELETE_STAFF' | 'RESET_PIN' | 'DELETE_QUEUE' | 'BACKUP_DATA' | 'RESTORE_DATA' | 'UPDATE_SETTINGS' | 'UPDATE_DAILY_SLOTS' | 'UPDATE_DAILY_SLOT' | 'RESET_DAILY_SLOTS' | 'BATCH_DAILY_CAPACITY' | 'BROADCAST_PUSH' | 'CREATE_RETURN' | 'UPDATE_RETURN' | 'HANDOVER_RETURN' | 'DELETE_RETURN';
   details: string;
   operator: string;
   ip_address: string;
@@ -256,6 +283,7 @@ const globalStore = (globalThis as any).__PTN_STORE__ || {
   } as Record<string, string>,
   systemSettings: { ...DEFAULT_SYSTEM_SETTINGS } as SystemSettings,
   pushSubscriptions: [] as PushSubscriptionRecord[],
+  returnTickets: [] as ReturnTicket[],
 };
 (globalThis as any).__PTN_STORE__ = globalStore;
 
@@ -1719,6 +1747,12 @@ export class DataStore {
       photo_urls?: string[];
       requested_date?: string;
       requested_time?: string;
+      has_return?: boolean;
+      return_items_detail?: string;
+      return_quantity?: string;
+      return_reason?: string;
+      return_storage_location?: string;
+      return_photos?: string[];
     }
   ): Promise<Booking | null> {
     const cleanId = id.trim().toUpperCase();
@@ -1782,6 +1816,26 @@ export class DataStore {
         if (status === 'Completed' || status === 'Receiving') {
           item.receiving_completed_at = nowStr;
           item.received_by = extra.received_by || actionBy;
+        }
+
+        // Auto-generate or update return ticket if return items found during receiving
+        if (extra.has_return) {
+          item.has_return = true;
+          if (!item.return_ticket_id) {
+            const rtv = await this.createReturnTicket({
+              booking_id: item.booking_id,
+              supplier_name: item.client_name || item.carrier_name,
+              carrier_name: item.carrier_name,
+              contact_phone: item.user_phone,
+              items_detail: extra.return_items_detail || 'สินค้าส่งมาผิด/ชำรุด',
+              quantity: extra.return_quantity || '1 รายการ',
+              reason: extra.return_reason || 'พบสินค้าระหว่างตรวจรับเข้าคลัง',
+              storage_location: extra.return_storage_location || 'โซนพักสินค้าตีคืน (RTV)',
+              photos: extra.return_photos || item.receiving_photo_urls || [],
+              created_by: actionBy,
+            }, actionBy, ip);
+            item.return_ticket_id = rtv.id;
+          }
         }
       }
 
@@ -2064,5 +2118,174 @@ export class DataStore {
     const filtered = subs.filter((s: PushSubscriptionRecord) => !endpointSet.has(s.endpoint));
     globalStore.pushSubscriptions = filtered;
     await this.putKV('push_subscriptions', filtered);
+  }
+
+  // --- RETURN TICKET (RTV) STORAGE METHODS ---
+  async getAllReturnTickets(): Promise<ReturnTicket[]> {
+    if (this.kv) {
+      const kvReturns = await this.getKV<ReturnTicket[]>('return_tickets', globalStore.returnTickets);
+      globalStore.returnTickets = kvReturns || [];
+      return globalStore.returnTickets;
+    }
+    return globalStore.returnTickets || [];
+  }
+
+  async getReturnTickets(status?: string | null, search?: string | null): Promise<ReturnTicket[]> {
+    const list = await this.getAllReturnTickets();
+    let filtered = [...list];
+
+    if (status && status !== 'all') {
+      filtered = filtered.filter((r) => r.status === status);
+    }
+
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      filtered = filtered.filter((r) =>
+        r.id.toLowerCase().includes(q) ||
+        (r.booking_id && r.booking_id.toLowerCase().includes(q)) ||
+        r.supplier_name.toLowerCase().includes(q) ||
+        (r.carrier_name && r.carrier_name.toLowerCase().includes(q)) ||
+        (r.items_detail && r.items_detail.toLowerCase().includes(q)) ||
+        (r.reason && r.reason.toLowerCase().includes(q)) ||
+        (r.storage_location && r.storage_location.toLowerCase().includes(q))
+      );
+    }
+
+    // Sort newest first
+    filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return filtered;
+  }
+
+  async getReturnTicketById(id: string): Promise<ReturnTicket | null> {
+    const cleanId = id.trim().toUpperCase();
+    const list = await this.getAllReturnTickets();
+    return list.find((r) => r.id.toUpperCase() === cleanId) || null;
+  }
+
+  async createReturnTicket(
+    data: {
+      booking_id?: string | null;
+      supplier_name: string;
+      carrier_name?: string | null;
+      contact_phone?: string | null;
+      items_detail: string;
+      quantity?: string | null;
+      reason: string;
+      storage_location?: string | null;
+      photos?: string[];
+      created_by?: string | null;
+    },
+    operator = 'Admin',
+    ip = '127.0.0.1'
+  ): Promise<ReturnTicket> {
+    const list = await this.getAllReturnTickets();
+    const { todayStr } = getBangkokDateTime(); // YYYY-MM-DD
+    const dateNum = todayStr.replace(/-/g, '');
+    
+    // Count tickets created today for ID sequence
+    const todayTickets = list.filter((r) => r.id.startsWith(`RTV-${dateNum}-`));
+    const seq = String(todayTickets.length + 1).padStart(3, '0');
+    const newId = `RTV-${dateNum}-${seq}`;
+
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+    const newTicket: ReturnTicket = {
+      id: newId,
+      booking_id: data.booking_id ? data.booking_id.trim().toUpperCase() : null,
+      supplier_name: data.supplier_name || 'ไม่ระบุซัพพลายเออร์',
+      carrier_name: data.carrier_name || null,
+      contact_phone: data.contact_phone || null,
+      items_detail: data.items_detail || 'สินค้าส่งผิด / ชำรุด',
+      quantity: data.quantity || '1 รายการ',
+      reason: data.reason || 'ส่งผิดสเปก / สินค้าชำรุด',
+      storage_location: data.storage_location || 'โซนพักสินค้าตีคืน (RTV)',
+      status: 'Pending_Pickup',
+      created_at: nowStr,
+      created_by: data.created_by || operator,
+      photos: data.photos || [],
+    };
+
+    list.unshift(newTicket);
+    globalStore.returnTickets = list;
+    await this.putKV('return_tickets', list);
+
+    await this.addAuditLog(
+      'CREATE_RETURN',
+      `สร้างรายการสินค้าตีคืนใหม่: ${newTicket.id} (${newTicket.supplier_name} - ${newTicket.items_detail})`,
+      operator,
+      ip
+    );
+
+    return newTicket;
+  }
+
+  async updateReturnTicket(
+    id: string,
+    updates: Partial<ReturnTicket>,
+    operator = 'Admin',
+    ip = '127.0.0.1'
+  ): Promise<ReturnTicket | null> {
+    const cleanId = id.trim().toUpperCase();
+    const list = await this.getAllReturnTickets();
+    const index = list.findIndex((r) => r.id.toUpperCase() === cleanId);
+    if (index === -1) return null;
+
+    const current = list[index];
+    const isHandover = updates.status === 'Returned' && current.status !== 'Returned';
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+    const updated: ReturnTicket = {
+      ...current,
+      ...updates,
+      id: current.id, // Immutable ID
+    };
+
+    if (isHandover) {
+      updated.handover_at = nowStr;
+      updated.handover_by = updates.handover_by || operator;
+    }
+
+    list[index] = updated;
+    globalStore.returnTickets = list;
+    await this.putKV('return_tickets', list);
+
+    if (isHandover) {
+      await this.addAuditLog(
+        'HANDOVER_RETURN',
+        `บันทึกการส่งมอบสินค้าตีคืนสำเร็จ: ${updated.id} (${updated.supplier_name}, คนขับ: ${updated.driver_name || 'ไม่ระบุ'}, ทะเบียน: ${updated.driver_license_plate || '-'})`,
+        operator,
+        ip
+      );
+    } else {
+      await this.addAuditLog(
+        'UPDATE_RETURN',
+        `แก้ไขข้อมูลสินค้าตีคืน: ${updated.id}`,
+        operator,
+        ip
+      );
+    }
+
+    return updated;
+  }
+
+  async deleteReturnTicket(id: string, operator = 'Admin', ip = '127.0.0.1'): Promise<boolean> {
+    const cleanId = id.trim().toUpperCase();
+    const list = await this.getAllReturnTickets();
+    const index = list.findIndex((r) => r.id.toUpperCase() === cleanId);
+    if (index === -1) return false;
+
+    const target = list[index];
+    list.splice(index, 1);
+    globalStore.returnTickets = list;
+    await this.putKV('return_tickets', list);
+
+    await this.addAuditLog(
+      'DELETE_RETURN',
+      `ลบรายการสินค้าตีคืน ${target.id} (${target.supplier_name}) ออกจากระบบ`,
+      operator,
+      ip
+    );
+
+    return true;
   }
 }

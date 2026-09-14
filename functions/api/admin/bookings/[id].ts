@@ -26,6 +26,12 @@ export async function onRequestPatch(context: { params: any; request: Request; e
       photo_url,
       requested_date,
       requested_time,
+      has_return,
+      return_items_detail,
+      return_quantity,
+      return_reason,
+      return_storage_location,
+      return_photos,
     } = body;
     const operatorName = auth.payload?.operator || 'Admin';
     const clientIp = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
@@ -73,6 +79,12 @@ export async function onRequestPatch(context: { params: any; request: Request; e
         photo_urls: photo_urls !== undefined ? photo_urls : undefined,
         requested_date: requested_date !== undefined ? requested_date : undefined,
         requested_time: requested_time !== undefined ? requested_time : undefined,
+        has_return: Boolean(has_return),
+        return_items_detail: return_items_detail || undefined,
+        return_quantity: return_quantity || undefined,
+        return_reason: return_reason || undefined,
+        return_storage_location: return_storage_location || undefined,
+        return_photos: Array.isArray(return_photos) ? return_photos : undefined,
       }
     );
 

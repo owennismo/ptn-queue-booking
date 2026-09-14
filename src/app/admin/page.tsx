@@ -63,11 +63,13 @@ import {
   CalendarDays,
   RotateCcw,
   Zap,
+  MapPin,
 } from 'lucide-react';
 import AdminAnalytics from '@/components/AdminAnalytics';
 import PalletTagModal from '@/components/PalletTagModal';
+import ReturnTagModal from '@/components/ReturnTagModal';
 import ImageGalleryModal from '@/components/ImageGalleryModal';
-import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole, BookingStatus, SystemSettings, DEFAULT_SYSTEM_SETTINGS } from '@/lib/types';
+import { Booking, TimeSlot, BlockedDate, DailyForecast, StaffUser, StaffRole, BookingStatus, SystemSettings, DEFAULT_SYSTEM_SETTINGS, ReturnTicket, ReturnStatus } from '@/lib/types';
 import QRScannerModal from '@/components/QRScannerModal';
 import ThaiDatePicker from '@/components/ThaiDatePicker';
 import { formatThaiDate, formatThaiShortDate, formatThaiNumericDate, formatThaiDateTime } from '@/lib/dateUtils';
@@ -151,7 +153,7 @@ export default function AdminDashboardPage() {
   const [idleSecondsRemaining, setIdleSecondsRemaining] = useState<number>(IDLE_TIMEOUT_SECONDS);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'queues' | 'capacity' | 'blocking' | 'staff' | 'audit' | 'settings' | 'analytics'>('queues');
+  const [activeTab, setActiveTab] = useState<'queues' | 'returns' | 'capacity' | 'blocking' | 'staff' | 'audit' | 'settings' | 'analytics'>('queues');
 
   // Queues state (Default to today's date in Bangkok time)
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -336,6 +338,55 @@ export default function AdminDashboardPage() {
   // Pallet Tag Print Modal State
   const [palletTagBooking, setPalletTagBooking] = useState<Booking | null>(null);
   const [palletTagModalOpen, setPalletTagModalOpen] = useState<boolean>(false);
+
+  // --- RETURN HUB & RETURN PICKUP (RTV) STATE ---
+  const [returnTickets, setReturnTickets] = useState<ReturnTicket[]>([]);
+  const [returnStats, setReturnStats] = useState<{
+    total: number;
+    pending_pickup: number;
+    returned: number;
+    unique_suppliers: number;
+  } | null>(null);
+  const [loadingReturns, setLoadingReturns] = useState<boolean>(false);
+  const [returnFilterStatus, setReturnFilterStatus] = useState<'all' | 'Pending_Pickup' | 'Returned'>('all');
+  const [returnSearchInput, setReturnSearchInput] = useState<string>('');
+
+  // Return Tag Print Modal State
+  const [returnTagTicket, setReturnTagTicket] = useState<ReturnTicket | null>(null);
+  const [returnTagModalOpen, setReturnTagModalOpen] = useState<boolean>(false);
+
+  // Return Handover (Carrier Pickup) Modal State
+  const [handoverTicket, setHandoverTicket] = useState<ReturnTicket | null>(null);
+  const [handoverModalOpen, setHandoverModalOpen] = useState<boolean>(false);
+  const [handoverDriverName, setHandoverDriverName] = useState<string>('');
+  const [handoverLicensePlate, setHandoverLicensePlate] = useState<string>('');
+  const [handoverNotes, setHandoverNotes] = useState<string>('');
+  const [handoverPhotos, setHandoverPhotos] = useState<ReceivingPhotoItem[]>([]);
+  const [compressingHandoverPhoto, setCompressingHandoverPhoto] = useState<boolean>(false);
+  const [submittingHandover, setSubmittingHandover] = useState<boolean>(false);
+
+  // Manual Create Return Ticket Modal State
+  const [createReturnModalOpen, setCreateReturnModalOpen] = useState<boolean>(false);
+  const [newReturnSupplier, setNewReturnSupplier] = useState<string>('');
+  const [newReturnCarrier, setNewReturnCarrier] = useState<string>('');
+  const [newReturnPhone, setNewReturnPhone] = useState<string>('');
+  const [newReturnItems, setNewReturnItems] = useState<string>('');
+  const [newReturnQuantity, setNewReturnQuantity] = useState<string>('1 ลัง');
+  const [newReturnReason, setNewReturnReason] = useState<string>('ส่งผิดสเปก / ชำรุดเสียหาย');
+  const [newReturnLocation, setNewReturnLocation] = useState<string>('โซนพักสินค้าตีคืน (RTV)');
+  const [newReturnBookingId, setNewReturnBookingId] = useState<string>('');
+  const [submittingNewReturn, setSubmittingNewReturn] = useState<boolean>(false);
+
+  // View Return Ticket Details / POD Modal State
+  const [viewTicketModalOpen, setViewTicketModalOpen] = useState<boolean>(false);
+  const [viewingTicket, setViewingTicket] = useState<ReturnTicket | null>(null);
+
+  // In Receiving Modal: Return goods toggle & fields
+  const [hasReturnGoods, setHasReturnGoods] = useState<boolean>(false);
+  const [returnItemsInput, setReturnItemsInput] = useState<string>('');
+  const [returnQuantityInput, setReturnQuantityInput] = useState<string>('1 ลัง');
+  const [returnReasonInput, setReturnReasonInput] = useState<string>('สินค้าส่งมาผิดสเปก / ชำรุด');
+  const [returnLocationInput, setReturnLocationInput] = useState<string>('โซนพักสินค้าตีคืน (RTV)');
 
   // Photo Lightbox & Gallery Modal State
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -825,23 +876,62 @@ export default function AdminDashboardPage() {
     }
   }, [authFetch, token, userRole]);
 
+  // 8. Load Return Tickets
+  const fetchReturnTickets = useCallback(async (statusOverride?: string, searchOverride?: string) => {
+    try {
+      setLoadingReturns(true);
+      const tokenToUse = token || (typeof window !== 'undefined' ? localStorage.getItem('ptn_admin_token') : null);
+      if (!tokenToUse) return;
+
+      const params = new URLSearchParams();
+      const statusToUse = statusOverride !== undefined ? statusOverride : returnFilterStatus;
+      if (statusToUse && statusToUse !== 'all') {
+        params.set('status', statusToUse);
+      }
+      const searchToUse = searchOverride !== undefined ? searchOverride : returnSearchInput;
+      if (searchToUse && searchToUse.trim()) {
+        params.set('search', searchToUse.trim());
+      }
+
+      const res = await fetch(`/api/admin/returns?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${tokenToUse}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setReturnTickets(data.returns || []);
+        if (data.stats) {
+          setReturnStats(data.stats);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch return tickets:', e);
+    } finally {
+      setLoadingReturns(false);
+    }
+  }, [token, returnFilterStatus, returnSearchInput]);
+
   useEffect(() => {
     if (token) {
       fetchBookings();
       fetchForecast();
       fetchSettings();
+      fetchReturnTickets();
 
       // ⏱️ Auto-polling every 15s to catch new incoming bookings in real-time
       const interval = setInterval(() => {
         fetchForecast();
         fetchBookings(true);
+        fetchReturnTickets();
       }, 15000);
 
       return () => clearInterval(interval);
     }
-  }, [token, fetchBookings, fetchForecast, fetchSettings]);
+  }, [token, fetchBookings, fetchForecast, fetchSettings, fetchReturnTickets]);
 
   useEffect(() => {
+    if (activeTab === 'returns' && token) {
+      fetchReturnTickets();
+    }
     if (activeTab === 'staff' && token) {
       fetchStaff();
     }
@@ -851,7 +941,7 @@ export default function AdminDashboardPage() {
     if (activeTab === 'settings' && token && userRole === 'super_admin') {
       fetchSettings();
     }
-  }, [activeTab, token, userRole, fetchStaff, fetchAuditLogs, fetchSettings]);
+  }, [activeTab, token, userRole, fetchReturnTickets, fetchStaff, fetchAuditLogs, fetchSettings]);
 
   // Live QR Code Scanner Success Handler
   const handleQRScanned = useCallback(async (scannedId: string) => {
@@ -1331,6 +1421,11 @@ export default function AdminDashboardPage() {
     setCompletingBooking(booking);
     setActualPalletInput(booking.actual_pallet_count !== undefined && booking.actual_pallet_count !== null ? booking.actual_pallet_count : booking.pallet_count);
     setReceivingNotesInput(booking.receiving_notes || '');
+    setHasReturnGoods(Boolean(booking.has_return));
+    setReturnItemsInput('');
+    setReturnQuantityInput('1 ลัง');
+    setReturnReasonInput('สินค้าส่งมาผิดสเปก / ชำรุดเสียหาย');
+    setReturnLocationInput('โซนพักสินค้าตีคืน (RTV)');
     const existing = (booking.receiving_photo_urls && booking.receiving_photo_urls.length > 0)
       ? booking.receiving_photo_urls
       : (booking.receiving_photo_url ? [booking.receiving_photo_url] : []);
@@ -1351,6 +1446,11 @@ export default function AdminDashboardPage() {
 
     if (actual < completingBooking.pallet_count && !receivingNotesInput.trim()) {
       showToast('กรณีสินค้ามาไม่ครบ กรุณาระบุหมายเหตุการตรวจรับ (เช่น เอกสาร DO/PO หรือสาเหตุที่ขาดส่ง)', 'error');
+      return;
+    }
+
+    if (hasReturnGoods && !returnItemsInput.trim()) {
+      showToast('กรุณาระบุรายการสินค้าที่ต้องตีคืน/ส่งมาผิด', 'error');
       return;
     }
 
@@ -1402,28 +1502,47 @@ export default function AdminDashboardPage() {
         ? `รับเกิน (รับจริง ${actual}/${completingBooking.pallet_count} ลัง)`
         : `รับครบถ้วน (${actual} ลัง)`;
 
+      const payload: any = {
+        status: 'Completed',
+        actual_pallet_count: actual,
+        receiving_notes: receivingNotesInput.trim() || null,
+        receiving_photo_url: finalReceivingPhotoUrls[0] || null,
+        receiving_photo_urls: finalReceivingPhotoUrls,
+        admin_reason: `ตรวจรับเสร็จสิ้น: ${resultLabel} โดย ${operatorName}`,
+      };
+
+      if (hasReturnGoods) {
+        payload.has_return = true;
+        payload.return_items_detail = returnItemsInput.trim() || 'สินค้าส่งผิด / ชำรุด';
+        payload.return_quantity = returnQuantityInput.trim() || '1 ลัง';
+        payload.return_reason = returnReasonInput.trim() || 'ตรวจพบระหว่างตรวจรับเข้าคลัง';
+        payload.return_storage_location = returnLocationInput.trim() || 'โซนพักสินค้าตีคืน (RTV)';
+        payload.return_photos = finalReceivingPhotoUrls;
+      }
+
       const res = await authFetch(`/api/admin/bookings/${completingBooking.booking_id}`, {
         method: 'PATCH',
-        body: JSON.stringify({
-          status: 'Completed',
-          actual_pallet_count: actual,
-          receiving_notes: receivingNotesInput.trim() || null,
-          receiving_photo_url: finalReceivingPhotoUrls[0] || null,
-          receiving_photo_urls: finalReceivingPhotoUrls,
-          admin_reason: `ตรวจรับเสร็จสิ้น: ${resultLabel} โดย ${operatorName}`,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      showToast(`ตรวจรับคิว ${completingBooking.booking_id} เสร็จสมบูรณ์แล้ว (${resultLabel})`);
+      if (hasReturnGoods) {
+        showToast(`ตรวจรับคิว ${completingBooking.booking_id} เสร็จสมบูรณ์ และบันทึกสินค้าตีคืนไปยัง Return Hub แล้ว`);
+      } else {
+        showToast(`ตรวจรับคิว ${completingBooking.booking_id} เสร็จสมบูรณ์แล้ว (${resultLabel})`);
+      }
+
       setCompleteModalOpen(false);
       setCompletingBooking(null);
       setActualPalletInput('');
       setReceivingNotesInput('');
       setReceivingPhotos([]);
+      setHasReturnGoods(false);
+      setReturnItemsInput('');
       fetchBookings();
       fetchForecast();
+      fetchReturnTickets();
       if (selectedBooking?.booking_id === completingBooking.booking_id) {
         setSelectedBooking(data.booking);
       }
@@ -1431,6 +1550,178 @@ export default function AdminDashboardPage() {
       showToast(err.message || 'เกิดข้อผิดพลาดในการบันทึกตรวจรับสินค้า', 'error');
     } finally {
       setCompleteSubmitting(false);
+    }
+  };
+
+  // Handover Photo change handler
+  const handleHandoverPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (handoverPhotos.length + files.length > 5) {
+      showToast('⚠️ สามารถแนบรูปภาพส่งมอบได้สูงสุดไม่เกิน 5 รูป', 'error');
+      return;
+    }
+
+    try {
+      setCompressingHandoverPhoto(true);
+      const newItems: ReceivingPhotoItem[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const compressed = await compressImage(files[i], 1600, 0.82);
+        newItems.push({
+          file: compressed.file,
+          dataUrl: compressed.dataUrl,
+          stats: {
+            originalSize: compressed.originalSize,
+            compressedSize: compressed.compressedSize,
+          },
+        });
+      }
+      setHandoverPhotos((prev) => [...prev, ...newItems]);
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการประมวลผลรูปภาพ', 'error');
+    } finally {
+      setCompressingHandoverPhoto(false);
+      e.target.value = '';
+    }
+  };
+
+  const removeHandoverPhoto = (index: number) => {
+    setHandoverPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Open Handover Modal for carrier pickup
+  const openHandoverModal = (ticket: ReturnTicket) => {
+    setHandoverTicket(ticket);
+    setHandoverDriverName(ticket.carrier_name || '');
+    setHandoverLicensePlate('');
+    setHandoverNotes('');
+    setHandoverPhotos([]);
+    setHandoverModalOpen(true);
+  };
+
+  // Submit Handover (Carrier picks up return goods)
+  const handleHandoverSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!handoverTicket) return;
+
+    setSubmittingHandover(true);
+    try {
+      const finalPodUrls: string[] = [];
+
+      // Upload newly added handover POD photos
+      for (const item of handoverPhotos) {
+        if (item.savedUrl) {
+          finalPodUrls.push(item.savedUrl);
+        } else if (item.file) {
+          const uploadFormData = new FormData();
+          uploadFormData.append('file', item.file);
+          uploadFormData.append('booking_id', handoverTicket.id);
+          uploadFormData.append('type', 'pod');
+
+          const uploadRes = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: uploadFormData,
+          });
+          const uploadData = await uploadRes.json();
+          if (uploadRes.ok && uploadData.url) {
+            finalPodUrls.push(uploadData.url);
+          } else {
+            showToast(uploadData.error || '⚠️ ไม่สามารถอัปโหลดรูปภาพหลักฐานได้', 'error');
+            setSubmittingHandover(false);
+            return;
+          }
+        }
+      }
+
+      const res = await authFetch(`/api/admin/returns/${handoverTicket.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: 'Returned',
+          driver_name: handoverDriverName.trim() || null,
+          driver_license_plate: handoverLicensePlate.trim() || null,
+          handover_notes: handoverNotes.trim() || null,
+          pod_photo_urls: finalPodUrls,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      showToast(`บันทึกส่งมอบสินค้าตีคืน ${handoverTicket.id} เรียบร้อยแล้ว`);
+      setHandoverModalOpen(false);
+      setHandoverTicket(null);
+      fetchReturnTickets();
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการบันทึกส่งมอบสินค้าตีคืน', 'error');
+    } finally {
+      setSubmittingHandover(false);
+    }
+  };
+
+  // Manual create return ticket
+  const handleCreateReturnSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newReturnSupplier.trim() || !newReturnItems.trim()) {
+      showToast('กรุณากรอกชื่อซัพพลายเออร์และรายการสินค้าที่ตีคืน', 'error');
+      return;
+    }
+
+    setSubmittingNewReturn(true);
+    try {
+      const res = await authFetch('/api/admin/returns', {
+        method: 'POST',
+        body: JSON.stringify({
+          booking_id: newReturnBookingId.trim() || null,
+          supplier_name: newReturnSupplier.trim(),
+          carrier_name: newReturnCarrier.trim() || null,
+          contact_phone: newReturnPhone.trim() || null,
+          items_detail: newReturnItems.trim(),
+          quantity: newReturnQuantity.trim() || '1 ลัง',
+          reason: newReturnReason.trim() || 'ส่งผิดสเปก / ชำรุด',
+          storage_location: newReturnLocation.trim() || 'โซนพักสินค้าตีคืน (RTV)',
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      showToast(`สร้างรายการสินค้าตีคืน ${data.return_ticket.id} เรียบร้อยแล้ว`);
+      setCreateReturnModalOpen(false);
+      setNewReturnSupplier('');
+      setNewReturnCarrier('');
+      setNewReturnPhone('');
+      setNewReturnItems('');
+      setNewReturnQuantity('1 ลัง');
+      setNewReturnReason('ส่งผิดสเปก / ชำรุดเสียหาย');
+      setNewReturnLocation('โซนพักสินค้าตีคืน (RTV)');
+      setNewReturnBookingId('');
+      fetchReturnTickets();
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการสร้างรายการตีคืน', 'error');
+    } finally {
+      setSubmittingNewReturn(false);
+    }
+  };
+
+  // Delete return ticket (Super Admin only)
+  const handleDeleteReturnTicket = async (ticket: ReturnTicket) => {
+    if (!window.confirm(`ยืนยันการลบรายการสินค้าตีคืน ${ticket.id} (${ticket.supplier_name}) หรือไม่?`)) {
+      return;
+    }
+
+    try {
+      const res = await authFetch(`/api/admin/returns/${ticket.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      showToast(`ลบรายการสินค้าตีคืน ${ticket.id} เรียบร้อยแล้ว`);
+      fetchReturnTickets();
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการลบรายการ', 'error');
     }
   };
 
@@ -2196,6 +2487,25 @@ export default function AdminDashboardPage() {
             <Calendar className="w-4 h-4" />
             <span>รายการจองคิวส่งของ</span>
           </button>
+
+          {!isSecurityOnly && (
+            <button
+              onClick={() => setActiveTab('returns')}
+              className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+                activeTab === 'returns'
+                  ? 'bg-amber-600 text-white shadow-sm ring-2 ring-amber-400/50'
+                  : 'text-amber-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <Package className="w-4 h-4 text-amber-300" />
+              <span>ศูนย์สินค้าตีคืน (Return Hub)</span>
+              {typeof returnStats?.pending_pickup === 'number' && returnStats.pending_pickup > 0 && (
+                <span className="ml-1 px-2 py-0.5 rounded-full text-[11px] font-black bg-rose-500 text-white shadow-xs animate-pulse">
+                  {returnStats.pending_pickup}
+                </span>
+              )}
+            </button>
+          )}
 
           {!isSecurityOnly && (
             <>
@@ -2992,6 +3302,357 @@ export default function AdminDashboardPage() {
               </div>
             )}
           </div>
+          </div>
+        )}
+
+        {/* 🌟 TAB: RETURN HUB & RETURN PICKUP (RTV) */}
+        {!isSecurityOnly && activeTab === 'returns' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Header & Quick Action */}
+            <div className="bg-gradient-to-r from-amber-600 via-amber-700 to-orange-700 rounded-3xl p-5 sm:p-7 text-white shadow-lg shadow-amber-900/20 relative overflow-hidden">
+              <div className="absolute -right-6 -bottom-6 w-36 h-36 bg-white/10 rounded-full blur-xl pointer-events-none" />
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+                <div className="space-y-1.5">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-500/40 text-amber-100 border border-amber-400/40">
+                    <Package className="w-3.5 h-3.5" />
+                    <span>RETURN TO VENDOR (RTV) HUB</span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black tracking-tight">
+                    ศูนย์จัดการสินค้าตีคืน / ส่งมาผิด
+                  </h2>
+                  <p className="text-xs sm:text-sm text-amber-100/90 max-w-2xl leading-relaxed">
+                    บริหารจัดการสินค้าส่งผิดสเปก, ชำรุด, สินค้ารอตีคืนซัพพลายเออร์ พิมพ์ป้ายปะกล่อง/พาเลทเตือนห้ามจัดเก็บ และบันทึกหลักฐานการส่งมอบคืน (POD)
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => fetchReturnTickets()}
+                    disabled={loadingReturns}
+                    className="px-3.5 py-2.5 bg-white/15 hover:bg-white/25 text-white text-xs sm:text-sm font-bold rounded-2xl transition flex items-center gap-2 border border-white/20 backdrop-blur-xs"
+                    title="รีเฟรชข้อมูล"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${loadingReturns ? 'animate-spin' : ''}`} />
+                    <span>รีเฟรช</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCreateReturnModalOpen(true)}
+                    className="px-4 py-2.5 bg-white hover:bg-amber-50 text-amber-900 text-xs sm:text-sm font-black rounded-2xl shadow-md transition flex items-center gap-2 active:scale-95"
+                  >
+                    <Plus className="w-4 h-4 text-amber-700" />
+                    <span>สร้างรายการตีคืนใหม่</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 3 KPI Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                    รอขนส่งมารับคืน (Pending Pickup)
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                    ⏳
+                  </div>
+                </div>
+                <div className="text-3xl font-black text-amber-600 mt-2 flex items-baseline gap-2">
+                  <span>{returnStats?.pending_pickup ?? returnTickets.filter((r) => r.status === 'Pending_Pickup').length}</span>
+                  <span className="text-sm font-normal text-slate-500">รายการ</span>
+                </div>
+                <div className="text-xs text-amber-800 font-medium mt-1">
+                  สินค้าที่ถูกแยกพักไว้ รอรถขนส่ง/ซัพพลายเออร์มารับกลับ
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                    ส่งมอบคืนสำเร็จ (Returned)
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                    ✓
+                  </div>
+                </div>
+                <div className="text-3xl font-black text-emerald-600 mt-2 flex items-baseline gap-2">
+                  <span>{returnStats?.returned ?? returnTickets.filter((r) => r.status === 'Returned').length}</span>
+                  <span className="text-sm font-normal text-slate-500">รายการ</span>
+                </div>
+                <div className="text-xs text-emerald-700 font-medium mt-1">
+                  บันทึกลายเซ็นและรูปถ่ายเอกสาร POD ครบถ้วน
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-sky-900 uppercase tracking-wider">
+                    ซัพพลายเออร์ที่รอเคลียร์
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold">
+                    🏢
+                  </div>
+                </div>
+                <div className="text-3xl font-black text-sky-600 mt-2 flex items-baseline gap-2">
+                  <span>{returnStats?.unique_suppliers ?? 0}</span>
+                  <span className="text-sm font-normal text-slate-500">บริษัท</span>
+                </div>
+                <div className="text-xs text-sky-700 font-medium mt-1">
+                  คู่ค้าที่มีรายการสินค้าส่งผิดหรือรอตีคืน
+                </div>
+              </div>
+            </div>
+
+            {/* Filter Pills & Search Bar */}
+            <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl w-full md:w-auto overflow-x-auto text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReturnFilterStatus('all');
+                    fetchReturnTickets('all');
+                  }}
+                  className={`px-3.5 py-2 rounded-xl transition ${
+                    returnFilterStatus === 'all'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  ทั้งหมด ({returnTickets.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReturnFilterStatus('Pending_Pickup');
+                    fetchReturnTickets('Pending_Pickup');
+                  }}
+                  className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 ${
+                    returnFilterStatus === 'Pending_Pickup'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'text-amber-800 hover:text-amber-950 hover:bg-amber-50'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                  <span>รอขนส่งมารับ ({returnStats?.pending_pickup ?? returnTickets.filter((r) => r.status === 'Pending_Pickup').length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReturnFilterStatus('Returned');
+                    fetchReturnTickets('Returned');
+                  }}
+                  className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 ${
+                    returnFilterStatus === 'Returned'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span>ส่งคืนสำเร็จ ({returnStats?.returned ?? returnTickets.filter((r) => r.status === 'Returned').length})</span>
+                </button>
+              </div>
+
+              <div className="w-full md:w-80 relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="ค้นหา RTV, ชื่อบริษัท, รายการยา..."
+                  value={returnSearchInput}
+                  onChange={(e) => {
+                    setReturnSearchInput(e.target.value);
+                    fetchReturnTickets(undefined, e.target.value);
+                  }}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white transition"
+                />
+              </div>
+            </div>
+
+            {/* Return Tickets Table & List */}
+            {loadingReturns ? (
+              <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-sm space-y-3">
+                <RefreshCw className="w-8 h-8 text-amber-500 animate-spin mx-auto" />
+                <div className="text-sm font-bold text-slate-600">กำลังโหลดรายการสินค้าตีคืน...</div>
+              </div>
+            ) : returnTickets.length === 0 ? (
+              <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-sm space-y-3">
+                <div className="w-14 h-14 bg-amber-50 border-2 border-amber-200 rounded-2xl flex items-center justify-center text-amber-600 text-2xl mx-auto">
+                  📦
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-slate-800">ไม่พบรายการสินค้าตีคืน</h3>
+                <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
+                  ยังไม่มีรายการสินค้าส่งผิดหรือรอตีคืนในสถานะนี้ เมื่อมีการตรวจรับแล้วพบสินค้าผิด ระบบจะแสดงรายการที่นี่โดยอัตโนมัติ
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setCreateReturnModalOpen(true)}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs sm:text-sm rounded-xl transition inline-flex items-center gap-1.5 shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>สร้างรายการตีคืนด้วยตนเอง</span>
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs sm:text-sm">
+                    <thead className="bg-slate-50/80 text-slate-500 font-semibold border-b border-slate-200 text-xs">
+                      <tr>
+                        <th className="p-3.5 sm:p-4">รหัสใบคืน / อ้างอิง</th>
+                        <th className="p-3.5 sm:p-4">ซัพพลายเออร์ / ขนส่ง</th>
+                        <th className="p-3.5 sm:p-4">รายการสินค้า & จำนวน</th>
+                        <th className="p-3.5 sm:p-4">สาเหตุ / จุดพักของ</th>
+                        <th className="p-3.5 sm:p-4">สถานะ</th>
+                        <th className="p-3.5 sm:p-4">วันที่ตรวจพบ</th>
+                        <th className="p-3.5 sm:p-4 text-right">ดำเนินการ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {returnTickets.map((ticket) => (
+                        <tr
+                          key={ticket.id}
+                          className={`hover:bg-amber-50/30 transition ${
+                            ticket.status === 'Pending_Pickup' ? 'bg-amber-50/10' : ''
+                          }`}
+                        >
+                          <td className="p-3.5 sm:p-4 align-top">
+                            <div className="font-mono font-black text-amber-800 text-sm">{ticket.id}</div>
+                            {ticket.booking_id ? (
+                              <div className="text-[11px] text-slate-500 mt-0.5 font-mono">
+                                คิว: <strong className="text-slate-700">{ticket.booking_id}</strong>
+                              </div>
+                            ) : (
+                              <div className="text-[11px] text-slate-400 mt-0.5">เปิดใบแบบแมนนวล</div>
+                            )}
+                          </td>
+
+                          <td className="p-3.5 sm:p-4 align-top">
+                            <div className="font-bold text-slate-900">{ticket.supplier_name}</div>
+                            {ticket.carrier_name && (
+                              <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                                <Truck className="w-3 h-3 text-slate-400" />
+                                <span>{ticket.carrier_name}</span>
+                              </div>
+                            )}
+                            {ticket.contact_phone && (
+                              <div className="text-xs text-slate-500 flex items-center gap-1 font-mono mt-0.5">
+                                <Phone className="w-3 h-3 text-slate-400" />
+                                <span>{ticket.contact_phone}</span>
+                              </div>
+                            )}
+                          </td>
+
+                          <td className="p-3.5 sm:p-4 align-top">
+                            <div className="font-semibold text-slate-800 leading-snug">{ticket.items_detail}</div>
+                            <div className="mt-1">
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                {ticket.quantity || '1 รายการ'}
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="p-3.5 sm:p-4 align-top">
+                            <div>
+                              <span className="px-2 py-0.5 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 inline-block">
+                                {ticket.reason}
+                              </span>
+                            </div>
+                            <div className="text-xs text-amber-800 font-mono font-semibold mt-1 flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-amber-600" />
+                              <span>{ticket.storage_location || 'โซนพักสินค้าตีคืน (RTV)'}</span>
+                            </div>
+                          </td>
+
+                          <td className="p-3.5 sm:p-4 align-top">
+                            {ticket.status === 'Pending_Pickup' ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                                <span>รอขนส่งมารับ</span>
+                              </span>
+                            ) : (
+                              <div>
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>ส่งคืนสำเร็จ</span>
+                                </span>
+                                {ticket.handover_at && (
+                                  <div className="text-[11px] text-slate-400 mt-1">
+                                    เมื่อ: {formatThaiDateTime(ticket.handover_at)}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </td>
+
+                          <td className="p-3.5 sm:p-4 align-top text-xs text-slate-500">
+                            <div>{formatThaiDateTime(ticket.created_at)}</div>
+                            <div className="text-[11px] text-slate-400">โดย: {ticket.created_by || 'Admin'}</div>
+                          </td>
+
+                          <td className="p-3.5 sm:p-4 align-top text-right">
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                              {/* Print Tag Button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReturnTagTicket(ticket);
+                                  setReturnTagModalOpen(true);
+                                }}
+                                className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-xs transition flex items-center gap-1"
+                                title="พิมพ์ป้ายปะกล่อง/พาเลทเตือนห้ามจัดเก็บ"
+                              >
+                                <Printer className="w-3.5 h-3.5" />
+                                <span>ป้ายปะ</span>
+                              </button>
+
+                              {/* Handover Action or View Proof */}
+                              {ticket.status === 'Pending_Pickup' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openHandoverModal(ticket)}
+                                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition flex items-center gap-1"
+                                  title="บันทึกการส่งมอบสินค้าตีคืนให้คนขับรถขนส่ง"
+                                >
+                                  <Truck className="w-3.5 h-3.5" />
+                                  <span>ส่งมอบคืน</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setViewingTicket(ticket);
+                                    setViewTicketModalOpen(true);
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition flex items-center gap-1"
+                                  title="ดูรายละเอียดและรูปถ่ายหลักฐาน POD"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                  <span>ดูหลักฐาน</span>
+                                </button>
+                              )}
+
+                              {/* Super Admin Delete */}
+                              {isSuperAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteReturnTicket(ticket)}
+                                  className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition"
+                                  title="ลบรายการนี้"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -5437,6 +6098,85 @@ export default function AdminDashboardPage() {
               />
             </div>
 
+            {/* ⚠️ Return Goods / Wrong Items Section (RTV) */}
+            <div className="p-4 bg-amber-50/80 border-2 border-amber-300 rounded-2xl space-y-3">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hasReturnGoods}
+                  onChange={(e) => setHasReturnGoods(e.target.checked)}
+                  className="w-5 h-5 rounded text-amber-600 focus:ring-amber-500 border-amber-300"
+                />
+                <div>
+                  <span className="font-extrabold text-amber-950 text-sm sm:text-base flex items-center gap-2">
+                    ⚠️ พบสินค้าส่งผิด / มีสินค้าต้องตีคืน (RTV - Return to Vendor)
+                  </span>
+                  <span className="text-xs text-amber-800 block">
+                    ระบบจะสร้างใบรอส่งมอบในศูนย์จัดการสินค้าตีคืน (Return Hub) ให้อัตโนมัติ
+                  </span>
+                </div>
+              </label>
+
+              {hasReturnGoods && (
+                <div className="space-y-3 pt-2 border-t border-amber-200 animate-in fade-in duration-150">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-amber-900 block mb-1">
+                        รายการสินค้าที่ส่งผิด / ตีคืน <span className="text-rose-600">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required={hasReturnGoods}
+                        value={returnItemsInput}
+                        onChange={(e) => setReturnItemsInput(e.target.value)}
+                        placeholder="เช่น ยาพาราเซตามอล 500mg (Lot: 23A01)"
+                        className="w-full p-2.5 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-amber-900 block mb-1">
+                        จำนวนที่ตีคืน
+                      </label>
+                      <input
+                        type="text"
+                        value={returnQuantityInput}
+                        onChange={(e) => setReturnQuantityInput(e.target.value)}
+                        placeholder="เช่น 1 ลัง หรือ 24 กล่อง"
+                        className="w-full p-2.5 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-amber-900 block mb-1">
+                        สาเหตุการตีคืน
+                      </label>
+                      <input
+                        type="text"
+                        value={returnReasonInput}
+                        onChange={(e) => setReturnReasonInput(e.target.value)}
+                        placeholder="เช่น ส่งผิดสเปก, บรรจุภัณฑ์ชำรุดแตกรั่ว, ใกล้หมดอายุ"
+                        className="w-full p-2.5 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-amber-900 block mb-1">
+                        จุดวางของในคลัง (Storage Location)
+                      </label>
+                      <input
+                        type="text"
+                        value={returnLocationInput}
+                        onChange={(e) => setReturnLocationInput(e.target.value)}
+                        placeholder="เช่น โซนพักสินค้าตีคืน A1"
+                        className="w-full p-2.5 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Warehouse Receiving Photo Attachment (up to 5 photos) */}
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
@@ -6410,6 +7150,428 @@ export default function AdminDashboardPage() {
         isOpen={galleryOpen}
         onClose={() => setGalleryOpen(false)}
       />
+
+      {/* 🏷️ Return Pallet Tag Print Modal */}
+      <ReturnTagModal
+        ticket={returnTagTicket}
+        isOpen={returnTagModalOpen}
+        onClose={() => setReturnTagModalOpen(false)}
+      />
+
+      {/* 🚚 Return Handover Modal (Carrier Pickup / POD) */}
+      {handoverModalOpen && handoverTicket && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 max-h-[92vh] flex flex-col space-y-4">
+            <div className="flex items-center justify-between border-b pb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                  <Truck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">บันทึกการส่งมอบสินค้าตีคืน (POD)</h3>
+                  <p className="text-xs text-slate-500 font-mono">ใบคืน: {handoverTicket.id}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHandoverModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 overflow-y-auto flex-1 pr-1 text-xs sm:text-sm">
+              <div className="p-3.5 bg-blue-50/70 rounded-2xl border border-blue-200 text-blue-950 space-y-1">
+                <div><b>ซัพพลายเออร์:</b> <span className="font-bold">{handoverTicket.supplier_name}</span></div>
+                <div><b>รายการสินค้า:</b> <span className="text-rose-700 font-bold">{handoverTicket.items_detail}</span> ({handoverTicket.quantity || '1 ลัง'})</div>
+                <div><b>จุดเบิกของ:</b> <span className="font-mono font-bold text-amber-800">{handoverTicket.storage_location || 'โซนพักสินค้าตีคืน (RTV)'}</span></div>
+              </div>
+
+              <form id="formHandover" onSubmit={handleHandoverSubmit} className="space-y-3">
+                <div>
+                  <label className="block font-bold text-slate-700 text-xs mb-1">
+                    ชื่อคนขับรถ / บริษัทขนส่งที่มารับของกลับ
+                  </label>
+                  <input
+                    type="text"
+                    value={handoverDriverName}
+                    onChange={(e) => setHandoverDriverName(e.target.value)}
+                    placeholder="เช่น นายสมคิด หรือ ขนส่ง Kerry Express"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-blue-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 text-xs mb-1">
+                    ทะเบียนรถขนส่งที่มารับของกลับ
+                  </label>
+                  <input
+                    type="text"
+                    value={handoverLicensePlate}
+                    onChange={(e) => setHandoverLicensePlate(e.target.value)}
+                    placeholder="เช่น 1ฒฮ-9876 กทม."
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-blue-500 focus:bg-white font-mono"
+                  />
+                </div>
+
+                {/* Photo Attachment for Handover Proof (POD) */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                      <Camera className="w-4 h-4 text-blue-600" />
+                      <span>รูปถ่ายเอกสารใบคืนที่มีลายเซ็นคนขับ / รูปส่งมอบ (POD)</span>
+                    </label>
+                    <span className="text-[11px] text-slate-500">{handoverPhotos.length}/5 รูป</span>
+                  </div>
+
+                  {handoverPhotos.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 p-2 bg-slate-50 rounded-xl border border-slate-200">
+                      {handoverPhotos.map((photo, idx) => (
+                        <div key={`pod-${idx}`} className="relative aspect-square rounded-lg overflow-hidden border border-slate-300">
+                          <img src={photo.dataUrl} alt={`POD ${idx + 1}`} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removeHandoverPhoto(idx)}
+                            className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded-full hover:bg-rose-700 shadow"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {handoverPhotos.length < 5 && (
+                    <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-blue-300 hover:border-blue-500 rounded-xl bg-blue-50/40 hover:bg-blue-50 text-blue-700 cursor-pointer transition text-xs font-bold">
+                      <Camera className="w-5 h-5 mb-1 text-blue-600" />
+                      <span>{compressingHandoverPhoto ? 'กำลังประมวลผลรูป...' : 'แตะเพื่อถ่ายรูปหรือแนบเอกสารเซ็นรับ'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        disabled={compressingHandoverPhoto}
+                        onChange={handleHandoverPhotoChange}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 text-xs mb-1">
+                    หมายเหตุการส่งมอบ (ถ้ามี)
+                  </label>
+                  <input
+                    type="text"
+                    value={handoverNotes}
+                    onChange={(e) => setHandoverNotes(e.target.value)}
+                    placeholder="เช่น ส่งมอบสินค้าครบถ้วน สภาพเรียบร้อย"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-blue-500 focus:bg-white"
+                  />
+                </div>
+              </form>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t shrink-0">
+              <button
+                type="button"
+                onClick={() => setHandoverModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-100 text-xs sm:text-sm"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="submit"
+                form="formHandover"
+                disabled={submittingHandover}
+                className="px-5 py-2.5 rounded-xl font-black bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm shadow-md transition flex items-center gap-1.5"
+              >
+                {submittingHandover ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>กำลังบันทึก...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>ยืนยันการส่งมอบคืน</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ➕ Create Return Ticket Modal (Manual) */}
+      {createReturnModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 max-h-[92vh] flex flex-col space-y-4">
+            <div className="flex items-center justify-between border-b pb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                  <Package className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">สร้างรายการสินค้าตีคืนใหม่ (Manual Ticket)</h3>
+                  <p className="text-xs text-slate-500">สำหรับสินค้าชำรุด หรือยาที่ต้องส่งคืนซัพพลายเออร์</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCreateReturnModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form id="formCreateReturn" onSubmit={handleCreateReturnSubmit} className="space-y-3 overflow-y-auto flex-1 pr-1 text-xs sm:text-sm">
+              <div>
+                <label className="block font-bold text-slate-700 text-xs mb-1">
+                  ชื่อซัพพลายเออร์ (Supplier) <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newReturnSupplier}
+                  onChange={(e) => setNewReturnSupplier(e.target.value)}
+                  placeholder="เช่น บจก. ฟาร์มาพลัส อินเตอร์"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 text-xs mb-1">
+                    บริษัทขนส่ง (ถ้าทราบ)
+                  </label>
+                  <input
+                    type="text"
+                    value={newReturnCarrier}
+                    onChange={(e) => setNewReturnCarrier(e.target.value)}
+                    placeholder="เช่น SCG Logistics, Kerry"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 text-xs mb-1">
+                    เบอร์โทรศัพท์ติดต่อ
+                  </label>
+                  <input
+                    type="text"
+                    value={newReturnPhone}
+                    onChange={(e) => setNewReturnPhone(e.target.value)}
+                    placeholder="เช่น 02-123-4567"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 text-xs mb-1">
+                  รายการสินค้าที่ต้องตีคืน <span className="text-rose-600">*</span>
+                </label>
+                <textarea
+                  rows={2}
+                  required
+                  value={newReturnItems}
+                  onChange={(e) => setNewReturnItems(e.target.value)}
+                  placeholder="เช่น ยาพาราเซตามอล 500mg (Lot: 23A01) ส่งผิดสเปก"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 text-xs mb-1">
+                    จำนวน
+                  </label>
+                  <input
+                    type="text"
+                    value={newReturnQuantity}
+                    onChange={(e) => setNewReturnQuantity(e.target.value)}
+                    placeholder="เช่น 1 ลัง หรือ 24 กล่อง"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 text-xs mb-1">
+                    จุดพักของในคลัง (Storage Location)
+                  </label>
+                  <input
+                    type="text"
+                    value={newReturnLocation}
+                    onChange={(e) => setNewReturnLocation(e.target.value)}
+                    placeholder="เช่น โซนพักสินค้าตีคืน (RTV)"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 text-xs mb-1">
+                  สาเหตุการตีคืน
+                </label>
+                <input
+                  type="text"
+                  value={newReturnReason}
+                  onChange={(e) => setNewReturnReason(e.target.value)}
+                  placeholder="เช่น ส่งผิดสเปก, ชำรุดเสียหาย, ใกล้หมดอายุ"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 text-xs mb-1">
+                  รหัสคิวอ้างอิง (ถ้ามี)
+                </label>
+                <input
+                  type="text"
+                  value={newReturnBookingId}
+                  onChange={(e) => setNewReturnBookingId(e.target.value)}
+                  placeholder="เช่น BK-20260914-001"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white font-mono"
+                />
+              </div>
+            </form>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t shrink-0">
+              <button
+                type="button"
+                onClick={() => setCreateReturnModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-100 text-xs sm:text-sm"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="submit"
+                form="formCreateReturn"
+                disabled={submittingNewReturn}
+                className="px-5 py-2.5 rounded-xl font-black bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm shadow-md transition flex items-center gap-1.5"
+              >
+                {submittingNewReturn ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>กำลังบันทึก...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    <span>บันทึกสร้างใบคืน</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📄 View Return Ticket Details / POD Modal */}
+      {viewTicketModalOpen && viewingTicket && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 max-h-[92vh] flex flex-col space-y-4">
+            <div className="flex items-center justify-between border-b pb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">หลักฐานการส่งมอบสินค้าตีคืน (POD)</h3>
+                  <p className="text-xs text-slate-500 font-mono">ใบคืน: {viewingTicket.id}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewTicketModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 overflow-y-auto flex-1 pr-1 text-xs sm:text-sm">
+              <div className="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-950 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold">สถานะ: ส่งคืนเรียบร้อยแล้ว</span>
+                  <span className="text-[11px] bg-emerald-200 text-emerald-900 font-black px-2.5 py-0.5 rounded-full">
+                    Completed POD
+                  </span>
+                </div>
+                <div><b>ซัพพลายเออร์:</b> {viewingTicket.supplier_name}</div>
+                <div><b>รายการที่ส่งคืน:</b> <span className="font-bold text-rose-800">{viewingTicket.items_detail}</span> ({viewingTicket.quantity || '1 ลัง'})</div>
+                {viewingTicket.handover_at && (
+                  <div className="text-xs text-slate-600">
+                    <b>วันที่ส่งมอบ:</b> {formatThaiDateTime(viewingTicket.handover_at)} โดย {viewingTicket.handover_by || 'Admin'}
+                  </div>
+                )}
+                {viewingTicket.driver_name && (
+                  <div><b>ผู้รับคืน:</b> {viewingTicket.driver_name} {viewingTicket.driver_license_plate ? `(ทะเบียน: ${viewingTicket.driver_license_plate})` : ''}</div>
+                )}
+                {viewingTicket.handover_notes && (
+                  <div className="text-xs text-slate-600 pt-1 border-t border-emerald-200">
+                    <b>หมายเหตุ:</b> {viewingTicket.handover_notes}
+                  </div>
+                )}
+              </div>
+
+              {/* POD Photos Gallery */}
+              <div className="space-y-2">
+                <label className="font-bold text-slate-800 text-xs block">
+                  รูปภาพเอกสารที่มีลายเซ็นคนขับ / รูปส่งมอบ (POD):
+                </label>
+                {viewingTicket.pod_photo_urls && viewingTicket.pod_photo_urls.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {viewingTicket.pod_photo_urls.map((url, idx) => (
+                      <div
+                        key={`view-pod-${idx}`}
+                        onClick={() => {
+                          setGalleryImages(viewingTicket.pod_photo_urls || []);
+                          setGalleryIndex(idx);
+                          setGalleryTitle(`หลักฐานส่งมอบสินค้าคืน (${viewingTicket.id})`);
+                          setGalleryOpen(true);
+                        }}
+                        className="relative aspect-square rounded-xl overflow-hidden border border-slate-300 hover:opacity-90 cursor-pointer shadow-xs group"
+                      >
+                        <img src={url} alt={`POD ${idx + 1}`} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold">
+                          คลิกดูรูปใหญ่
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
+                    ไม่มีรูปภาพหลักฐานแนบ
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setReturnTagTicket(viewingTicket);
+                  setReturnTagModalOpen(true);
+                }}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white transition flex items-center gap-1.5"
+              >
+                <Printer className="w-4 h-4" />
+                <span>พิมพ์ป้ายปะ</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewTicketModalOpen(false)}
+                className="px-4 py-2 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm"
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

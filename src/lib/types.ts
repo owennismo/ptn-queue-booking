@@ -27,6 +27,33 @@ export interface Booking {
   photo_urls?: string[];
   receiving_photo_url?: string | null;
   receiving_photo_urls?: string[];
+  has_return?: boolean;
+  return_ticket_id?: string | null;
+}
+
+export type ReturnStatus = 'Pending_Pickup' | 'Returned';
+
+export interface ReturnTicket {
+  id: string; // RTV-YYYYMMDD-XXX
+  booking_id?: string | null;
+  supplier_name: string;
+  carrier_name?: string | null;
+  contact_phone?: string | null;
+  items_detail: string;
+  quantity?: string | null;
+  reason: string;
+  storage_location?: string | null;
+  status: ReturnStatus;
+  created_at: string;
+  created_by?: string | null;
+  photos?: string[];
+  // Handover fields when carrier picks up
+  handover_at?: string | null;
+  handover_by?: string | null;
+  driver_name?: string | null;
+  driver_license_plate?: string | null;
+  handover_notes?: string | null;
+  pod_photo_urls?: string[];
 }
 
 export interface TimeSlot {
