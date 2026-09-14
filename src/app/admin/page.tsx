@@ -7228,12 +7228,26 @@ export default function AdminDashboardPage() {
                   {handoverPhotos.length > 0 && (
                     <div className="grid grid-cols-3 gap-2 p-2 bg-slate-50 rounded-xl border border-slate-200">
                       {handoverPhotos.map((photo, idx) => (
-                        <div key={`pod-${idx}`} className="relative aspect-square rounded-lg overflow-hidden border border-slate-300">
-                          <img src={photo.dataUrl} alt={`POD ${idx + 1}`} className="w-full h-full object-cover" />
+                        <div key={`pod-${idx}`} className="relative aspect-square rounded-lg overflow-hidden border border-slate-300 group">
+                          <img
+                            src={photo.dataUrl}
+                            alt={`POD ${idx + 1}`}
+                            className="w-full h-full object-cover cursor-pointer hover:opacity-95 transition"
+                            onClick={() => {
+                              setGalleryImages(handoverPhotos.map((p) => p.dataUrl));
+                              setGalleryIndex(idx);
+                              setGalleryTitle(`รูปถ่ายหลักฐานส่งมอบสินค้า (${idx + 1}/${handoverPhotos.length})`);
+                              setGalleryOpen(true);
+                            }}
+                          />
                           <button
                             type="button"
-                            onClick={() => removeHandoverPhoto(idx)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeHandoverPhoto(idx);
+                            }}
                             className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded-full hover:bg-rose-700 shadow"
+                            title="ลบรูปนี้"
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
