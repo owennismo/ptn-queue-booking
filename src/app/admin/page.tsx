@@ -3934,9 +3934,14 @@ export default function AdminDashboardPage() {
                       {returnTickets.map((ticket) => (
                         <tr
                           key={ticket.id}
-                          className={`hover:bg-amber-50/30 transition ${
-                            ticket.status === 'Pending_Pickup' ? 'bg-amber-50/10' : ''
+                          onClick={() => {
+                            setViewingTicket(ticket);
+                            setViewTicketModalOpen(true);
+                          }}
+                          className={`cursor-pointer hover:bg-amber-100/40 hover:shadow-xs transition ${
+                            ticket.status === 'Pending_Pickup' ? 'bg-amber-50/15' : ''
                           }`}
+                          title="คลิกเพื่อดูรายละเอียดของใบคืนสินค้านี้"
                         >
                           <td className="p-3.5 sm:p-4 align-top">
                             <div className="font-mono font-black text-amber-800 text-sm">{ticket.id}</div>
@@ -4026,12 +4031,13 @@ export default function AdminDashboardPage() {
                             <div className="text-[11px] text-slate-400">โดย: {ticket.created_by || 'Admin'}</div>
                           </td>
 
-                          <td className="p-3.5 sm:p-4 align-top text-right">
+                          <td className="p-3.5 sm:p-4 align-top text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1.5 flex-wrap">
                               {/* Print Tag Button */}
                               <button
                                 type="button"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   setReturnTagTicket(ticket);
                                   setReturnTagModalOpen(true);
                                 }}
@@ -4046,7 +4052,10 @@ export default function AdminDashboardPage() {
                               {/* Edit Return Ticket Button */}
                               <button
                                 type="button"
-                                onClick={() => openEditReturnModal(ticket)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditReturnModal(ticket);
+                                }}
                                 className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs transition flex items-center gap-1"
                                 title="แก้ไขข้อมูลสินค้าตีคืน"
                               >
@@ -4058,7 +4067,10 @@ export default function AdminDashboardPage() {
                               {ticket.status === 'Pending_Pickup' ? (
                                 <button
                                   type="button"
-                                  onClick={() => openHandoverModal(ticket)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openHandoverModal(ticket);
+                                  }}
                                   className="px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition flex items-center gap-1"
                                   title="บันทึกการส่งมอบสินค้าตีคืนให้คนขับรถขนส่ง"
                                 >
@@ -4068,7 +4080,8 @@ export default function AdminDashboardPage() {
                               ) : (
                                 <button
                                   type="button"
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     setViewingTicket(ticket);
                                     setViewTicketModalOpen(true);
                                   }}
@@ -4084,7 +4097,10 @@ export default function AdminDashboardPage() {
                               {isSuperAdmin && (
                                 <button
                                   type="button"
-                                  onClick={() => handleDeleteReturnTicket(ticket)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteReturnTicket(ticket);
+                                  }}
                                   className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition"
                                   title="ลบรายการนี้"
                                 >
@@ -8228,13 +8244,20 @@ export default function AdminDashboardPage() {
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
           <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 max-h-[92vh] flex flex-col space-y-4">
             <div className="flex items-center justify-between border-b pb-3 shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                  <CheckCircle2 className="w-5 h-5" />
+              <div className="flex items-center gap-2.5">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
+                  viewingTicket.status === 'Returned' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                }`}>
+                  {viewingTicket.status === 'Returned' ? <CheckCircle2 className="w-5 h-5" /> : <Package className="w-5 h-5" />}
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-slate-900 text-base">หลักฐานการส่งมอบสินค้าตีคืน (POD)</h3>
-                  <p className="text-xs text-slate-500 font-mono">ใบคืน: {viewingTicket.id}</p>
+                  <h3 className="font-extrabold text-slate-900 text-base">
+                    {viewingTicket.status === 'Returned' ? 'รายละเอียด & หลักฐานการส่งมอบ (POD)' : 'รายละเอียดสินค้าตีคืน'}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-mono">
+                    ใบคืน: <strong>{viewingTicket.id}</strong>
+                    {viewingTicket.booking_id ? ` • คิวอ้างอิง: ${viewingTicket.booking_id}` : ''}
+                  </p>
                 </div>
               </div>
               <button
@@ -8247,46 +8270,94 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="space-y-3.5 overflow-y-auto flex-1 pr-1 text-xs sm:text-sm">
-              <div className="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-950 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold">สถานะ: ส่งคืนเรียบร้อยแล้ว</span>
-                  <span className="text-[11px] bg-emerald-200 text-emerald-900 font-black px-2.5 py-0.5 rounded-full">
-                    Completed POD
-                  </span>
-                </div>
-                <div><b>ซัพพลายเออร์:</b> {viewingTicket.supplier_name}</div>
-                <div><b>รายการที่ส่งคืน:</b> <span className="font-bold text-rose-800">{viewingTicket.items_detail}</span> ({viewingTicket.quantity || '1 ลัง'})</div>
-                {viewingTicket.invoice_or_po_no && (
-                  <div>
-                    <b>เลขที่บิล / PO:</b>{' '}
-                    <span className="font-mono font-bold text-indigo-900 bg-indigo-100/80 px-2 py-0.5 rounded border border-indigo-200">
-                      {viewingTicket.invoice_or_po_no}
+              {/* Status and Information Card */}
+              {viewingTicket.status === 'Returned' ? (
+                <div className="p-3.5 bg-emerald-50/80 rounded-2xl border border-emerald-200 text-emerald-950 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold flex items-center gap-1.5 text-emerald-800">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      สถานะ: ส่งมอบคืนสินค้าเรียบร้อยแล้ว
+                    </span>
+                    <span className="text-[11px] bg-emerald-200 text-emerald-900 font-black px-2.5 py-0.5 rounded-full">
+                      Completed POD
                     </span>
                   </div>
-                )}
-                {viewingTicket.notes && (
-                  <div className="text-xs text-slate-700"><b>หมายเหตุสินค้า:</b> {viewingTicket.notes}</div>
-                )}
-                {viewingTicket.handover_at && (
-                  <div className="text-xs text-slate-600">
+                  <div><b>ซัพพลายเออร์:</b> {viewingTicket.supplier_name}</div>
+                  {viewingTicket.carrier_name && (
+                    <div><b>บริษัทขนส่ง:</b> {viewingTicket.carrier_name}</div>
+                  )}
+                  {viewingTicket.contact_phone && (
+                    <div><b>เบอร์โทรติดต่อ:</b> <span className="font-mono">{viewingTicket.contact_phone}</span></div>
+                  )}
+                  <div><b>รายการที่ส่งคืน:</b> <span className="font-bold text-rose-800">{viewingTicket.items_detail}</span> ({viewingTicket.quantity || '1 ลัง'})</div>
+                  <div><b>สาเหตุการตีคืน:</b> <span className="text-rose-700 font-semibold">{viewingTicket.reason}</span></div>
+                  <div><b>จุดพักของในคลัง:</b> <span className="font-mono font-bold text-slate-800">{viewingTicket.storage_location || 'โซนพักสินค้าตีคืน (RTV)'}</span></div>
+                  {viewingTicket.invoice_or_po_no && (
+                    <div>
+                      <b>เลขที่บิล / PO:</b>{' '}
+                      <span className="font-mono font-bold text-indigo-900 bg-indigo-100/80 px-2 py-0.5 rounded border border-indigo-200">
+                        {viewingTicket.invoice_or_po_no}
+                      </span>
+                    </div>
+                  )}
+                  {viewingTicket.notes && (
+                    <div className="text-xs text-slate-700"><b>หมายเหตุสินค้า:</b> {viewingTicket.notes}</div>
+                  )}
+                  <div className="text-xs text-slate-600 pt-1 border-t border-emerald-200/80">
                     <b>วันที่ส่งมอบ:</b> {formatThaiDateTime(viewingTicket.handover_at)} โดย {viewingTicket.handover_by || 'Admin'}
                   </div>
-                )}
-                {viewingTicket.driver_name && (
-                  <div><b>ผู้รับคืน:</b> {viewingTicket.driver_name} {viewingTicket.driver_license_plate ? `(ทะเบียน: ${viewingTicket.driver_license_plate})` : ''}</div>
-                )}
-                {viewingTicket.handover_notes && (
-                  <div className="text-xs text-slate-600 pt-1 border-t border-emerald-200">
-                    <b>หมายเหตุการส่งมอบ:</b> {viewingTicket.handover_notes}
+                  {viewingTicket.driver_name && (
+                    <div><b>ผู้รับคืน (คนขับรถ):</b> {viewingTicket.driver_name} {viewingTicket.driver_license_plate ? `(ทะเบียน: ${viewingTicket.driver_license_plate})` : ''}</div>
+                  )}
+                  {viewingTicket.handover_notes && (
+                    <div className="text-xs text-slate-600">
+                      <b>หมายเหตุการส่งมอบ:</b> {viewingTicket.handover_notes}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-3.5 bg-amber-50/80 rounded-2xl border border-amber-200 text-amber-950 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold flex items-center gap-1.5 text-amber-800">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                      สถานะ: รอขนส่งมารับคืน
+                    </span>
+                    <span className="text-[11px] bg-amber-200 text-amber-900 font-black px-2.5 py-0.5 rounded-full">
+                      Pending Pickup
+                    </span>
                   </div>
-                )}
-              </div>
+                  <div><b>ซัพพลายเออร์:</b> {viewingTicket.supplier_name}</div>
+                  {viewingTicket.carrier_name && (
+                    <div><b>บริษัทขนส่ง:</b> {viewingTicket.carrier_name}</div>
+                  )}
+                  {viewingTicket.contact_phone && (
+                    <div><b>เบอร์โทรติดต่อ:</b> <span className="font-mono">{viewingTicket.contact_phone}</span></div>
+                  )}
+                  <div><b>รายการที่ส่งคืน:</b> <span className="font-bold text-rose-800">{viewingTicket.items_detail}</span> ({viewingTicket.quantity || '1 ลัง'})</div>
+                  <div><b>สาเหตุการตีคืน:</b> <span className="text-rose-700 font-semibold">{viewingTicket.reason}</span></div>
+                  <div><b>จุดพักของในคลัง:</b> <span className="font-mono font-bold text-amber-900">{viewingTicket.storage_location || 'โซนพักสินค้าตีคืน (RTV)'}</span></div>
+                  {viewingTicket.invoice_or_po_no && (
+                    <div>
+                      <b>เลขที่บิล / PO:</b>{' '}
+                      <span className="font-mono font-bold text-indigo-900 bg-indigo-100/80 px-2 py-0.5 rounded border border-indigo-200">
+                        {viewingTicket.invoice_or_po_no}
+                      </span>
+                    </div>
+                  )}
+                  {viewingTicket.notes && (
+                    <div className="text-xs text-slate-700"><b>หมายเหตุสินค้า:</b> {viewingTicket.notes}</div>
+                  )}
+                  <div className="text-xs text-slate-600 pt-1 border-t border-amber-200/80">
+                    <b>บันทึกเข้าระบบเมื่อ:</b> {formatThaiDateTime(viewingTicket.created_at)} โดย {viewingTicket.created_by || 'Admin'}
+                  </div>
+                </div>
+              )}
 
               {/* Return Goods Photos Gallery */}
               {viewingTicket.photos && viewingTicket.photos.length > 0 && (
                 <div className="space-y-2">
                   <label className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                    <Package className="w-3.5 h-3.5 text-amber-600" />
+                    <Camera className="w-3.5 h-3.5 text-amber-600" />
                     <span>รูปภาพสินค้าตีคืน / สินค้าชำรุด ({viewingTicket.photos.length} รูป):</span>
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
@@ -8311,37 +8382,39 @@ export default function AdminDashboardPage() {
                 </div>
               )}
 
-              {/* POD Photos Gallery */}
-              <div className="space-y-2">
-                <label className="font-bold text-slate-800 text-xs block">
-                  รูปภาพเอกสารที่มีลายเซ็นคนขับ / รูปส่งมอบ (POD):
-                </label>
-                {viewingTicket.pod_photo_urls && viewingTicket.pod_photo_urls.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                    {viewingTicket.pod_photo_urls.map((url, idx) => (
-                      <div
-                        key={`view-pod-${idx}`}
-                        onClick={() => {
-                          setGalleryImages(viewingTicket.pod_photo_urls || []);
-                          setGalleryIndex(idx);
-                          setGalleryTitle(`หลักฐานส่งมอบสินค้าคืน (${viewingTicket.id})`);
-                          setGalleryOpen(true);
-                        }}
-                        className="relative aspect-square rounded-xl overflow-hidden border border-slate-300 hover:opacity-90 cursor-pointer shadow-xs group"
-                      >
-                        <img src={url} alt={`POD ${idx + 1}`} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold">
-                          คลิกดูรูปใหญ่
+              {/* POD Photos Gallery (Only for Returned) */}
+              {viewingTicket.status === 'Returned' && (
+                <div className="space-y-2">
+                  <label className="font-bold text-slate-800 text-xs block">
+                    รูปภาพเอกสารที่มีลายเซ็นคนขับ / รูปส่งมอบ (POD):
+                  </label>
+                  {viewingTicket.pod_photo_urls && viewingTicket.pod_photo_urls.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                      {viewingTicket.pod_photo_urls.map((url, idx) => (
+                        <div
+                          key={`view-pod-${idx}`}
+                          onClick={() => {
+                            setGalleryImages(viewingTicket.pod_photo_urls || []);
+                            setGalleryIndex(idx);
+                            setGalleryTitle(`หลักฐานส่งมอบสินค้าคืน (${viewingTicket.id})`);
+                            setGalleryOpen(true);
+                          }}
+                          className="relative aspect-square rounded-xl overflow-hidden border border-slate-300 hover:opacity-90 cursor-pointer shadow-xs group"
+                        >
+                          <img src={url} alt={`POD ${idx + 1}`} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold">
+                            คลิกดูรูปใหญ่
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
-                    ไม่มีรูปภาพหลักฐานแนบ
-                  </div>
-                )}
-              </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
+                      ไม่มีรูปภาพหลักฐานส่งมอบแนบ
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t shrink-0">
@@ -8373,6 +8446,7 @@ export default function AdminDashboardPage() {
                 <button
                   type="button"
                   onClick={() => {
+                    setViewTicketModalOpen(false);
                     openEditReturnModal(viewingTicket);
                   }}
                   className="px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition flex items-center gap-1.5 shadow-xs"
@@ -8380,6 +8454,20 @@ export default function AdminDashboardPage() {
                   <Edit className="w-4 h-4 text-slate-600" />
                   <span>แก้ไข</span>
                 </button>
+
+                {viewingTicket.status === 'Pending_Pickup' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewTicketModalOpen(false);
+                      openHandoverModal(viewingTicket);
+                    }}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-1.5 shadow-xs"
+                  >
+                    <Truck className="w-4 h-4" />
+                    <span>ส่งมอบคืน</span>
+                  </button>
+                )}
               </div>
 
               <button
