@@ -341,6 +341,7 @@ export default function AdminDashboardPage() {
 
   // --- RETURN HUB & RETURN PICKUP (RTV) STATE ---
   const [returnTickets, setReturnTickets] = useState<ReturnTicket[]>([]);
+  const returnTicketsRef = useRef<ReturnTicket[]>([]);
   const [returnStats, setReturnStats] = useState<{
     total: number;
     pending_pickup: number;
@@ -348,6 +349,7 @@ export default function AdminDashboardPage() {
     unique_suppliers: number;
   } | null>(null);
   const [loadingReturns, setLoadingReturns] = useState<boolean>(false);
+  const [isRevalidatingReturns, setIsRevalidatingReturns] = useState<boolean>(false);
   const [returnFilterStatus, setReturnFilterStatus] = useState<'all' | 'Pending_Pickup' | 'Returned'>('all');
   const [returnSearchInput, setReturnSearchInput] = useState<string>('');
 
@@ -880,39 +882,49 @@ export default function AdminDashboardPage() {
     }
   }, [authFetch, token, userRole]);
 
-  // 8. Load Return Tickets
-  const fetchReturnTickets = useCallback(async (statusOverride?: string, searchOverride?: string) => {
-    try {
-      setLoadingReturns(true);
-      const tokenToUse = token || (typeof window !== 'undefined' ? localStorage.getItem('ptn_admin_token') : null);
-      if (!tokenToUse) return;
-
-      const params = new URLSearchParams();
-      const statusToUse = statusOverride !== undefined ? statusOverride : returnFilterStatus;
-      if (statusToUse && statusToUse !== 'all') {
-        params.set('status', statusToUse);
-      }
-      const searchToUse = searchOverride !== undefined ? searchOverride : returnSearchInput;
-      if (searchToUse && searchToUse.trim()) {
-        params.set('search', searchToUse.trim());
-      }
-
-      const res = await fetch(`/api/admin/returns?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${tokenToUse}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setReturnTickets(data.returns || []);
-        if (data.stats) {
-          setReturnStats(data.stats);
+  // 8. Load Return Tickets (Silent Background Refresh / Stale-While-Revalidate)
+  const fetchReturnTickets = useCallback(
+    async (statusOverride?: string, searchOverride?: string, isBackground = false) => {
+      try {
+        if (!isBackground && returnTicketsRef.current.length === 0) {
+          setLoadingReturns(true);
+        } else {
+          setIsRevalidatingReturns(true);
         }
+        const tokenToUse = token || (typeof window !== 'undefined' ? localStorage.getItem('ptn_admin_token') : null);
+        if (!tokenToUse) return;
+
+        const params = new URLSearchParams();
+        const statusToUse = statusOverride !== undefined ? statusOverride : returnFilterStatus;
+        if (statusToUse && statusToUse !== 'all') {
+          params.set('status', statusToUse);
+        }
+        const searchToUse = searchOverride !== undefined ? searchOverride : returnSearchInput;
+        if (searchToUse && searchToUse.trim()) {
+          params.set('search', searchToUse.trim());
+        }
+
+        const res = await fetch(`/api/admin/returns?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${tokenToUse}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const freshReturns = data.returns || [];
+          returnTicketsRef.current = freshReturns;
+          setReturnTickets(freshReturns);
+          if (data.stats) {
+            setReturnStats(data.stats);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch return tickets:', e);
+      } finally {
+        setLoadingReturns(false);
+        setIsRevalidatingReturns(false);
       }
-    } catch (e) {
-      console.error('Failed to fetch return tickets:', e);
-    } finally {
-      setLoadingReturns(false);
-    }
-  }, [token, returnFilterStatus, returnSearchInput]);
+    },
+    [token, returnFilterStatus, returnSearchInput]
+  );
 
   useEffect(() => {
     if (token) {
@@ -921,11 +933,11 @@ export default function AdminDashboardPage() {
       fetchSettings();
       fetchReturnTickets();
 
-      // ⏱️ Auto-polling every 15s to catch new incoming bookings in real-time
+      // ⏱️ Auto-polling every 15s to catch new incoming bookings & returns in real-time
       const interval = setInterval(() => {
         fetchForecast();
         fetchBookings(true);
-        fetchReturnTickets();
+        fetchReturnTickets(undefined, undefined, true);
       }, 15000);
 
       return () => clearInterval(interval);
@@ -3366,11 +3378,11 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={() => fetchReturnTickets()}
-                    disabled={loadingReturns}
+                    disabled={loadingReturns || isRevalidatingReturns}
                     className="px-3.5 py-2.5 bg-white/15 hover:bg-white/25 text-white text-xs sm:text-sm font-bold rounded-2xl transition flex items-center gap-2 border border-white/20 backdrop-blur-xs"
                     title="รีเฟรชข้อมูล"
                   >
-                    <RefreshCw className={`w-4 h-4 ${loadingReturns ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`w-4 h-4 ${(loadingReturns || isRevalidatingReturns) ? 'animate-spin' : ''}`} />
                     <span>รีเฟรช</span>
                   </button>
 
@@ -3492,23 +3504,31 @@ export default function AdminDashboardPage() {
                 </button>
               </div>
 
-              <div className="w-full md:w-80 relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="ค้นหา RTV, เลขที่บิล/PO, ชื่อบริษัท, รายการสินค้า..."
-                  value={returnSearchInput}
-                  onChange={(e) => {
-                    setReturnSearchInput(e.target.value);
-                    fetchReturnTickets(undefined, e.target.value);
-                  }}
-                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white transition"
-                />
+              <div className="flex items-center gap-2.5 w-full md:w-auto">
+                {isRevalidatingReturns && (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-amber-700 font-semibold animate-pulse px-2.5 py-1.5 bg-amber-50 rounded-xl border border-amber-200 shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    กำลังอัปเดตข้อมูล...
+                  </span>
+                )}
+                <div className="w-full md:w-80 relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="ค้นหา RTV, เลขที่บิล/PO, ชื่อบริษัท, รายการสินค้า..."
+                    value={returnSearchInput}
+                    onChange={(e) => {
+                      setReturnSearchInput(e.target.value);
+                      fetchReturnTickets(undefined, e.target.value);
+                    }}
+                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white transition"
+                  />
+                </div>
               </div>
             </div>
 
             {/* Return Tickets Table & List */}
-            {loadingReturns ? (
+            {loadingReturns && returnTickets.length === 0 ? (
               <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-sm space-y-3">
                 <RefreshCw className="w-8 h-8 text-amber-500 animate-spin mx-auto" />
                 <div className="text-sm font-bold text-slate-600">กำลังโหลดรายการสินค้าตีคืน...</div>
