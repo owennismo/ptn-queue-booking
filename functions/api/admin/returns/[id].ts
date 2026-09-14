@@ -26,6 +26,7 @@ export async function onRequestPatch(context: { params: any; request: Request; e
       driver_license_plate,
       handover_notes,
       pod_photo_urls,
+      photos,
       items_detail,
       quantity,
       reason,
@@ -55,6 +56,7 @@ export async function onRequestPatch(context: { params: any; request: Request; e
     if (driver_license_plate !== undefined) updates.driver_license_plate = driver_license_plate;
     if (handover_notes !== undefined) updates.handover_notes = handover_notes;
     if (pod_photo_urls !== undefined) updates.pod_photo_urls = Array.isArray(pod_photo_urls) ? pod_photo_urls : [];
+    if (photos !== undefined) updates.photos = Array.isArray(photos) ? photos : [];
     if (items_detail !== undefined) updates.items_detail = items_detail;
     if (quantity !== undefined) updates.quantity = quantity;
     if (reason !== undefined) updates.reason = reason;

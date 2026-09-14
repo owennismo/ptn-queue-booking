@@ -384,6 +384,8 @@ export default function AdminDashboardPage() {
   const [editReturnLocation, setEditReturnLocation] = useState<string>('โซนพักสินค้าตีคืน (RTV)');
   const [editReturnInvoicePo, setEditReturnInvoicePo] = useState<string>('');
   const [editReturnNotes, setEditReturnNotes] = useState<string>('');
+  const [editReturnPhotos, setEditReturnPhotos] = useState<ReceivingPhotoItem[]>([]);
+  const [compressingEditReturnPhoto, setCompressingEditReturnPhoto] = useState<boolean>(false);
   const [submittingEditReturn, setSubmittingEditReturn] = useState<boolean>(false);
 
   // Manual Create Return Ticket Modal State
@@ -1904,7 +1906,50 @@ export default function AdminDashboardPage() {
     setEditReturnLocation(ticket.storage_location || 'โซนพักสินค้าตีคืน (RTV)');
     setEditReturnInvoicePo(ticket.invoice_or_po_no || '');
     setEditReturnNotes(ticket.notes || '');
+
+    // Existing photos
+    const existingPhotos: ReceivingPhotoItem[] = (ticket.photos || []).map((url) => ({
+      savedUrl: url,
+      dataUrl: url,
+    }));
+    setEditReturnPhotos(existingPhotos);
     setEditReturnModalOpen(true);
+  };
+
+  const handleEditReturnPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (editReturnPhotos.length + files.length > 10) {
+      showToast('⚠️ สามารถแนบรูปภาพสินค้าตีคืนได้สูงสุดไม่เกิน 10 รูป', 'error');
+      return;
+    }
+
+    try {
+      setCompressingEditReturnPhoto(true);
+      const newItems: ReceivingPhotoItem[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const compressed = await compressImage(files[i], 1600, 0.82);
+        newItems.push({
+          file: compressed.file,
+          dataUrl: compressed.dataUrl,
+          stats: {
+            originalSize: compressed.originalSize,
+            compressedSize: compressed.compressedSize,
+          },
+        });
+      }
+      setEditReturnPhotos((prev) => [...prev, ...newItems]);
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการประมวลผลรูปภาพ', 'error');
+    } finally {
+      setCompressingEditReturnPhoto(false);
+      e.target.value = '';
+    }
+  };
+
+  const removeEditReturnPhoto = (index: number) => {
+    setEditReturnPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Handle Edit Return Ticket Submit
@@ -1918,6 +1963,30 @@ export default function AdminDashboardPage() {
 
     setSubmittingEditReturn(true);
     try {
+      const finalPhotoUrls: string[] = [];
+
+      // Upload any new photo files
+      for (const item of editReturnPhotos) {
+        if (item.savedUrl) {
+          finalPhotoUrls.push(item.savedUrl);
+        } else if (item.file) {
+          const uploadFormData = new FormData();
+          uploadFormData.append('file', item.file);
+          uploadFormData.append('booking_id', editingReturnTicket.id);
+          uploadFormData.append('type', 'return');
+
+          const uploadRes = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: uploadFormData,
+          });
+          const uploadData = await uploadRes.json();
+          if (uploadRes.ok && uploadData.url) {
+            finalPhotoUrls.push(uploadData.url);
+          }
+        }
+      }
+
       const res = await authFetch(`/api/admin/returns/${editingReturnTicket.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
@@ -1930,6 +1999,7 @@ export default function AdminDashboardPage() {
           storage_location: editReturnLocation.trim() || 'โซนพักสินค้าตีคืน (RTV)',
           invoice_or_po_no: editReturnInvoicePo.trim() || null,
           notes: editReturnNotes.trim() || null,
+          photos: finalPhotoUrls,
         }),
       });
 
@@ -8033,6 +8103,35 @@ export default function AdminDashboardPage() {
                 )}
               </div>
 
+              {/* Return Goods Photos Gallery */}
+              {viewingTicket.photos && viewingTicket.photos.length > 0 && (
+                <div className="space-y-2">
+                  <label className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                    <Package className="w-3.5 h-3.5 text-amber-600" />
+                    <span>รูปภาพสินค้าตีคืน / สินค้าชำรุด ({viewingTicket.photos.length} รูป):</span>
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {viewingTicket.photos.map((url, idx) => (
+                      <div
+                        key={`view-return-goods-photo-${idx}`}
+                        onClick={() => {
+                          setGalleryImages(viewingTicket.photos || []);
+                          setGalleryIndex(idx);
+                          setGalleryTitle(`รูปถ่ายสินค้าตีคืน (${viewingTicket.id})`);
+                          setGalleryOpen(true);
+                        }}
+                        className="relative aspect-square rounded-xl overflow-hidden border border-slate-300 hover:opacity-90 cursor-pointer shadow-xs group"
+                      >
+                        <img src={url} alt={`สินค้าตีคืน ${idx + 1}`} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold">
+                          คลิกดูรูปใหญ่
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* POD Photos Gallery */}
               <div className="space-y-2">
                 <label className="font-bold text-slate-800 text-xs block">
@@ -8266,6 +8365,64 @@ export default function AdminDashboardPage() {
                   placeholder="เช่น สินค้าชำรุดแตกรั่วระหว่างขนส่ง..."
                   className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white font-medium"
                 />
+              </div>
+
+              {/* Photo Upload & Gallery for Return Goods */}
+              <div className="space-y-2 pt-2 border-t border-slate-200">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                    <Camera className="w-4 h-4 text-amber-600" />
+                    <span>รูปภาพสินค้าตีคืน / สินค้าชำรุด</span>
+                  </label>
+                  <span className="text-[11px] text-slate-500 font-medium">{editReturnPhotos.length}/10 รูป</span>
+                </div>
+
+                {editReturnPhotos.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 p-2 bg-slate-50 rounded-xl border border-slate-200">
+                    {editReturnPhotos.map((photo, idx) => (
+                      <div key={`edit-return-photo-${idx}`} className="relative aspect-square rounded-lg overflow-hidden border border-slate-300 group">
+                        <img
+                          src={photo.dataUrl}
+                          alt={`รูปสินค้าตีคืน ${idx + 1}`}
+                          className="w-full h-full object-cover cursor-pointer hover:opacity-95 transition"
+                          onClick={() => {
+                            setGalleryImages(editReturnPhotos.map((p) => p.dataUrl));
+                            setGalleryIndex(idx);
+                            setGalleryTitle(`รูปถ่ายสินค้าตีคืน (${idx + 1}/${editReturnPhotos.length})`);
+                            setGalleryOpen(true);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeEditReturnPhoto(idx);
+                          }}
+                          className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded-full hover:bg-rose-700 shadow transition"
+                          title="ลบรูปนี้"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {editReturnPhotos.length < 10 && (
+                  <label className="flex flex-col items-center justify-center p-3.5 border-2 border-dashed border-amber-300 hover:border-amber-500 rounded-xl bg-amber-50/40 hover:bg-amber-50 text-amber-800 cursor-pointer transition text-xs font-bold">
+                    <Camera className="w-5 h-5 mb-1 text-amber-600" />
+                    <span>{compressingEditReturnPhoto ? 'กำลังประมวลผลรูปภาพ...' : 'แตะเพื่อถ่ายรูปด้วยกล้อง หรือแนบรูปภาพสินค้า'}</span>
+                    <span className="text-[10px] text-slate-400 font-normal mt-0.5">รองรับรูปถ่ายหลายรูป (อัดไฟล์อัตโนมัติ)</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      disabled={compressingEditReturnPhoto}
+                      onChange={handleEditReturnPhotoChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
               </div>
             </form>
 
