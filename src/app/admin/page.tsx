@@ -2631,8 +2631,8 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* 🌟 1. Tomorrow / Advance Forecast Banner */}
-        {forecast && (
+        {/* 🌟 1. Tomorrow / Advance Forecast Banner (Only on queues tab) */}
+        {forecast && activeTab === 'queues' && (
           <div className="bg-gradient-to-r from-emerald-900 to-slate-900 text-white p-6 rounded-3xl border border-emerald-700/50 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 no-print">
             <div className="flex items-center gap-3.5">
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
