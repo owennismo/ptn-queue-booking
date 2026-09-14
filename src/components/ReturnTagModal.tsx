@@ -72,8 +72,8 @@ export default function ReturnTagModal({ ticket, isOpen, onClose }: ReturnTagMod
 
   const trackingUrl =
     typeof window !== 'undefined'
-      ? `${window.location.origin}/admin`
-      : `https://ptn-queue-booking.pages.dev/admin`;
+      ? `${window.location.origin}/admin?tab=returns&rtv=${ticket.id}`
+      : `https://ptn-queue-booking.pages.dev/admin?tab=returns&rtv=${ticket.id}`;
 
   const copiesArray = Array.from({ length: Math.max(1, tagCopies) }, (_, i) => i + 1);
 

@@ -72,23 +72,34 @@ export default function QRScannerModal({ isOpen, onClose, onScanSuccess }: QRSca
 
   const extractBookingId = (text: string): string => {
     const clean = text.trim();
-    // 1. If it's a URL like https://.../booking?id=PTN-20260903-XXXX or /booking/PTN-...
+    // 1. If it's a URL with rtv=, id=, search=, or /booking/
     try {
+      if (clean.includes('rtv=')) {
+        const url = new URL(clean);
+        const rtv = url.searchParams.get('rtv');
+        if (rtv) return rtv.trim().toUpperCase();
+      }
       if (clean.includes('id=')) {
         const url = new URL(clean);
         const id = url.searchParams.get('id');
-        if (id) return id.trim();
+        if (id) return id.trim().toUpperCase();
       }
       if (clean.includes('/booking/')) {
         const parts = clean.split('/booking/')[1];
-        if (parts) return parts.split('?')[0].trim();
+        if (parts) return parts.split('?')[0].trim().toUpperCase();
       }
     } catch (e) {}
 
-    // 2. If it's a raw booking ID or text containing PTN-
-    const match = clean.match(/PTN-[A-Za-z0-9\-]+/i);
-    if (match) {
-      return match[0].trim();
+    // 2. Check for RTV ticket ID (RTV-YYYYMMDD-XXX)
+    const rtvMatch = clean.match(/RTV-[A-Za-z0-9\-]+/i);
+    if (rtvMatch) {
+      return rtvMatch[0].trim().toUpperCase();
+    }
+
+    // 3. Check for PTN or BK booking ID (PTN-YYYYMMDD-XXX or BK-YYYYMMDD-XXX)
+    const bookingMatch = clean.match(/(?:PTN|BK)-[A-Za-z0-9\-]+/i);
+    if (bookingMatch) {
+      return bookingMatch[0].trim().toUpperCase();
     }
 
     return clean;

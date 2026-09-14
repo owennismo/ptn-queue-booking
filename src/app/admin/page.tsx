@@ -959,23 +959,151 @@ export default function AdminDashboardPage() {
     }
   }, [activeTab, token, userRole, fetchReturnTickets, fetchStaff, fetchAuditLogs, fetchSettings]);
 
-  // Live QR Code Scanner Success Handler
-  const handleQRScanned = useCallback(async (scannedId: string) => {
-    setScannerOpen(false);
-    setSearchQuery(scannedId);
-    try {
-      const res = await fetch(`/api/bookings/${scannedId}`);
-      const data = await res.json();
-      if (res.ok && data.booking) {
-        setSelectedBooking(data.booking);
-        showToast(`สแกนสำเร็จ: พบข้อมูลคิว ${scannedId}`);
-      } else {
-        showToast(`ไม่พบข้อมูลคิวรหัส ${scannedId}`, 'error');
-      }
-    } catch (e) {
-      showToast(`ค้นหาคิว ${scannedId}`);
-    }
+  // Open Handover Modal for carrier pickup
+  const openHandoverModal = useCallback((ticket: ReturnTicket) => {
+    setHandoverTicket(ticket);
+    setHandoverDriverName(ticket.carrier_name || '');
+    setHandoverLicensePlate('');
+    setHandoverNotes('');
+    setHandoverPhotos([]);
+    setHandoverModalOpen(true);
   }, []);
+
+  // Open View Ticket Modal
+  const openViewTicketModal = useCallback((ticket: ReturnTicket) => {
+    setViewingTicket(ticket);
+    setViewTicketModalOpen(true);
+  }, []);
+
+  // Live QR Code Scanner Success Handler
+  const handleQRScanned = useCallback(
+    async (scannedRaw: string) => {
+      setScannerOpen(false);
+      const cleanId = scannedRaw.trim();
+      if (!cleanId) return;
+
+      // Case 1: Scanned an RTV Ticket ID (RTV-YYYYMMDD-XXX)
+      if (cleanId.toUpperCase().startsWith('RTV-')) {
+        const rtvId = cleanId.toUpperCase();
+        setActiveTab('returns');
+        setReturnSearchInput(rtvId);
+
+        try {
+          const tokenToUse = token || sessionStorage.getItem('ptn_admin_jwt') || localStorage.getItem('ptn_admin_jwt');
+          const res = await fetch(`/api/admin/returns?search=${encodeURIComponent(rtvId)}`, {
+            headers: tokenToUse ? { Authorization: `Bearer ${tokenToUse}` } : {},
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const returnsList: ReturnTicket[] = data.returns || [];
+            const matched = returnsList.find(
+              (r) => r.id.toUpperCase() === rtvId || r.id.toUpperCase().includes(rtvId)
+            );
+
+            if (matched) {
+              showToast(`สแกนสำเร็จ: พบใบคืน ${matched.id}`);
+              if (matched.status === 'Pending_Pickup') {
+                openHandoverModal(matched);
+              } else {
+                openViewTicketModal(matched);
+              }
+              return;
+            }
+          }
+          showToast(`ไม่พบข้อมูลสินค้าตีคืนรหัส ${rtvId}`, 'error');
+        } catch (err) {
+          console.error('Scan RTV error:', err);
+          showToast(`ค้นหาใบคืน ${rtvId}`);
+        }
+        return;
+      }
+
+      // Case 2: Scanned a Booking Queue ID (PTN- or BK-)
+      // If currently on Returns Tab, check if there are return tickets for this booking
+      if (activeTab === 'returns') {
+        setReturnSearchInput(cleanId);
+        try {
+          const tokenToUse = token || sessionStorage.getItem('ptn_admin_jwt') || localStorage.getItem('ptn_admin_jwt');
+          const res = await fetch(`/api/admin/returns?search=${encodeURIComponent(cleanId)}`, {
+            headers: tokenToUse ? { Authorization: `Bearer ${tokenToUse}` } : {},
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const returnsList: ReturnTicket[] = data.returns || [];
+            const matched = returnsList.find(
+              (r) => r.booking_id && r.booking_id.toUpperCase() === cleanId.toUpperCase()
+            );
+            if (matched) {
+              showToast(`สแกนสำเร็จ: พบใบคืนของคิว ${cleanId}`);
+              if (matched.status === 'Pending_Pickup') {
+                openHandoverModal(matched);
+              } else {
+                openViewTicketModal(matched);
+              }
+              return;
+            }
+          }
+        } catch (e) {}
+      }
+
+      // Standard Booking Lookup & switch to Queues tab
+      setSearchQuery(cleanId);
+      try {
+        const res = await fetch(`/api/bookings/${cleanId}`);
+        const data = await res.json();
+        if (res.ok && data.booking) {
+          setActiveTab('queues');
+          setSelectedBooking(data.booking);
+          showToast(`สแกนสำเร็จ: พบข้อมูลคิว ${cleanId}`);
+        } else {
+          showToast(`ไม่พบข้อมูลคิวรหัส ${cleanId}`, 'error');
+        }
+      } catch (e) {
+        showToast(`ค้นหาคิว ${cleanId}`);
+      }
+    },
+    [token, activeTab, openHandoverModal, openViewTicketModal]
+  );
+
+  // Handle URL query parameters on initial mount (e.g. ?tab=returns&rtv=RTV-...)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    const rtvParam = urlParams.get('rtv');
+    const idParam = urlParams.get('id') || urlParams.get('queue');
+
+    if (tabParam === 'returns' || rtvParam) {
+      setActiveTab('returns');
+      if (rtvParam) {
+        const cleanRtv = rtvParam.trim().toUpperCase();
+        setReturnSearchInput(cleanRtv);
+        const tokenToUse = sessionStorage.getItem('ptn_admin_jwt') || localStorage.getItem('ptn_admin_jwt');
+        if (tokenToUse) {
+          fetch(`/api/admin/returns?search=${encodeURIComponent(cleanRtv)}`, {
+            headers: { Authorization: `Bearer ${tokenToUse}` },
+          })
+            .then((r) => r.json())
+            .then((data) => {
+              const matched = (data.returns || []).find(
+                (r: ReturnTicket) => r.id.toUpperCase() === cleanRtv || r.id.toUpperCase().includes(cleanRtv)
+              );
+              if (matched) {
+                if (matched.status === 'Pending_Pickup') {
+                  openHandoverModal(matched);
+                } else {
+                  openViewTicketModal(matched);
+                }
+              }
+            })
+            .catch((e) => console.error(e));
+        }
+      }
+    } else if (idParam) {
+      const cleanId = idParam.trim().toUpperCase();
+      setSearchQuery(cleanId);
+    }
+  }, [openHandoverModal, openViewTicketModal]);
 
   // 1-Click Approve Action
   const handleApprove = async (booking: Booking) => {
@@ -1635,15 +1763,6 @@ export default function AdminDashboardPage() {
     setHandoverPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Open Handover Modal for carrier pickup
-  const openHandoverModal = (ticket: ReturnTicket) => {
-    setHandoverTicket(ticket);
-    setHandoverDriverName(ticket.carrier_name || '');
-    setHandoverLicensePlate('');
-    setHandoverNotes('');
-    setHandoverPhotos([]);
-    setHandoverModalOpen(true);
-  };
 
   // Submit Handover (Carrier picks up return goods)
   const handleHandoverSubmit = async (e: React.FormEvent) => {
@@ -3388,6 +3507,16 @@ export default function AdminDashboardPage() {
 
                   <button
                     type="button"
+                    onClick={() => setScannerOpen(true)}
+                    className="px-3.5 py-2.5 bg-white/15 hover:bg-white/25 text-white text-xs sm:text-sm font-bold rounded-2xl transition flex items-center gap-2 border border-white/20 backdrop-blur-xs active:scale-95 shadow-sm"
+                    title="เปิดกล้องสแกน QR Code ตรวจสอบสินค้าตีคืน"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>สแกน QR</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setCreateReturnModalOpen(true)}
                     className="px-4 py-2.5 bg-white hover:bg-amber-50 text-amber-900 text-xs sm:text-sm font-black rounded-2xl shadow-md transition flex items-center gap-2 active:scale-95"
                   >
@@ -3505,6 +3634,16 @@ export default function AdminDashboardPage() {
               </div>
 
               <div className="flex items-center gap-2.5 w-full md:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setScannerOpen(true)}
+                  className="px-3.5 sm:px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-sm whitespace-nowrap shrink-0 active:scale-95"
+                  title="เปิดกล้องสแกน QR Code สินค้าตีคืน"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>สแกน QR</span>
+                </button>
+
                 {isRevalidatingReturns && (
                   <span className="inline-flex items-center gap-1.5 text-[11px] text-amber-700 font-semibold animate-pulse px-2.5 py-1.5 bg-amber-50 rounded-xl border border-amber-200 shrink-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
