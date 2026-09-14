@@ -354,6 +354,19 @@ export default function AdminDashboardPage() {
   const [returnFilterStatus, setReturnFilterStatus] = useState<'all' | 'Pending_Pickup' | 'Returned'>('all');
   const [returnSearchInput, setReturnSearchInput] = useState<string>('');
 
+  // RTV Suppliers List Modal State
+  const [returnSuppliers, setReturnSuppliers] = useState<{
+    name: string;
+    carrier?: string | null;
+    phone?: string | null;
+    pending_count: number;
+    returned_count: number;
+    total: number;
+  }[]>([]);
+  const [suppliersListModalOpen, setSuppliersListModalOpen] = useState<boolean>(false);
+  const [supplierListFilter, setSupplierListFilter] = useState<'all' | 'pending'>('pending');
+  const [supplierListSearch, setSupplierListSearch] = useState<string>('');
+
   // Return Tag Print Modal State
   const [returnTagTicket, setReturnTagTicket] = useState<ReturnTicket | null>(null);
   const [returnTagModalOpen, setReturnTagModalOpen] = useState<boolean>(false);
@@ -937,6 +950,9 @@ export default function AdminDashboardPage() {
           setReturnTickets(freshReturns);
           if (data.stats) {
             setReturnStats(data.stats);
+          }
+          if (data.suppliers) {
+            setReturnSuppliers(data.suppliers);
           }
         }
       } catch (e) {
@@ -3752,14 +3768,29 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            {/* 3 KPI Summary Cards */}
+            {/* 3 KPI Summary Cards (Interactive & Clickable) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm relative overflow-hidden">
+              {/* Card 1: Pending Pickup */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  const nextStatus = returnFilterStatus === 'Pending_Pickup' ? 'all' : 'Pending_Pickup';
+                  setReturnFilterStatus(nextStatus);
+                  fetchReturnTickets(nextStatus);
+                }}
+                className={`p-5 rounded-3xl transition-all cursor-pointer select-none active:scale-[0.99] border-2 relative overflow-hidden group ${
+                  returnFilterStatus === 'Pending_Pickup'
+                    ? 'bg-amber-500/10 border-amber-500 shadow-md ring-2 ring-amber-400/40'
+                    : 'bg-white border-amber-200 hover:border-amber-400 hover:shadow-md'
+                }`}
+                title="คลิกเพื่อแสดงเฉพาะรายการที่รอขนส่งมารับคืน"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
                     รอขนส่งมารับคืน (Pending Pickup)
                   </span>
-                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold group-hover:scale-110 transition-transform">
                     ⏳
                   </div>
                 </div>
@@ -3770,14 +3801,33 @@ export default function AdminDashboardPage() {
                 <div className="text-xs text-amber-800 font-medium mt-1">
                   สินค้าที่ถูกแยกพักไว้ รอรถขนส่ง/ซัพพลายเออร์มารับกลับ
                 </div>
+                <div className="text-[11px] font-bold text-amber-700 mt-3 pt-2 border-t border-amber-200/60 flex items-center justify-between">
+                  <span>{returnFilterStatus === 'Pending_Pickup' ? '✓ กำลังแสดงรายการนี้ (แตะเพื่อรีเซ็ต)' : 'คลิกเพื่อแสดงรายการนี้'}</span>
+                  <span className="group-hover:translate-x-0.5 transition-transform">👉</span>
+                </div>
               </div>
 
-              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden">
+              {/* Card 2: Returned */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  const nextStatus = returnFilterStatus === 'Returned' ? 'all' : 'Returned';
+                  setReturnFilterStatus(nextStatus);
+                  fetchReturnTickets(nextStatus);
+                }}
+                className={`p-5 rounded-3xl transition-all cursor-pointer select-none active:scale-[0.99] border-2 relative overflow-hidden group ${
+                  returnFilterStatus === 'Returned'
+                    ? 'bg-emerald-500/10 border-emerald-500 shadow-md ring-2 ring-emerald-400/40'
+                    : 'bg-white border-slate-200 hover:border-emerald-400 hover:shadow-md'
+                }`}
+                title="คลิกเพื่อแสดงเฉพาะรายการที่ส่งมอบคืนสำเร็จแล้ว"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
                     ส่งมอบคืนสำเร็จ (Returned)
                   </span>
-                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold group-hover:scale-110 transition-transform">
                     ✓
                   </div>
                 </div>
@@ -3788,23 +3838,42 @@ export default function AdminDashboardPage() {
                 <div className="text-xs text-emerald-700 font-medium mt-1">
                   บันทึกลายเซ็นและรูปถ่ายเอกสาร POD ครบถ้วน
                 </div>
+                <div className="text-[11px] font-bold text-emerald-700 mt-3 pt-2 border-t border-emerald-200/60 flex items-center justify-between">
+                  <span>{returnFilterStatus === 'Returned' ? '✓ กำลังแสดงรายการนี้ (แตะเพื่อรีเซ็ต)' : 'คลิกเพื่อแสดงรายการนี้'}</span>
+                  <span className="group-hover:translate-x-0.5 transition-transform">👉</span>
+                </div>
               </div>
 
-              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden">
+              {/* Card 3: Suppliers */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  setSupplierListFilter('pending');
+                  setSupplierListSearch('');
+                  setSuppliersListModalOpen(true);
+                }}
+                className="p-5 rounded-3xl transition-all cursor-pointer select-none active:scale-[0.99] border-2 bg-white border-slate-200 hover:border-sky-400 hover:shadow-md relative overflow-hidden group"
+                title="คลิกเพื่อเปิดดูรายชื่อบริษัทซัพพลายเออร์ทั้งหมด และเลือกกรองดูสินค้าแต่ละเจ้า"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-sky-900 uppercase tracking-wider">
                     ซัพพลายเออร์ที่รอเคลียร์
                   </span>
-                  <div className="w-8 h-8 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold">
+                  <div className="w-8 h-8 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold group-hover:scale-110 transition-transform">
                     🏢
                   </div>
                 </div>
                 <div className="text-3xl font-black text-sky-600 mt-2 flex items-baseline gap-2">
-                  <span>{returnStats?.unique_suppliers ?? 0}</span>
+                  <span>{returnStats?.unique_suppliers ?? returnSuppliers.filter((s) => s.pending_count > 0).length}</span>
                   <span className="text-sm font-normal text-slate-500">บริษัท</span>
                 </div>
                 <div className="text-xs text-sky-700 font-medium mt-1">
                   คู่ค้าที่มีรายการสินค้าส่งผิดหรือรอตีคืน
+                </div>
+                <div className="text-[11px] font-bold text-sky-700 mt-3 pt-2 border-t border-sky-200/60 flex items-center justify-between">
+                  <span>คลิกเพื่อดูรายชื่อบริษัท & สรุปรายการ</span>
+                  <span className="group-hover:translate-x-0.5 transition-transform">🏢</span>
                 </div>
               </div>
             </div>
@@ -3885,8 +3954,21 @@ export default function AdminDashboardPage() {
                       setReturnSearchInput(e.target.value);
                       fetchReturnTickets(undefined, e.target.value);
                     }}
-                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white transition"
+                    className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 focus:outline-amber-500 focus:bg-white transition"
                   />
+                  {returnSearchInput && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReturnSearchInput('');
+                        fetchReturnTickets(undefined, '');
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200/60"
+                      title="ล้างคำค้นหา"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -8731,6 +8813,175 @@ export default function AdminDashboardPage() {
                     <span>บันทึกการแก้ไข</span>
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🏢 Suppliers List & Breakdown Modal */}
+      {suppliersListModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-3 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold text-lg">
+                  🏢
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base sm:text-lg">
+                    รายชื่อซัพพลายเออร์สินค้าตีคืน / ส่งผิด
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    คลิกเลือกบริษัทคู่ค้าเพื่อกรองดูรายการสินค้าทั้งหมดในตารางได้ทันที
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSuppliersListModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Filter Pills & Search */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 shrink-0">
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl text-xs font-bold w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setSupplierListFilter('pending')}
+                  className={`px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 ${
+                    supplierListFilter === 'pending'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-300"></span>
+                  <span>รอเคลียร์ ({returnSuppliers.filter((s) => s.pending_count > 0).length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSupplierListFilter('all')}
+                  className={`px-3 py-1.5 rounded-xl transition ${
+                    supplierListFilter === 'all'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span>ทั้งหมด ({returnSuppliers.length})</span>
+                </button>
+              </div>
+
+              <div className="w-full sm:w-64 relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="ค้นหาชื่อบริษัท, เบอร์โทร..."
+                  value={supplierListSearch}
+                  onChange={(e) => setSupplierListSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-sky-500 focus:bg-white"
+                />
+              </div>
+            </div>
+
+            {/* Suppliers List */}
+            <div className="overflow-y-auto flex-1 pr-1 space-y-2.5">
+              {(() => {
+                const filtered = returnSuppliers.filter((s) => {
+                  if (supplierListFilter === 'pending' && s.pending_count === 0) return false;
+                  if (supplierListSearch.trim()) {
+                    const q = supplierListSearch.toLowerCase().trim();
+                    const nameMatch = s.name.toLowerCase().includes(q);
+                    const phoneMatch = (s.phone || '').includes(q);
+                    const carrierMatch = (s.carrier || '').toLowerCase().includes(q);
+                    return nameMatch || phoneMatch || carrierMatch;
+                  }
+                  return true;
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="p-8 text-center text-slate-400 text-xs sm:text-sm bg-slate-50 rounded-2xl border border-slate-200">
+                      ไม่พบซัพพลายเออร์ที่ตรงตามเงื่อนไข
+                    </div>
+                  );
+                }
+
+                return filtered.map((s, idx) => (
+                  <div
+                    key={`supplier-row-${idx}`}
+                    className="p-3.5 sm:p-4 rounded-2xl border border-slate-200 hover:border-sky-300 hover:bg-sky-50/20 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white"
+                  >
+                    <div className="space-y-1 min-w-0">
+                      <div className="font-bold text-slate-900 text-sm sm:text-base truncate">
+                        {s.name}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
+                        {s.carrier && (
+                          <div className="flex items-center gap-1">
+                            <Truck className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{s.carrier}</span>
+                          </div>
+                        )}
+                        {s.phone && (
+                          <div className="flex items-center gap-1 font-mono">
+                            <Phone className="w-3.5 h-3.5 text-slate-400" />
+                            <a href={`tel:${s.phone}`} className="hover:text-sky-600 hover:underline">
+                              {s.phone}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                      <div className="flex items-center gap-1.5">
+                        {s.pending_count > 0 && (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                            <span>รอรับคืน {s.pending_count}</span>
+                          </span>
+                        )}
+                        {s.returned_count > 0 && (
+                          <span className="px-2 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            ส่งคืนแล้ว {s.returned_count}
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReturnSearchInput(s.name);
+                          fetchReturnTickets(undefined, s.name);
+                          setSuppliersListModalOpen(false);
+                          showToast(`กรองรายการสินค้าของ: ${s.name}`);
+                        }}
+                        className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-xs active:scale-95"
+                      >
+                        <Search className="w-3 h-3" />
+                        <span>แสดงในตาราง</span>
+                      </button>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between pt-3 border-t shrink-0">
+              <span className="text-xs text-slate-500 font-medium">
+                ทั้งหมด {returnSuppliers.length} บริษัท
+              </span>
+              <button
+                type="button"
+                onClick={() => setSuppliersListModalOpen(false)}
+                className="px-4 py-2 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm"
+              >
+                ปิดหน้าต่าง
               </button>
             </div>
           </div>
