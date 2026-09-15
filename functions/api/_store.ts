@@ -152,7 +152,7 @@ export interface PushSubscriptionRecord {
   created_at: string;
 }
 
-export type StaffRole = 'super_admin' | 'warehouse_officer' | 'security_gate';
+export type StaffRole = 'super_admin' | 'supervisor' | 'warehouse_officer' | 'security_gate';
 
 export interface StaffUser {
   id: string;
@@ -176,6 +176,8 @@ function getRoleName(role: StaffRole): string {
   switch (role) {
     case 'super_admin':
       return 'ผู้ดูแลระบบสูงสุด (Super Admin)';
+    case 'supervisor':
+      return 'หัวหน้างาน / ผู้ดูแลระบบ (Supervisor)';
     case 'warehouse_officer':
       return 'เจ้าหน้าที่คลังสินค้า (Warehouse Officer)';
     case 'security_gate':

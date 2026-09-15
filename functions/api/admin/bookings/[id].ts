@@ -252,11 +252,11 @@ export async function onRequestDelete(context: { params: any; request: Request; 
       return auth.errorResponse!;
     }
 
-    // Strict Authorization: ONLY Super Admin can delete bookings
+    // Strict Authorization: ONLY Super Admin and Supervisor can delete bookings
     const userRole = auth.payload?.role;
-    if (userRole !== 'super_admin' && userRole !== 'admin') {
+    if (userRole !== 'super_admin' && userRole !== 'admin' && userRole !== 'supervisor') {
       return new Response(
-        JSON.stringify({ error: 'คุณไม่มีสิทธิ์ในการลบรายการจองคิว (สงวนสิทธิ์เฉพาะ Super Admin เท่านั้น)' }),
+        JSON.stringify({ error: 'คุณไม่มีสิทธิ์ในการลบรายการจองคิว (สงวนสิทธิ์เฉพาะ Super Admin และ Supervisor เท่านั้น)' }),
         { status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
       );
     }

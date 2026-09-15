@@ -116,7 +116,7 @@ export interface DailyForecast {
   notification_message?: string;
 }
 
-export type StaffRole = 'super_admin' | 'warehouse_officer' | 'security_gate';
+export type StaffRole = 'super_admin' | 'supervisor' | 'warehouse_officer' | 'security_gate';
 
 export interface StaffUser {
   id: string;

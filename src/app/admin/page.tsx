@@ -420,6 +420,7 @@ export default function AdminDashboardPage() {
   // View Return Ticket Details / POD Modal State
   const [viewTicketModalOpen, setViewTicketModalOpen] = useState<boolean>(false);
   const [viewingTicket, setViewingTicket] = useState<ReturnTicket | null>(null);
+  const [exportReturnModalOpen, setExportReturnModalOpen] = useState<boolean>(false);
 
   // In Receiving Modal: Return goods toggle & fields
   const [hasReturnGoods, setHasReturnGoods] = useState<boolean>(false);
@@ -2463,6 +2464,147 @@ export default function AdminDashboardPage() {
     showToast('ส่งออกไฟล์ Excel/CSV เรียบร้อยแล้ว');
   };
 
+  // Export Return Tickets to Excel/CSV (UTF-8 with BOM)
+  const handleExportReturnTicketsCSV = (scope: 'filtered' | 'pending' | 'returned' | 'all' = 'filtered') => {
+    let targetTickets: ReturnTicket[] = [];
+    let scopeLabel = '';
+
+    if (scope === 'filtered') {
+      targetTickets = returnTickets;
+      scopeLabel = returnFilterStatus === 'all' ? 'รายการปัจจุบัน' : (returnFilterStatus === 'Pending_Pickup' ? 'รอขนส่งมารับ' : 'ส่งคืนสำเร็จ');
+      if (returnSearchInput.trim()) {
+        scopeLabel += `_ค้นหา_${returnSearchInput.trim().replace(/[/\\?%*:|"<>]/g, '_')}`;
+      }
+    } else if (scope === 'pending') {
+      targetTickets = returnTickets.filter((r) => r.status === 'Pending_Pickup');
+      scopeLabel = 'รายการรอเคลียร์';
+    } else if (scope === 'returned') {
+      targetTickets = returnTickets.filter((r) => r.status === 'Returned');
+      scopeLabel = 'ประวัติส่งมอบคืนสำเร็จ';
+    } else {
+      targetTickets = returnTickets;
+      scopeLabel = 'รายการสินค้าตีคืนทั้งหมด';
+    }
+
+    if (targetTickets.length === 0) {
+      showToast('ไม่มีข้อมูลรายการสินค้าตีคืนที่จะส่งออก', 'error');
+      return;
+    }
+
+    const headers = [
+      'เลขที่ใบคืน (RTV ID)',
+      'สถานะ',
+      'บริษัทซัพพลายเออร์/คู่ค้า',
+      'วันที่สร้างรายการ',
+      'ผู้บันทึกสร้างรายการ',
+      'เลขที่คิวอ้างอิง (Booking ID)',
+      'บริษัทขนส่ง (Carrier)',
+      'เบอร์โทรติดต่อ',
+      'เลขที่เอกสาร/ใบสั่งซื้อ (PO/Invoice)',
+      'รายการสินค้าตีคืน',
+      'จำนวน (พาเลท/ชุด)',
+      'สาเหตุการตีคืน',
+      'จุดจัดเก็บในคลัง',
+      'วันที่ส่งมอบคืน',
+      'ผู้บันทึกการส่งมอบ',
+      'ชื่อคนขับรถที่มารับ',
+      'ทะเบียนรถที่มารับ',
+      'หมายเหตุการส่งมอบ',
+      'จำนวนรูปสินค้า',
+      'จำนวนรูปหลักฐาน POD',
+    ];
+
+    const rows = targetTickets.map((t) => [
+      t.id,
+      t.status === 'Pending_Pickup' ? 'รอขนส่งมารับคืน' : 'ส่งมอบคืนสำเร็จ',
+      t.supplier_name,
+      formatThaiDateTime(t.created_at),
+      t.created_by || '-',
+      t.booking_id || '-',
+      t.carrier_name || '-',
+      t.contact_phone || '-',
+      t.invoice_or_po_no || '-',
+      t.items_detail || '-',
+      t.quantity || '-',
+      t.reason || '-',
+      t.storage_location || '-',
+      t.handover_at ? formatThaiDateTime(t.handover_at) : '-',
+      t.handover_by || '-',
+      t.driver_name || '-',
+      t.driver_license_plate || '-',
+      t.handover_notes || '-',
+      t.photos?.length || 0,
+      t.pod_photo_urls?.length || 0,
+    ]);
+
+    const csvContent =
+      '\uFEFF' +
+      [
+        headers.join(','),
+        ...rows.map((r) =>
+          r.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')
+        ),
+      ].join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const nowStr = new Date().toISOString().substring(0, 10);
+    a.download = `PTN_RTV_Report_${scopeLabel}_${nowStr}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`ส่งออกข้อมูล ${targetTickets.length} รายการเป็น Excel/CSV เรียบร้อยแล้ว`);
+    setExportReturnModalOpen(false);
+  };
+
+  // Export Supplier Summary to Excel/CSV
+  const handleExportSuppliersCSV = () => {
+    if (returnSuppliers.length === 0) {
+      showToast('ไม่มีข้อมูลสรุปซัพพลายเออร์ที่จะส่งออก', 'error');
+      return;
+    }
+
+    const headers = [
+      'ลำดับ',
+      'บริษัทซัพพลายเออร์/คู่ค้า',
+      'รายการรอเคลียร์ (Pending Pickup)',
+      'รายการส่งมอบแล้ว (Returned)',
+      'ยอดรวมทั้งหมด (รายการ)',
+      'เบอร์โทรติดต่อ',
+      'บริษัทขนส่ง',
+    ];
+
+    const rows = returnSuppliers.map((s, idx) => [
+      idx + 1,
+      s.name,
+      s.pending_count,
+      s.returned_count,
+      s.total,
+      s.phone || '-',
+      s.carrier || '-',
+    ]);
+
+    const csvContent =
+      '\uFEFF' +
+      [
+        headers.join(','),
+        ...rows.map((r) =>
+          r.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')
+        ),
+      ].join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const nowStr = new Date().toISOString().substring(0, 10);
+    a.download = `PTN_RTV_Suppliers_Summary_${nowStr}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`ส่งออกรายงานสรุปคู่ค้า ${returnSuppliers.length} บริษัท สำเร็จแล้ว`);
+  };
+
   // Staff Management Actions
   const handleOpenAddStaff = () => {
     setEditingStaff(null);
@@ -2735,8 +2877,10 @@ export default function AdminDashboardPage() {
     switch (role) {
       case 'super_admin':
         return <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-950 border border-amber-300 flex items-center gap-1">👑 Super Admin</span>;
+      case 'supervisor':
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-900 border border-indigo-300 flex items-center gap-1">🎖️ Supervisor</span>;
       case 'warehouse_officer':
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1">📦 คลังสินค้า</span>;
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1">📦 คลังสินค้าทั่วไป</span>;
       case 'security_gate':
         return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-300 flex items-center gap-1">🛡️ ตรวจสอบคิวส่ง</span>;
       default:
@@ -2775,11 +2919,16 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Permission flags
+  // Permission flags (แยกสิทธิ์การใช้งานอย่างชัดเจน)
   const isSuperAdmin = userRole === 'super_admin';
+  const isSupervisor = userRole === 'supervisor' || isSuperAdmin;
+  const isOfficer = userRole === 'warehouse_officer';
   const isSecurityOnly = userRole === 'security_gate';
-  const canViewAnalytics = isSuperAdmin || userRole === 'warehouse_officer';
+  const canViewAnalytics = isSupervisor || isOfficer;
   const canManageSettings = isSuperAdmin;
+  const canEditReturn = isSupervisor; // เฉพาะ Supervisor และ Super Admin เท่านั้นที่แก้ไขรายการสินค้าตีคืนได้
+  const canDeleteReturn = isSupervisor; // เฉพาะ Supervisor และ Super Admin เท่านั้นที่ลบรายการสินค้าตีคืนได้
+  const canDeleteQueue = isSupervisor; // เฉพาะ Supervisor และ Super Admin เท่านั้นที่ลบคิวได้
 
   if (!token) {
     return (
@@ -3930,6 +4079,16 @@ export default function AdminDashboardPage() {
               <div className="flex items-center gap-2.5 w-full md:w-auto">
                 <button
                   type="button"
+                  onClick={() => setExportReturnModalOpen(true)}
+                  className="px-3.5 sm:px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-sm whitespace-nowrap shrink-0 active:scale-95"
+                  title="ส่งออกข้อมูลรายงานสินค้าตีคืนเป็นไฟล์ Excel / CSV"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>ส่งออก Excel</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setScannerOpen(true)}
                   className="px-3.5 sm:px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-sm whitespace-nowrap shrink-0 active:scale-95"
                   title="เปิดกล้องสแกน QR Code สินค้าตีคืน"
@@ -4131,19 +4290,21 @@ export default function AdminDashboardPage() {
                               </button>
 
 
-                              {/* Edit Return Ticket Button */}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openEditReturnModal(ticket);
-                                }}
-                                className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs transition flex items-center gap-1"
-                                title="แก้ไขข้อมูลสินค้าตีคืน"
-                              >
-                                <Edit className="w-3.5 h-3.5 text-slate-600" />
-                                <span>แก้ไข</span>
-                              </button>
+                              {/* Edit Return Ticket Button (Supervisor & Admin only) */}
+                              {canEditReturn && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEditReturnModal(ticket);
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs transition flex items-center gap-1"
+                                  title="แก้ไขข้อมูลสินค้าตีคืน (สิทธิ์ Supervisor / Admin)"
+                                >
+                                  <Edit className="w-3.5 h-3.5 text-slate-600" />
+                                  <span>แก้ไข</span>
+                                </button>
+                              )}
 
                               {/* Handover Action or View Proof */}
                               {ticket.status === 'Pending_Pickup' ? (
@@ -4175,8 +4336,8 @@ export default function AdminDashboardPage() {
                                 </button>
                               )}
 
-                              {/* Super Admin Delete */}
-                              {isSuperAdmin && (
+                              {/* Delete (Supervisor & Admin only) */}
+                              {canDeleteReturn && (
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -4184,7 +4345,7 @@ export default function AdminDashboardPage() {
                                     handleDeleteReturnTicket(ticket);
                                   }}
                                   className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition"
-                                  title="ลบรายการนี้"
+                                  title="ลบรายการนี้ (สิทธิ์ Supervisor / Admin)"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -6012,9 +6173,10 @@ export default function AdminDashboardPage() {
                   onChange={(e) => setStaffFormRole(e.target.value as StaffRole)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
                 >
-                  <option value="warehouse_officer">📦 เจ้าหน้าที่คลังสินค้า (อนุมัติ / ปฏิเสธ / รับสินค้า)</option>
+                  <option value="warehouse_officer">📦 เจ้าหน้าที่คลังสินค้าทั่วไป (สร้าง/ตรวจรับ/ส่งมอบคืน - ไม่มีสิทธิ์ลบ/แก้)</option>
+                  <option value="supervisor">🎖️ Supervisor (หัวหน้างาน: มีสิทธิ์แก้ไข/ลบรายการ, จัดการสินค้าตีคืน)</option>
                   <option value="security_gate">🛡️ เจ้าหน้าที่ตรวจสอบคิวส่ง (ตรวจสอบคิว & เช็คอินรับรถ)</option>
-                  <option value="super_admin">👑 Super Admin (ผู้ดูแลระบบสูงสุด)</option>
+                  <option value="super_admin">👑 Super Admin (ผู้ดูแลระบบสูงสุด - จัดการระบบทั้งหมด)</option>
                 </select>
               </div>
 
@@ -8517,17 +8679,35 @@ export default function AdminDashboardPage() {
                   <span>พิมพ์ใบส่งมอบ</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setViewTicketModalOpen(false);
-                    openEditReturnModal(viewingTicket);
-                  }}
-                  className="px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition flex items-center gap-1.5 shadow-xs"
-                >
-                  <Edit className="w-4 h-4 text-slate-600" />
-                  <span>แก้ไข</span>
-                </button>
+                {canEditReturn && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewTicketModalOpen(false);
+                      openEditReturnModal(viewingTicket);
+                    }}
+                    className="px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition flex items-center gap-1.5 shadow-xs"
+                    title="แก้ไขข้อมูลสินค้าตีคืน (สิทธิ์ Supervisor / Admin)"
+                  >
+                    <Edit className="w-4 h-4 text-slate-600" />
+                    <span>แก้ไข</span>
+                  </button>
+                )}
+
+                {canDeleteReturn && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewTicketModalOpen(false);
+                      handleDeleteReturnTicket(viewingTicket);
+                    }}
+                    className="px-3 py-2 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center gap-1.5 shadow-xs"
+                    title="ลบรายการสินค้าตีคืนนี้ (สิทธิ์ Supervisor / Admin)"
+                  >
+                    <Trash2 className="w-4 h-4 text-rose-600" />
+                    <span>ลบรายการ</span>
+                  </button>
+                )}
 
                 {viewingTicket.status === 'Pending_Pickup' && (
                   <button
@@ -8973,13 +9153,163 @@ export default function AdminDashboardPage() {
 
             {/* Footer */}
             <div className="flex items-center justify-between pt-3 border-t shrink-0">
-              <span className="text-xs text-slate-500 font-medium">
-                ทั้งหมด {returnSuppliers.length} บริษัท
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500 font-medium">
+                  ทั้งหมด {returnSuppliers.length} บริษัท
+                </span>
+                <button
+                  type="button"
+                  onClick={handleExportSuppliersCSV}
+                  className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs active:scale-95"
+                  title="ส่งออกรายงานสรุปคู่ค้าเป็น Excel/CSV"
+                >
+                  <Download className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>ส่งออก Excel</span>
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => setSuppliersListModalOpen(false)}
                 className="px-4 py-2 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm"
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📥 Export Return Tickets Modal */}
+      {exportReturnModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl p-5 sm:p-6 w-full max-w-lg shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">ส่งออกข้อมูลรายงานสินค้าตีคืน (Excel / CSV)</h3>
+                  <p className="text-xs text-slate-500">รองรับภาษาไทย 100% เปิดใช้งานบน Microsoft Excel ได้ทันที</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setExportReturnModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              <label className="text-xs font-bold text-slate-700 block">เลือกช่วงข้อมูลที่ต้องการส่งออก</label>
+
+              {/* Option 1: Current Filtered View */}
+              <button
+                type="button"
+                onClick={() => handleExportReturnTicketsCSV('filtered')}
+                className="w-full text-left p-3.5 rounded-2xl border-2 border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/40 transition group flex items-center justify-between"
+              >
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold text-slate-800 group-hover:text-emerald-900 flex items-center gap-1.5">
+                    <span>📑 ข้อมูลตามมุมมองปัจจุบันในตาราง</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
+                      {returnTickets.length} รายการ
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    ส่งออกรายการที่ตรงกับตัวกรองสถานะ {returnFilterStatus === 'all' ? '(ทั้งหมด)' : returnFilterStatus === 'Pending_Pickup' ? '(รอขนส่งมารับ)' : '(ส่งมอบแล้ว)'} {returnSearchInput ? `และคำค้นหา "${returnSearchInput}"` : ''}
+                  </div>
+                </div>
+                <Download className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 transition shrink-0 ml-2" />
+              </button>
+
+              {/* Option 2: Pending Pickup */}
+              <button
+                type="button"
+                onClick={() => handleExportReturnTicketsCSV('pending')}
+                className="w-full text-left p-3.5 rounded-2xl border-2 border-amber-200 bg-amber-50/20 hover:border-amber-500 hover:bg-amber-50/60 transition group flex items-center justify-between"
+              >
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                    <span>⏳ เฉพาะรายการรอเคลียร์ (รอขนส่งมารับคืน)</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                      {returnTickets.filter((r) => r.status === 'Pending_Pickup').length} รายการ
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-amber-800/80">
+                    รายงานรายการสินค้าที่ยังวางพักค้างอยู่ในคลัง เพื่อประสานงานติดตามขนส่ง
+                  </div>
+                </div>
+                <Download className="w-4 h-4 text-amber-600 group-hover:scale-110 transition shrink-0 ml-2" />
+              </button>
+
+              {/* Option 3: Returned History */}
+              <button
+                type="button"
+                onClick={() => handleExportReturnTicketsCSV('returned')}
+                className="w-full text-left p-3.5 rounded-2xl border-2 border-emerald-200 bg-emerald-50/20 hover:border-emerald-600 hover:bg-emerald-50/60 transition group flex items-center justify-between"
+              >
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                    <span>✅ ประวัติการส่งมอบคืนสำเร็จ (Returned History)</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      {returnTickets.filter((r) => r.status === 'Returned').length} รายการ
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-emerald-800/80">
+                    รายงานประวัติการส่งคืนที่มีหลักฐานชื่อคนขับ ทะเบียนรถ และรูปถ่าย POD
+                  </div>
+                </div>
+                <Download className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition shrink-0 ml-2" />
+              </button>
+
+              {/* Option 4: All Tickets */}
+              <button
+                type="button"
+                onClick={() => handleExportReturnTicketsCSV('all')}
+                className="w-full text-left p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-400 hover:bg-slate-50 transition group flex items-center justify-between"
+              >
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <span>📦 รายการสินค้าตีคืนทั้งหมด (All Tickets)</span>
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    ส่งออกข้อมูลประวัติสินค้าตีคืนทั้งหมดโดยไม่กรอง
+                  </div>
+                </div>
+                <Download className="w-4 h-4 text-slate-400 group-hover:scale-110 transition shrink-0 ml-2" />
+              </button>
+
+              {/* Option 5: Supplier Summary */}
+              <button
+                type="button"
+                onClick={() => {
+                  setExportReturnModalOpen(false);
+                  handleExportSuppliersCSV();
+                }}
+                className="w-full text-left p-3.5 rounded-2xl border-2 border-sky-200 bg-sky-50/20 hover:border-sky-500 hover:bg-sky-50/60 transition group flex items-center justify-between"
+              >
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
+                    <span>🏢 รายงานสรุปตามบริษัทซัพพลายเออร์ (Supplier Summary)</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800">
+                      {returnSuppliers.length} บริษัท
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-sky-800/80">
+                    สรุปจำนวนสินค้าตีคืนรอเคลียร์และคืนแล้ว แยกตามรายชื่อบริษัทคู่ค้า
+                  </div>
+                </div>
+                <Download className="w-4 h-4 text-sky-600 group-hover:scale-110 transition shrink-0 ml-2" />
+              </button>
+            </div>
+
+            <div className="flex justify-end pt-3 border-t">
+              <button
+                type="button"
+                onClick={() => setExportReturnModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-bold transition"
               >
                 ปิดหน้าต่าง
               </button>

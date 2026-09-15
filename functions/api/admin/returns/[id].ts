@@ -47,6 +47,16 @@ export async function onRequestPatch(context: { params: any; request: Request; e
       });
     }
 
+    // Permission check for editing master ticket info
+    const isMasterEdit = items_detail !== undefined || quantity !== undefined || reason !== undefined || storage_location !== undefined || supplier_name !== undefined || carrier_name !== undefined || contact_phone !== undefined || invoice_or_po_no !== undefined || notes !== undefined;
+    const userRole = auth.payload?.role;
+    if (isMasterEdit && userRole !== 'super_admin' && userRole !== 'admin' && userRole !== 'supervisor') {
+      return new Response(
+        JSON.stringify({ error: 'คุณไม่มีสิทธิ์ในการแก้ไขข้อมูลสินค้าตีคืน (สงวนสิทธิ์เฉพาะ Super Admin และ Supervisor เท่านั้น)' }),
+        { status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+      );
+    }
+
     const operatorName = auth.payload?.operator || auth.payload?.full_name || 'Admin';
     const clientIp = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
 
@@ -88,6 +98,15 @@ export async function onRequestDelete(context: { params: any; request: Request; 
     const auth = await checkAuthHeader(request);
     if (!auth.authorized) {
       return auth.errorResponse!;
+    }
+
+    // Permission check for deleting return ticket
+    const userRole = auth.payload?.role;
+    if (userRole !== 'super_admin' && userRole !== 'admin' && userRole !== 'supervisor') {
+      return new Response(
+        JSON.stringify({ error: 'คุณไม่มีสิทธิ์ในการลบรายการสินค้าตีคืน (สงวนสิทธิ์เฉพาะ Super Admin และ Supervisor เท่านั้น)' }),
+        { status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+      );
     }
 
     const id = params.id;
