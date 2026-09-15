@@ -1092,10 +1092,21 @@ ${url}`;
                     กรุณาติดต่อเจ้าหน้าที่{systemSettings.contact_phone_label || 'ฝ่ายตรวจรับสินค้า'} โทร.{' '}
                     <a
                       href={`tel:${systemSettings.contact_phone.replace(/[^0-9]/g, '')}`}
-                      className="font-bold underline text-emerald-800 hover:text-emerald-950"
+                      className="font-bold underline text-emerald-800 hover:text-emerald-950 font-mono"
                     >
                       {systemSettings.contact_phone}
-                    </a>{' '}
+                    </a>
+                    {systemSettings.contact_phone_sub && (
+                      <>
+                        {' '}หรือ {systemSettings.contact_phone_sub_label || 'เบอร์สำรอง'}:{' '}
+                        <a
+                          href={`tel:${systemSettings.contact_phone_sub.replace(/[^0-9]/g, '')}`}
+                          className="font-bold underline text-amber-900 hover:text-amber-950 font-mono"
+                        >
+                          {systemSettings.contact_phone_sub}
+                        </a>
+                      </>
+                    )}{' '}
                     ก่อนเวลานัดหมายอย่างน้อย 1 ชั่วโมง
                   </p>
                 </div>

@@ -722,6 +722,40 @@ export default function BookingPage() {
                   <FileText className="w-4 h-4 text-emerald-400" /> รับบัตรคิวพร้อม QR Code ทันที
                 </span>
               </div>
+
+              {/* 📞 Public Contact Strip (แสดงเบอร์หลัก, เบอร์สำรอง และ LINE) */}
+              <div className="pt-2 flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
+                <a
+                  href={`tel:${systemSettings.contact_phone.replace(/[^0-9]/g, '')}`}
+                  className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-xl border border-white/20 text-white font-medium transition backdrop-blur-xs shadow-xs"
+                  title={`โทรติดต่อ${systemSettings.contact_phone_label || 'เบอร์หลัก'}`}
+                >
+                  <Phone className="w-3.5 h-3.5 text-emerald-300" />
+                  <span>{systemSettings.contact_phone_label}: <strong className="font-mono">{systemSettings.contact_phone}</strong></span>
+                </a>
+
+                {systemSettings.contact_phone_sub && (
+                  <a
+                    href={`tel:${systemSettings.contact_phone_sub.replace(/[^0-9]/g, '')}`}
+                    className="inline-flex items-center gap-1.5 bg-amber-400/20 hover:bg-amber-400/30 px-3 py-1.5 rounded-xl border border-amber-300/30 text-amber-100 font-medium transition backdrop-blur-xs shadow-xs"
+                    title={`โทรติดต่อ${systemSettings.contact_phone_sub_label || 'เบอร์สำรอง'}`}
+                  >
+                    <Phone className="w-3.5 h-3.5 text-amber-300" />
+                    <span>{systemSettings.contact_phone_sub_label || 'เบอร์สำรอง'}: <strong className="font-mono text-white">{systemSettings.contact_phone_sub}</strong></span>
+                  </a>
+                )}
+
+                <a
+                  href={systemSettings.contact_line_url || `https://line.me/ti/p/~${systemSettings.contact_line_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 bg-[#06C755]/20 hover:bg-[#06C755]/30 px-3 py-1.5 rounded-xl border border-[#06C755]/30 text-emerald-100 font-medium transition backdrop-blur-xs shadow-xs"
+                  title="เพิ่มเพื่อนทาง LINE"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 text-[#06C755]" />
+                  <span>LINE: <strong className="font-mono text-white">{systemSettings.contact_line_id}</strong></span>
+                </a>
+              </div>
             </div>
             {/* Subtle Background Art */}
             <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
