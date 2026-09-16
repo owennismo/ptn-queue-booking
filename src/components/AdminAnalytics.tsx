@@ -19,8 +19,46 @@ import {
   Layers,
   ChevronRight,
   Filter,
+  Sparkles,
+  Lightbulb,
+  Boxes,
+  HelpCircle,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { formatThaiDate, formatThaiShortDate } from '@/lib/dateUtils';
+
+export interface DiagnosticItem {
+  id: string;
+  title: string;
+  metric: string;
+  status: 'good' | 'warning' | 'critical';
+  status_label: string;
+  subtitle: string;
+  target_label: string;
+  good_points: string[];
+  root_causes: string[];
+  recommendations: string[];
+}
+
+export interface SmartDiagnostics {
+  executive_summary: string;
+  diagnostics: DiagnosticItem[];
+}
+
+export interface RtvSummary {
+  total_tickets: number;
+  pending_count: number;
+  returned_count: number;
+  avg_aging_days: number;
+  aging_brackets: {
+    under_7d: number;
+    between_7_and_14d: number;
+    between_15_and_30d: number;
+    over_30d: number;
+  };
+  top_suppliers: Array<{ supplier: string; total: number; pending: number }>;
+  top_reasons: Array<{ reason: string; count: number }>;
+}
 
 interface AnalyticsData {
   meta: {
@@ -28,6 +66,7 @@ interface AnalyticsData {
     start_date: string;
     end_date: string;
     generated_at: string;
+    is_super_admin?: boolean;
   };
   kpi: {
     total_bookings: number;
@@ -78,13 +117,16 @@ interface AnalyticsData {
     pallets: number;
     overdue: number;
   }>;
+  rtv_summary?: RtvSummary;
+  smart_diagnostics?: SmartDiagnostics | null;
 }
 
 interface AdminAnalyticsProps {
   token: string;
+  userRole?: string;
 }
 
-export default function AdminAnalytics({ token }: AdminAnalyticsProps) {
+export default function AdminAnalytics({ token, userRole }: AdminAnalyticsProps) {
   const [range, setRange] = useState<string>('7d');
   const [customStart, setCustomStart] = useState<string>('');
   const [customEnd, setCustomEnd] = useState<string>('');
@@ -177,6 +219,36 @@ export default function AdminAnalytics({ token }: AdminAnalyticsProps) {
       csv += `"${d.date}",${d.bookings},${d.completed},${d.pallets},${d.overdue}\n`;
     });
 
+    // 5. RTV Summary (if available)
+    if (data.rtv_summary) {
+      csv += '\n--- รายงานสินค้าตีคืน (RTV Warehouse Summary) ---\n';
+      csv += `จำนวนรายการตีคืนทั้งหมด,${data.rtv_summary.total_tickets},รายการ\n`;
+      csv += `รอเคลียร์ (Pending Pickup),${data.rtv_summary.pending_count},รายการ\n`;
+      csv += `เคลียร์แล้ว (Returned),${data.rtv_summary.returned_count},รายการ\n`;
+      csv += `ระยะเวลาตกค้างเฉลี่ย,${data.rtv_summary.avg_aging_days},วัน\n`;
+      csv += `ค้างไม่เกิน 7 วัน,${data.rtv_summary.aging_brackets.under_7d},รายการ\n`;
+      csv += `ค้าง 7-14 วัน,${data.rtv_summary.aging_brackets.between_7_and_14d},รายการ\n`;
+      csv += `ค้าง 15-30 วัน,${data.rtv_summary.aging_brackets.between_15_and_30d},รายการ\n`;
+      csv += `ค้างเกิน 30 วัน,${data.rtv_summary.aging_brackets.over_30d},รายการ\n\n`;
+      csv += 'ซัพพลายเออร์ที่ค้างของมากสุด,รายการทั้งหมด,รอเคลียร์\n';
+      data.rtv_summary.top_suppliers.forEach((s) => {
+        csv += `"${s.supplier}",${s.total},${s.pending}\n`;
+      });
+      csv += '\n';
+    }
+
+    // 6. Smart Diagnostics (Super Admin Only)
+    if (data.smart_diagnostics) {
+      csv += '\n--- บทสรุปและการวินิจฉัยปัญหาคลังสินค้าเชิงลึก (Smart Diagnostics) [Super Admin Only] ---\n';
+      csv += `บทสรุปผู้บริหาร,"${data.smart_diagnostics.executive_summary}"\n\n`;
+      data.smart_diagnostics.diagnostics.forEach((diag) => {
+        csv += `[${diag.title}],สถานะ: ${diag.status_label},ตัวเลข: ${diag.metric}\n`;
+        csv += `จุดเด่น/ข้อดี,"${diag.good_points.join(' | ')}"\n`;
+        csv += `สาเหตุของปัญหา,"${diag.root_causes.join(' | ')}"\n`;
+        csv += `แนวทางแก้ไข,"${diag.recommendations.join(' | ')}"\n\n`;
+      });
+    }
+
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -187,17 +259,26 @@ export default function AdminAnalytics({ token }: AdminAnalyticsProps) {
     document.body.removeChild(link);
   };
 
+  const isSuperAdmin = userRole === 'super_admin' || Boolean(data?.meta?.is_super_admin);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Analytics Control Bar */}
       <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-purple-100 text-purple-800 border border-purple-200 flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Super Admin Exclusive</span>
-            </span>
-            <span className="text-xs text-slate-400">Warehouse & Logistics BI</span>
+            {isSuperAdmin ? (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-purple-100 text-purple-800 border border-purple-200 flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Super Admin • Smart Diagnostics</span>
+              </span>
+            ) : (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1">
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Warehouse Staff BI</span>
+              </span>
+            )}
+            <span className="text-xs text-slate-400">Warehouse & Logistics Analytics</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
             แดชบอร์ดวิเคราะห์ข้อมูลคลังสินค้า
@@ -407,6 +488,154 @@ export default function AdminAnalytics({ token }: AdminAnalyticsProps) {
             </div>
           </div>
 
+          {/* 🌟 SECTION 1.5: SUPER ADMIN EXCLUSIVE - SMART OPERATIONS DIAGNOSTICS & RECOMMENDATIONS */}
+          {isSuperAdmin && data.smart_diagnostics && (
+            <div className="space-y-6 pt-1">
+              {/* Executive Summary Banner */}
+              <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-7 text-white shadow-xl relative overflow-hidden border border-indigo-900/50">
+                <div className="relative z-10 space-y-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-wider">
+                      <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>Executive Operations Summary (บทสรุปสำหรับผู้บริหาร)</span>
+                    </div>
+                    <span className="px-3 py-1 rounded-full text-xs font-black bg-purple-500/30 text-purple-200 border border-purple-400/40 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-purple-300" />
+                      <span>สิทธิ์เฉพาะ Super Admin</span>
+                    </span>
+                  </div>
+                  <h2 className="text-base sm:text-lg font-bold leading-relaxed text-slate-100">
+                    {data.smart_diagnostics.executive_summary}
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    * ประเมินผลและวิเคราะห์แนวทางแก้ไขอัตโนมัติจากข้อมูลคิวรับสินค้าจริงและประวัติการขนส่ง
+                  </p>
+                </div>
+                <div className="absolute -right-16 -bottom-16 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
+              </div>
+
+              {/* Diagnostic 4 Pillars Section */}
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                      <Lightbulb className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">
+                        การวินิจฉัยเชิงลึกและแนวทางแก้ไขปัญหา (Operations Diagnostics & Solutions)
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        สรุปสถานะ จุดเด่น ปัญหาที่ตรวจพบ และข้อเสนอแนะเชิงปฏิบัติการ 4 มิติ
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-xl border border-indigo-200 w-fit">
+                    AI-Driven Operations Insights
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-5">
+                  {data.smart_diagnostics.diagnostics.map((diag) => (
+                    <div
+                      key={diag.id}
+                      className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-sm space-y-4 transition hover:shadow-md"
+                    >
+                      {/* Diagnostic Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`px-3 py-2 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 shadow-sm ${
+                              diag.status === 'good'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : diag.status === 'warning'
+                                ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                : 'bg-rose-100 text-rose-800 border border-rose-200'
+                            }`}
+                          >
+                            {diag.metric}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="text-base font-bold text-slate-900">{diag.title}</h4>
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                                  diag.status === 'good'
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                    : diag.status === 'warning'
+                                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                    : 'bg-rose-50 text-rose-800 border-rose-200'
+                                }`}
+                              >
+                                {diag.status_label}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">{diag.subtitle}</p>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-xs font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200">
+                            {diag.target_label}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 3 Pillars: Good points, Root causes, Recommendations */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs sm:text-sm pt-1">
+                        {/* Column 1: Good points */}
+                        <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-2xl p-4 space-y-2 flex flex-col">
+                          <div className="flex items-center gap-1.5 font-bold text-emerald-800">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span>ข้อดี & สิ่งที่เป็นไปได้ด้วยดี</span>
+                          </div>
+                          <ul className="text-emerald-950/80 space-y-1.5 text-xs flex-1">
+                            {diag.good_points.map((pt, idx) => (
+                              <li key={idx} className="flex items-start gap-1.5 leading-relaxed">
+                                <span className="text-emerald-500 font-bold">•</span>
+                                <span>{pt}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        {/* Column 2: Root causes */}
+                        <div className="bg-rose-50/70 border border-rose-200/70 rounded-2xl p-4 space-y-2 flex flex-col">
+                          <div className="flex items-center gap-1.5 font-bold text-rose-800">
+                            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                            <span>สาเหตุของปัญหา (Root Causes)</span>
+                          </div>
+                          <ul className="text-rose-950/80 space-y-1.5 text-xs flex-1">
+                            {diag.root_causes.map((rc, idx) => (
+                              <li key={idx} className="flex items-start gap-1.5 leading-relaxed">
+                                <span className="text-rose-500 font-bold">•</span>
+                                <span>{rc}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        {/* Column 3: Recommendations */}
+                        <div className="bg-indigo-50/70 border border-indigo-200/70 rounded-2xl p-4 space-y-2 flex flex-col">
+                          <div className="flex items-center gap-1.5 font-bold text-indigo-800">
+                            <Lightbulb className="w-4 h-4 text-indigo-600 shrink-0" />
+                            <span>แนวทางแก้ไขปัญหา (Action Plans)</span>
+                          </div>
+                          <ol className="text-indigo-950/80 space-y-2 text-xs flex-1 list-decimal list-inside">
+                            {diag.recommendations.map((rec, idx) => (
+                              <li key={idx} className="leading-relaxed">
+                                <span className="font-medium text-indigo-950">{rec}</span>
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Section 2: Peak Hours & Slot Bottleneck Analysis */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
@@ -528,6 +757,112 @@ export default function AdminAnalytics({ token }: AdminAnalyticsProps) {
               </div>
             )}
           </div>
+
+          {/* Section 3.5: Return to Vendor (RTV) Warehouse Summary */}
+          {data.rtv_summary && (
+            <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
+                    <Boxes className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">
+                      สถิติสินค้าตีคืนและระยะเวลาตกค้างในคลัง (RTV Warehouse Summary)
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      ติดตามรายการรอเคลียร์และวิเคราะห์ระยะเวลาตกค้าง (Aging) เพื่อเร่งระบายพื้นที่คลัง
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-purple-700 bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-200 w-fit">
+                  ตกค้างเฉลี่ย: {data.rtv_summary.avg_aging_days} วัน
+                </span>
+              </div>
+
+              {/* Mini RTV KPI Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-4 bg-amber-50/60 rounded-2xl border border-amber-200/70">
+                  <p className="text-xs text-amber-800 font-semibold">รอเคลียร์ (Pending Pickup)</p>
+                  <p className="text-2xl font-black text-amber-700 mt-1">{data.rtv_summary.pending_count} รายการ</p>
+                </div>
+                <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200/70">
+                  <p className="text-xs text-emerald-800 font-semibold">รับคืนแล้ว (Returned)</p>
+                  <p className="text-2xl font-black text-emerald-700 mt-1">{data.rtv_summary.returned_count} รายการ</p>
+                </div>
+                <div className="p-4 bg-rose-50/60 rounded-2xl border border-rose-200/70">
+                  <p className="text-xs text-rose-800 font-semibold">ตกค้างเกิน 14 วัน (ล่าช้า)</p>
+                  <p className="text-2xl font-black text-rose-700 mt-1">
+                    {data.rtv_summary.aging_brackets.between_15_and_30d + data.rtv_summary.aging_brackets.over_30d} รายการ
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
+                  <p className="text-xs text-slate-500 font-semibold">รายการตีคืนทั้งหมด</p>
+                  <p className="text-2xl font-black text-slate-800 mt-1">{data.rtv_summary.total_tickets} รายการ</p>
+                </div>
+              </div>
+
+              {/* Aging Brackets Breakdown */}
+              <div className="space-y-2 pt-1">
+                <p className="text-xs font-bold text-slate-700">การแบ่งกลุ่มระยะเวลาตกค้างของสินค้าตีคืน (Aging Brackets):</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                  <div className="p-3 bg-emerald-50 text-emerald-950 rounded-xl border border-emerald-200">
+                    <span className="font-semibold text-emerald-800">≤ 7 วัน (เกณฑ์มาตรฐาน)</span>
+                    <p className="text-base font-black mt-1 text-emerald-700">{data.rtv_summary.aging_brackets.under_7d} รายการ</p>
+                  </div>
+                  <div className="p-3 bg-blue-50 text-blue-950 rounded-xl border border-blue-200">
+                    <span className="font-semibold text-blue-800">8 - 14 วัน (เฝ้าระวัง)</span>
+                    <p className="text-base font-black mt-1 text-blue-700">{data.rtv_summary.aging_brackets.between_7_and_14d} รายการ</p>
+                  </div>
+                  <div className="p-3 bg-amber-50 text-amber-950 rounded-xl border border-amber-200">
+                    <span className="font-semibold text-amber-800">15 - 30 วัน (ล่าช้า)</span>
+                    <p className="text-base font-black mt-1 text-amber-700">{data.rtv_summary.aging_brackets.between_15_and_30d} รายการ</p>
+                  </div>
+                  <div className="p-3 bg-rose-50 text-rose-950 rounded-xl border border-rose-200">
+                    <span className="font-semibold text-rose-800">&gt; 30 วัน (วิกฤต)</span>
+                    <p className="text-base font-black mt-1 text-rose-700">{data.rtv_summary.aging_brackets.over_30d} รายการ</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Top RTV Suppliers & Reasons (2-column) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                {/* Top RTV Suppliers */}
+                <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-2">
+                  <p className="text-xs font-bold text-slate-800">ซัพพลายเออร์ที่มีสินค้าตีคืนรอเคลียร์สูงสุด</p>
+                  {data.rtv_summary.top_suppliers.length === 0 ? (
+                    <p className="text-xs text-slate-400 py-2">ไม่มีรายการสินค้าตีคืน</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {data.rtv_summary.top_suppliers.slice(0, 5).map((s, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs py-1 border-b border-slate-100 last:border-0">
+                          <span className="font-semibold text-slate-800 truncate pr-2">{s.supplier}</span>
+                          <span className="text-amber-700 font-bold shrink-0">รอเคลียร์ {s.pending} รายการ</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Top Return Reasons */}
+                <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-2">
+                  <p className="text-xs font-bold text-slate-800">สาเหตุการตีคืนยอดนิยม</p>
+                  {data.rtv_summary.top_reasons.length === 0 ? (
+                    <p className="text-xs text-slate-400 py-2">ไม่มีข้อมูลสาเหตุการตีคืน</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {data.rtv_summary.top_reasons.slice(0, 5).map((r, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs py-1 border-b border-slate-100 last:border-0">
+                          <span className="font-semibold text-slate-800 truncate pr-2">{r.reason}</span>
+                          <span className="text-slate-600 font-bold shrink-0">{r.count} ครั้ง</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Section 4: Cargo Breakdown & Vehicle Breakdown */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

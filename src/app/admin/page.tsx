@@ -6114,7 +6114,7 @@ export default function AdminDashboardPage() {
 
         {/* 🌟 TAB 7: LOGISTICS & WAREHOUSE ANALYTICS */}
         {canViewAnalytics && activeTab === 'analytics' && token && (
-          <AdminAnalytics token={token} />
+          <AdminAnalytics token={token} userRole={userRole} />
         )}
       </main>
 

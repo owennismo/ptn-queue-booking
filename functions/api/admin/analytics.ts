@@ -1,4 +1,4 @@
-import { DataStore, Booking } from '../_store';
+import { DataStore, Booking, ReturnTicket } from '../_store';
 import { checkAuthHeader } from '../_jwt';
 
 function getBangkokToday(): { todayStr: string; year: number; month: number; day: number } {
@@ -29,13 +29,13 @@ export async function onRequestGet(context: { request: Request; env: any }) {
       return auth.errorResponse!;
     }
 
-    // 2. Role Check: Super Admin and Warehouse Officer
+    // 2. Role Check: Super Admin, Admin, Supervisor, and Warehouse Officer
     const role = auth.payload?.role;
-    if (role !== 'super_admin' && role !== 'admin' && role !== 'warehouse_officer') {
+    if (role !== 'super_admin' && role !== 'admin' && role !== 'supervisor' && role !== 'warehouse_officer') {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'ปฏิเสธการเข้าถึง: ฟังก์ชันวิเคราะห์ข้อมูลเชิงลึกสงวนสิทธิ์เฉพาะ Super Admin และเจ้าหน้าที่คลังสินค้าเท่านั้น',
+          error: 'ปฏิเสธการเข้าถึง: ฟังก์ชันวิเคราะห์ข้อมูลเชิงลึกสงวนสิทธิ์เฉพาะ Super Admin, Supervisor และเจ้าหน้าที่คลังสินค้าเท่านั้น',
         }),
         {
           status: 403,
@@ -278,6 +278,200 @@ export async function onRequestGet(context: { request: Request; env: any }) {
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
+    // 4. Return to Vendor (RTV) Analytics
+    const allReturns: ReturnTicket[] = await store.getAllReturnTickets();
+    const nowMs = new Date().getTime();
+
+    let pendingRtvCount = 0;
+    let returnedRtvCount = 0;
+    let totalRtvAgingDays = 0;
+    let rtvAgingCount = 0;
+    let agingUnder7 = 0;
+    let aging7to14 = 0;
+    let aging15to30 = 0;
+    let agingOver30 = 0;
+
+    const rtvSupplierMap = new Map<string, { total: number; pending: number }>();
+    const rtvReasonMap = new Map<string, number>();
+
+    allReturns.forEach((rt) => {
+      const isPending = rt.status === 'Pending_Pickup';
+      if (isPending) pendingRtvCount++;
+      else returnedRtvCount++;
+
+      let ticketAgeDays = 0;
+      if (rt.created_at) {
+        const createdMs = new Date(rt.created_at).getTime();
+        const endMs = rt.handover_at ? new Date(rt.handover_at).getTime() : nowMs;
+        ticketAgeDays = Math.max(0, Math.floor((endMs - createdMs) / (1000 * 60 * 60 * 24)));
+      }
+
+      if (isPending) {
+        totalRtvAgingDays += ticketAgeDays;
+        rtvAgingCount++;
+
+        if (ticketAgeDays <= 7) agingUnder7++;
+        else if (ticketAgeDays <= 14) aging7to14++;
+        else if (ticketAgeDays <= 30) aging15to30++;
+        else agingOver30++;
+      }
+
+      const supp = (rt.supplier_name || 'ไม่ระบุซัพพลายเออร์').trim();
+      const sItem = rtvSupplierMap.get(supp) || { total: 0, pending: 0 };
+      sItem.total++;
+      if (isPending) sItem.pending++;
+      rtvSupplierMap.set(supp, sItem);
+
+      const reason = (rt.reason || 'ไม่ระบุสาเหตุ').trim();
+      rtvReasonMap.set(reason, (rtvReasonMap.get(reason) || 0) + 1);
+    });
+
+    const avgRtvAgingDays = rtvAgingCount > 0 ? Math.round(totalRtvAgingDays / rtvAgingCount) : 0;
+    const topRtvSuppliers = Array.from(rtvSupplierMap.entries())
+      .map(([supplier, data]) => ({ supplier, total: data.total, pending: data.pending }))
+      .sort((a, b) => b.pending - a.pending)
+      .slice(0, 10);
+    const topRtvReasons = Array.from(rtvReasonMap.entries())
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const rtvSummary = {
+      total_tickets: allReturns.length,
+      pending_count: pendingRtvCount,
+      returned_count: returnedRtvCount,
+      avg_aging_days: avgRtvAgingDays,
+      aging_brackets: {
+        under_7d: agingUnder7,
+        between_7_and_14d: aging7to14,
+        between_15_and_30d: aging15to30,
+        over_30d: agingOver30,
+      },
+      top_suppliers: topRtvSuppliers,
+      top_reasons: topRtvReasons,
+    };
+
+    // 5. Smart Diagnostics & Actionable Recommendations (SUPER ADMIN ONLY)
+    const isSuperAdmin = role === 'super_admin';
+    let smartDiagnostics = null;
+
+    if (isSuperAdmin) {
+      const topPeakSlot = peakSlots[0] || null;
+      const topPeakPercentage = totalBookings > 0 && topPeakSlot ? Math.round((topPeakSlot.bookings / totalBookings) * 100) : 0;
+
+      let executiveSummary = `ภาพรวมคลังสินค้ามีคิวเข้าตรวจรับทั้งหมด ${totalBookings} คิว (${totalPallets.toLocaleString()} ลัง) อัตราการมาตรงเวลาอยู่ที่ ${onTimeRate}% `;
+      if (topPeakSlot && topPeakPercentage >= 35) {
+        executiveSummary += `พบการกระจุกตัวของรถหนาแน่นสูงสุดในรอบ ${topPeakSlot.slot} (${topPeakPercentage}% ของคิวทั้งหมด) `;
+      }
+      if (pendingRtvCount > 0) {
+        executiveSummary += `ในส่วนสินค้าตีคืน (RTV) มีรายการรอเคลียร์สะสม ${pendingRtvCount} รายการ โดยตกค้างในคลังเฉลี่ย ${avgRtvAgingDays} วัน `;
+        if (avgRtvAgingDays > 7) {
+          executiveSummary += `ซึ่งเกินเกณฑ์มาตรฐาน 7 วัน `;
+        }
+      }
+      if (coldChainCount > 0) {
+        executiveSummary += `การตรวจรับสินค้าควบคุมอุณหภูมิ (ยาเย็น 2-8°C) มีจำนวน ${coldChainCount} คิว (${coldChainShare}%) ปฏิบัติตามมาตรฐาน GSDP อย่างต่อเนื่อง`;
+      }
+
+      smartDiagnostics = {
+        executive_summary: executiveSummary,
+        diagnostics: [
+          {
+            id: 'on_time',
+            title: 'อัตราการมาตรงเวลา (On-Time Delivery Rate)',
+            metric: `${onTimeRate}%`,
+            status: onTimeRate >= 90 ? 'good' : onTimeRate >= 75 ? 'warning' : 'critical',
+            status_label: onTimeRate >= 90 ? '✅ ดีเยี่ยม (เป็นไปตามเป้าหมาย ≥ 90%)' : onTimeRate >= 75 ? '⚠️ ต้องปรับปรุง (ต่ำกว่าเป้า 90%)' : '🚨 วิกฤต (ต่ำกว่าเกณฑ์มาก)',
+            subtitle: `จากคิวทั้งหมด ${totalBookings} คิว • ตรงเวลา ${onTimeCount} คิว • เลยเวลานัด ${overdueCount} คิว`,
+            target_label: 'เป้าหมายมาตรฐาน: ≥ 90%',
+            good_points: [
+              `รถขนส่งที่มาตรงเวลา (${onTimeRate}%) ช่วยให้ฝ่ายคลังเริ่มกระบวนการตรวจสอบและจัดเก็บเข้าชั้นวางได้ตามรอบเวลาที่กำหนด`,
+              `ช่วยลดความแออัดของยานพาหนะบริเวณลานจอดและช่องเทียบสินค้า (Loading Bays)`,
+            ],
+            root_causes: onTimeRate >= 90
+              ? [`การบริหารจัดการคิวและการประสานงานกับผู้ขนส่งมีประสิทธิภาพสูง`]
+              : [
+                  `บริษัทขนส่งจัดส่งสินค้าพ่วงหลายจุดในย่านใกล้เคียงก่อนเข้า PTN ทำให้เกิดเวลาล่าช้าสะสม`,
+                  `สภาพการจราจรติดขัดในเส้นทางหลักช่วงเวลาเร่งด่วน`,
+                  `ผู้จองคิวไม่ได้ส่งต่อบัตรคิวหรือแจ้งเวลานัดหมายที่แน่นอนให้แก่คนขับรถทราบล่วงหน้า`,
+                ],
+            recommendations: [
+              `ประสานงานแจ้งเตือนคนขับรถล่วงหน้า 2 ชั่วโมงผ่านระบบแจ้งเตือนก่อนถึงเวลานัดหมาย`,
+              `กำหนดเกณฑ์ Grace Period ชัดเจน: หากมาล่าช้าเกิน 30 นาที ต้องรอแทรกในรอบคิวว่างถัดไป เพื่อไม่ให้กระทบคิวที่มาตรงเวลา`,
+              `นำรายงาน Carrier Scorecard ไปประสานกับบริษัทขนส่งที่มีอัตราตรงเวลาต่ำ เพื่อปรับปรุงแผนการเดินทางร่วมกัน`,
+            ],
+          },
+          {
+            id: 'peak_slots',
+            title: 'การกระจุกตัวของรถตามรอบเวลา (Peak Hours Bottleneck)',
+            metric: topPeakSlot ? `${topPeakSlot.slot} (${topPeakSlot.bookings} คิว)` : 'กระจายตัวสม่ำเสมอ',
+            status: topPeakPercentage > 40 ? 'critical' : topPeakPercentage > 25 ? 'warning' : 'good',
+            status_label: topPeakPercentage > 40 ? '🚨 คอขวดรุนแรง (กระจุกตัวหนาแน่น)' : topPeakPercentage > 25 ? '⚠️ เริ่มมีความหนาแน่นสูง' : '✅ กระจายตัวสม่ำเสมอดี',
+            subtitle: topPeakSlot ? `รอบ ${topPeakSlot.slot} มีรถเข้าเทียบสูงสุด ${topPeakSlot.bookings} คิว (${topPeakSlot.pallets} ลัง)` : 'ปริมาณงานกระจายตัวได้ดี',
+            target_label: 'เป้าหมายมาตรฐาน: กระจายงานสมดุลทุกรอบเวลา',
+            good_points: [
+              `ช่วงที่มีรถเข้าส่งหนาแน่น เจ้าหน้าที่ตรวจรับพร้อมปฏิบัติงานเต็มกำลัง สามารถตรวจรับสินค้าล็อตใหญ่ได้รวดเร็ว`,
+              `สามารถบันทึกและส่งต่อเอกสารบิลรับสินค้าเข้าสู่ระบบ ERP ได้ทันในรอบบ่าย`,
+            ],
+            root_causes: [
+              `พฤติกรรมของบริษัทขนส่งต้องการส่งสินค้าให้เสร็จสิ้นก่อนช่วงพักเที่ยง เพื่อนำรถไปวิ่งรอบบ่ายอื่นต่อ`,
+              `ระบบยังไม่ได้กำหนดเพดานจำกัดจำนวนพาเลทรวมต่อรอบเวลาอย่างเข้มงวด`,
+              `รอบช่วงบ่าย (13:30 - 15:30 น.) ยังมีการจองใช้งานน้อย ทำให้เกิดกำลังรองรับส่วนเกิน (Idle capacity)`,
+            ],
+            recommendations: [
+              `กำหนดเพดานจำกัดพาเลทรวมต่อรอบเวลา เช่น ไม่เกิน 50-60 พาเลทต่อ 1 ชั่วโมง เพื่อป้องกันคอขวดสะสม`,
+              `สร้างแรงจูงใจในการจองรอบบ่าย (Incentive) เช่น สิทธิ์ Fast-Track ตรวจรับเสร็จสิ้นภายใน 20-30 นาทีสำหรับคิวรอบบ่าย`,
+              `จัดสรรตารางการทำงานของเจ้าหน้าที่ตรวจรับสำรองให้พร้อมขึ้นหนุนในช่วงเวลาพีค`,
+            ],
+          },
+          {
+            id: 'rtv_aging',
+            title: 'ระยะเวลาตกค้างของสินค้าตีคืน (RTV Warehouse Aging)',
+            metric: `${avgRtvAgingDays} วัน`,
+            status: avgRtvAgingDays > 14 ? 'critical' : avgRtvAgingDays > 7 ? 'warning' : 'good',
+            status_label: avgRtvAgingDays > 14 ? '🚨 ตกค้างนานเกินเกณฑ์ (เปลืองพื้นที่คลัง)' : avgRtvAgingDays > 7 ? '⚠️ ใกล้เกินเกณฑ์มาตรฐาน' : '✅ คล่องตัว (เคลียร์เร็วตามเกณฑ์ ≤ 7 วัน)',
+            subtitle: `สินค้าตีคืนรอเคลียร์สะสม ${pendingRtvCount} รายการ • ค้างเกิน 14 วัน ${aging15to30 + agingOver30} รายการ`,
+            target_label: 'เป้าหมายมาตรฐาน: ซัพพลายเออร์มารับคืนภายใน ≤ 7 วัน',
+            good_points: [
+              `สินค้าตีคืนทุกรายการมีการติดป้าย Pallet Tag พร้อมรูปถ่ายและระบุเหตุผลการตีคืนชัดเจนในระบบ`,
+              `จัดเก็บแยกโซนกักกัน (Quarantine Area) เป็นสัดส่วน ไม่ปะปนกับสินค้าพร้อมขายตามมาตรฐาน GMP/GSDP`,
+            ],
+            root_causes: [
+              `ซัพพลายเออร์มักรอรอบมารับสินค้าคืนพร้อมกับวันที่มีเที่ยวรถมาส่งสินค้าล็อตใหม่ เพื่อประหยัดเที่ยวรถ`,
+              `ฝ่ายประสานงานหรือเซลส์ของคู่ค้ายังไม่ทราบสถานะว่าคลังจัดเตรียมสินค้าตีคืนพร้อมให้เข้ารับแล้ว`,
+              `ขั้นตอนการรออนุมัติใบลดหนี้ (Credit Note) ทางบัญชีของคู่ค้าใช้เวลานาน`,
+            ],
+            recommendations: [
+              `เปิดระบบส่งข้อความแจ้งเตือนอัตโนมัติไปยังผู้ประสานงานซัพพลายเออร์ทันทีที่สถานะเปลี่ยนเป็น "พร้อมรับคืน"`,
+              `พ่วงเงื่อนไขการส่งสินค้าใหม่: หากซัพพลายเออร์มีสินค้าตีคืนค้างเกิน 7 วัน ให้แจ้งเตือนในระบบจองคิวเพื่อให้นำรถมารับกลับไปด้วย`,
+              `ส่งออกรายงาน Aging รายสัปดาห์ให้ฝ่ายจัดซื้อ/ผู้บริหาร เพื่อใช้ติดตามและเร่งรัดคู่ค้าอย่างเป็นระบบ`,
+            ],
+          },
+          {
+            id: 'cold_chain',
+            title: 'การตรวจรับยาควบคุมอุณหภูมิ (Cold Chain 2-8°C Compliance)',
+            metric: `${coldChainCount} คิว (${coldChainShare}%)`,
+            status: 'good',
+            status_label: '✅ ควบคุมคุณภาพเข้มงวด (ตามมาตรฐาน GSDP)',
+            subtitle: `สินค้ากลุ่มยาเย็น/ชีววัตถุ 2-8°C คิดเป็นสัดส่วน ${coldChainShare}% ของการรับสินค้าทั้งหมด`,
+            target_label: 'เป้าหมายมาตรฐาน: Fast-Track ตรวจรับเข้าคลังเย็น ≤ 20 นาที',
+            good_points: [
+              `รักษาคุณภาพของตัวยาและผลิตภัณฑ์ชีววัตถุได้อย่างสมบูรณ์ ปราศจากความเสี่ยงเรื่อง Temperature Excursion`,
+              `เจ้าหน้าที่คลังให้ความสำคัญและปฏิบัติตามมาตรฐานการจัดลำดับความสำคัญ (Priority Fast-Track) แก่ยาเย็น`,
+            ],
+            root_causes: [
+              `จุดเสี่ยงสำคัญคือกรณีที่มีรถขนส่งยาเย็นจองคิวซ้อนกันในรอบเวลาเดียวกัน อาจทำให้คันถัดไปต้องรอนอกห้องเย็นนานขึ้น`,
+              `บางบริษัทขนส่งไม่มีเอกสาร Temperature Log Sheet ติดตัวมา ต้องเสียเวลารอเอกสารส่งทางอิเล็กทรอนิกส์`,
+            ],
+            recommendations: [
+              `ระบบจองคิวอัตโนมัติควรจำกัดรถขนส่งยาเย็นไม่เกิน 1 คันต่อรอบเวลา 30 นาที เพื่อป้องกันรถชนกัน`,
+              `เพิ่มช่องให้ผู้จองคิวอัปโหลดผลตรวจสอบอุณหภูมิของรถขนส่ง (Data Logger / Temp Slip) ตั้งแต่ขั้นตอนจองคิว`,
+              `เก็บบันทึกเวลาการตรวจรับยาเย็นอย่างต่อเนื่อง เพื่อใช้เป็นหลักฐานยืนยันความสอดคล้องกับมาตรฐาน GSDP ในการตรวจประเมิน (Audit)`,
+            ],
+          },
+        ],
+      };
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -286,6 +480,7 @@ export async function onRequestGet(context: { request: Request; env: any }) {
           start_date: startDate,
           end_date: endDate,
           generated_at: new Date().toISOString(),
+          is_super_admin: isSuperAdmin,
         },
         kpi: {
           total_bookings: totalBookings,
@@ -306,6 +501,8 @@ export async function onRequestGet(context: { request: Request; env: any }) {
         cargo_breakdown: cargoBreakdown,
         vehicle_breakdown: vehicleBreakdown,
         daily_trend: dailyTrend,
+        rtv_summary: rtvSummary,
+        smart_diagnostics: smartDiagnostics,
       }),
       {
         headers: {
