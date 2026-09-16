@@ -1767,6 +1767,7 @@ export class DataStore {
 
     const item = bookings.find((b: Booking) => b.booking_id.toUpperCase() === cleanId);
     if (item) {
+      const oldStatus = item.status;
       const oldDate = item.requested_date;
       const oldTime = item.requested_time;
       let rescheduleLog = '';
@@ -1819,9 +1820,16 @@ export class DataStore {
             item.photo_urls = extra.photo_url ? [extra.photo_url] : [];
           }
         }
-        if (status === 'Completed' || status === 'Receiving') {
-          item.receiving_completed_at = nowStr;
-          item.received_by = extra.received_by || actionBy;
+        if (status === 'Completed') {
+          if (oldStatus !== 'Completed' || !item.receiving_completed_at) {
+            item.receiving_completed_at = nowStr;
+          }
+          item.received_by = extra.received_by || item.received_by || actionBy;
+        } else if (status === 'Receiving') {
+          if (!item.receiving_completed_at) {
+            item.receiving_completed_at = nowStr;
+          }
+          item.received_by = extra.received_by || item.received_by || actionBy;
         }
 
         // Auto-generate or update return ticket if return items found during receiving

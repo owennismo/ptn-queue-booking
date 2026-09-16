@@ -7429,10 +7429,16 @@ export default function AdminDashboardPage() {
                       <strong>หมายเหตุการตรวจรับ:</strong> {selectedBooking.receiving_notes}
                     </div>
                   )}
-                  {selectedBooking.received_by && (
+                  {(selectedBooking.received_by || selectedBooking.receiving_completed_at) && (
                     <div className="text-xs sm:text-sm text-slate-600 mt-1.5">
-                      ผู้ตรวจรับ: <span className="font-semibold text-slate-800">{selectedBooking.received_by}</span>
-                      {selectedBooking.receiving_completed_at && ` (${selectedBooking.receiving_completed_at})`}
+                      {selectedBooking.received_by && (
+                        <>ผู้ตรวจรับ: <span className="font-semibold text-slate-800">{selectedBooking.received_by}</span></>
+                      )}
+                      {selectedBooking.receiving_completed_at && (
+                        <span className="text-slate-500 font-mono text-xs ml-1">
+                          ({formatThaiDateTime(selectedBooking.receiving_completed_at)})
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
