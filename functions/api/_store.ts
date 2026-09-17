@@ -1062,7 +1062,7 @@ export class DataStore {
 
     const countMap = new Map<string, number>();
     for (const b of bookings) {
-      if (b.requested_date === date && (b.status === 'Pending' || b.status === 'Approved')) {
+      if (b.requested_date === date && b.status !== 'Cancelled' && b.status !== 'Rejected') {
         countMap.set(b.requested_time, (countMap.get(b.requested_time) || 0) + 1);
       }
     }
@@ -1478,7 +1478,8 @@ export class DataStore {
       const currentBooked = allBookings.filter(
         (b) => b.requested_date === data.requested_date &&
                b.requested_time === data.requested_time &&
-               (b.status === 'Pending' || b.status === 'Approved')
+               b.status !== 'Cancelled' &&
+               b.status !== 'Rejected'
       ).length;
       if (currentBooked >= slotObj.max_capacity) {
         throw new Error(`รอบเวลา ${data.requested_time} ของวันที่ ${data.requested_date} เต็มแล้ว (${currentBooked}/${slotObj.max_capacity} คิว) กรุณาเลือกรอบเวลาอื่น`);
