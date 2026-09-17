@@ -3679,40 +3679,6 @@ export default function AdminDashboardPage() {
                     </div>
                   )}
 
-                  {/* Time Slot Color Palette Mini Legend */}
-                  <div className="p-2.5 sm:p-3 bg-slate-50/90 border border-slate-200/90 rounded-2xl flex items-center justify-between flex-wrap gap-2 text-xs no-print">
-                    <div className="flex items-center gap-1.5 font-bold text-slate-700">
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>สีประจำรอบเวลา:</span>
-                    </div>
-                    <div className="flex items-center flex-wrap gap-1.5 font-medium text-slate-700">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-sky-50 text-sky-900 border border-sky-200 border-l-4 border-l-sky-500 text-[11px] font-bold">
-                        08:30 ฟ้า
-                      </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-900 border border-indigo-200 border-l-4 border-l-indigo-500 text-[11px] font-bold">
-                        09:30 คราม
-                      </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 border-l-4 border-l-amber-500 text-[11px] font-bold">
-                        10:30 ทอง
-                      </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-orange-50 text-orange-900 border border-orange-200 border-l-4 border-l-orange-500 text-[11px] font-bold">
-                        11:30 ส้ม
-                      </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-teal-50 text-teal-900 border border-teal-200 border-l-4 border-l-teal-500 text-[11px] font-bold">
-                        13:00 มิ้นต์
-                      </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-purple-50 text-purple-900 border border-purple-200 border-l-4 border-l-purple-500 text-[11px] font-bold">
-                        14:00 ม่วง
-                      </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-rose-50 text-rose-900 border border-rose-200 border-l-4 border-l-rose-500 text-[11px] font-bold">
-                        15:00 ชมพู
-                      </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-900 border border-emerald-200 border-l-4 border-l-emerald-500 text-[11px] font-bold">
-                        16:00 เขียว
-                      </span>
-                    </div>
-                  </div>
-
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse text-sm sm:text-base">
                       <thead>
