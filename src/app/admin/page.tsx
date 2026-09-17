@@ -146,37 +146,37 @@ export default function AdminDashboardPage() {
     return false;
   }, []);
 
-  // Helper to get row background & border style based on time slot (แบบที่ 1: สีพาสเทล + แถบสีซ้าย)
-  const getTimeSlotRowStyle = useCallback((timeSlotStr: string): { rowClass: string; badgeClass: string; borderHex: string; bgHex: string } => {
+  // Helper to get row background & border style based on time slot (แบบที่ 1: สีพาสเทล + แถบสีซ้าย ชัดเจน 100%)
+  const getTimeSlotRowStyle = useCallback((timeSlotStr: string): { badgeClass: string; borderHex: string; bgHex: string } => {
     if (!timeSlotStr) {
-      return { rowClass: '', badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200', borderHex: '#10b981', bgHex: '#f8fafc' };
+      return { badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300', borderHex: '#10b981', bgHex: '#f8fafc' };
     }
     const clean = timeSlotStr.replace(/\s+/g, '');
     if (clean.includes('08:30') || clean.includes('08.30')) {
-      return { rowClass: 'bg-sky-50/50 hover:bg-sky-100/60 border-l-[6px] border-l-sky-500', badgeClass: 'bg-sky-100 text-sky-800 border-sky-300', borderHex: '#0284c7', bgHex: '#f0f9ff' };
+      return { badgeClass: 'bg-sky-100 text-sky-800 border-sky-300', borderHex: '#0284c7', bgHex: '#e0f2fe' };
     }
     if (clean.includes('09:30') || clean.includes('09.30')) {
-      return { rowClass: 'bg-indigo-50/50 hover:bg-indigo-100/60 border-l-[6px] border-l-indigo-500', badgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-300', borderHex: '#6366f1', bgHex: '#eef2ff' };
+      return { badgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-300', borderHex: '#4f46e5', bgHex: '#e0e7ff' };
     }
     if (clean.includes('10:30') || clean.includes('10.30')) {
-      return { rowClass: 'bg-amber-50/50 hover:bg-amber-100/60 border-l-[6px] border-l-amber-500', badgeClass: 'bg-amber-100 text-amber-800 border-amber-300', borderHex: '#f59e0b', bgHex: '#fffbeb' };
+      return { badgeClass: 'bg-amber-100 text-amber-800 border-amber-300', borderHex: '#d97706', bgHex: '#fef3c7' };
     }
     if (clean.includes('11:30') || clean.includes('11.30')) {
-      return { rowClass: 'bg-orange-50/50 hover:bg-orange-100/60 border-l-[6px] border-l-orange-500', badgeClass: 'bg-orange-100 text-orange-800 border-orange-300', borderHex: '#f97316', bgHex: '#fff7ed' };
+      return { badgeClass: 'bg-orange-100 text-orange-800 border-orange-300', borderHex: '#ea580c', bgHex: '#ffedd5' };
     }
     if (clean.includes('13:00') || clean.includes('13.00')) {
-      return { rowClass: 'bg-teal-50/50 hover:bg-teal-100/60 border-l-[6px] border-l-teal-500', badgeClass: 'bg-teal-100 text-teal-800 border-teal-300', borderHex: '#14b8a6', bgHex: '#f0fdfa' };
+      return { badgeClass: 'bg-teal-100 text-teal-800 border-teal-300', borderHex: '#0d9488', bgHex: '#ccfbf1' };
     }
     if (clean.includes('14:00') || clean.includes('14.00')) {
-      return { rowClass: 'bg-purple-50/50 hover:bg-purple-100/60 border-l-[6px] border-l-purple-500', badgeClass: 'bg-purple-100 text-purple-800 border-purple-300', borderHex: '#a855f7', bgHex: '#faf5ff' };
+      return { badgeClass: 'bg-purple-100 text-purple-800 border-purple-300', borderHex: '#9333ea', bgHex: '#f3e8ff' };
     }
     if (clean.includes('15:00') || clean.includes('15.00')) {
-      return { rowClass: 'bg-rose-50/50 hover:bg-rose-100/60 border-l-[6px] border-l-rose-500', badgeClass: 'bg-rose-100 text-rose-800 border-rose-300', borderHex: '#f43f5e', bgHex: '#fff1f2' };
+      return { badgeClass: 'bg-rose-100 text-rose-800 border-rose-300', borderHex: '#e11d48', bgHex: '#ffe4e6' };
     }
     if (clean.includes('16:00') || clean.includes('16.00')) {
-      return { rowClass: 'bg-emerald-50/50 hover:bg-emerald-100/60 border-l-[6px] border-l-emerald-500', badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300', borderHex: '#10b981', bgHex: '#ecfdf5' };
+      return { badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300', borderHex: '#059669', bgHex: '#d1fae5' };
     }
-    return { rowClass: 'border-l-[6px] border-l-slate-300', badgeClass: 'bg-slate-100 text-slate-800 border-slate-300', borderHex: '#94a3b8', bgHex: '#ffffff' };
+    return { badgeClass: 'bg-slate-100 text-slate-800 border-slate-300', borderHex: '#94a3b8', bgHex: '#f8fafc' };
   }, []);
 
   // Auth & Token & Role
@@ -3706,15 +3706,16 @@ export default function AdminDashboardPage() {
                       <tbody className="divide-y divide-slate-100">
                         {bookings.map((item) => {
                           const slotStyle = getTimeSlotRowStyle(item.requested_time);
+                          const isSelected = selectedBookingIds.includes(item.booking_id);
                           return (
                           <tr
                             key={item.booking_id}
                             onClick={() => setSelectedBooking(item)}
-                            className={`cursor-pointer transition ${
-                              selectedBookingIds.includes(item.booking_id)
-                                ? 'bg-amber-100/70 border-l-[6px] border-l-amber-600'
-                                : slotStyle.rowClass
-                            }`}
+                            style={{
+                              backgroundColor: isSelected ? '#fef3c7' : slotStyle.bgHex,
+                              borderLeft: isSelected ? '6px solid #d97706' : `6px solid ${slotStyle.borderHex}`,
+                            }}
+                            className="cursor-pointer transition hover:brightness-95"
                           >
                             {isSuperAdmin && (
                               <td className="py-4 px-3 text-center no-print" onClick={(e) => e.stopPropagation()}>
