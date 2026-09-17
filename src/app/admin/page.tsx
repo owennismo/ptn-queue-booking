@@ -146,6 +146,39 @@ export default function AdminDashboardPage() {
     return false;
   }, []);
 
+  // Helper to get row background & border style based on time slot (แบบที่ 1: สีพาสเทล + แถบสีซ้าย)
+  const getTimeSlotRowStyle = useCallback((timeSlotStr: string): { rowClass: string; badgeClass: string; borderHex: string; bgHex: string } => {
+    if (!timeSlotStr) {
+      return { rowClass: '', badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200', borderHex: '#10b981', bgHex: '#f8fafc' };
+    }
+    const clean = timeSlotStr.replace(/\s+/g, '');
+    if (clean.includes('08:30') || clean.includes('08.30')) {
+      return { rowClass: 'bg-sky-50/50 hover:bg-sky-100/60 border-l-[6px] border-l-sky-500', badgeClass: 'bg-sky-100 text-sky-800 border-sky-300', borderHex: '#0284c7', bgHex: '#f0f9ff' };
+    }
+    if (clean.includes('09:30') || clean.includes('09.30')) {
+      return { rowClass: 'bg-indigo-50/50 hover:bg-indigo-100/60 border-l-[6px] border-l-indigo-500', badgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-300', borderHex: '#6366f1', bgHex: '#eef2ff' };
+    }
+    if (clean.includes('10:30') || clean.includes('10.30')) {
+      return { rowClass: 'bg-amber-50/50 hover:bg-amber-100/60 border-l-[6px] border-l-amber-500', badgeClass: 'bg-amber-100 text-amber-800 border-amber-300', borderHex: '#f59e0b', bgHex: '#fffbeb' };
+    }
+    if (clean.includes('11:30') || clean.includes('11.30')) {
+      return { rowClass: 'bg-orange-50/50 hover:bg-orange-100/60 border-l-[6px] border-l-orange-500', badgeClass: 'bg-orange-100 text-orange-800 border-orange-300', borderHex: '#f97316', bgHex: '#fff7ed' };
+    }
+    if (clean.includes('13:00') || clean.includes('13.00')) {
+      return { rowClass: 'bg-teal-50/50 hover:bg-teal-100/60 border-l-[6px] border-l-teal-500', badgeClass: 'bg-teal-100 text-teal-800 border-teal-300', borderHex: '#14b8a6', bgHex: '#f0fdfa' };
+    }
+    if (clean.includes('14:00') || clean.includes('14.00')) {
+      return { rowClass: 'bg-purple-50/50 hover:bg-purple-100/60 border-l-[6px] border-l-purple-500', badgeClass: 'bg-purple-100 text-purple-800 border-purple-300', borderHex: '#a855f7', bgHex: '#faf5ff' };
+    }
+    if (clean.includes('15:00') || clean.includes('15.00')) {
+      return { rowClass: 'bg-rose-50/50 hover:bg-rose-100/60 border-l-[6px] border-l-rose-500', badgeClass: 'bg-rose-100 text-rose-800 border-rose-300', borderHex: '#f43f5e', bgHex: '#fff1f2' };
+    }
+    if (clean.includes('16:00') || clean.includes('16.00')) {
+      return { rowClass: 'bg-emerald-50/50 hover:bg-emerald-100/60 border-l-[6px] border-l-emerald-500', badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300', borderHex: '#10b981', bgHex: '#ecfdf5' };
+    }
+    return { rowClass: 'border-l-[6px] border-l-slate-300', badgeClass: 'bg-slate-100 text-slate-800 border-slate-300', borderHex: '#94a3b8', bgHex: '#ffffff' };
+  }, []);
+
   // Auth & Token & Role
   const [token, setToken] = useState<string>('');
   const [operatorName, setOperatorName] = useState<string>('เจ้าหน้าที่คลังสินค้า');
@@ -3646,6 +3679,40 @@ export default function AdminDashboardPage() {
                     </div>
                   )}
 
+                  {/* Time Slot Color Palette Mini Legend */}
+                  <div className="p-2.5 sm:p-3 bg-slate-50/90 border border-slate-200/90 rounded-2xl flex items-center justify-between flex-wrap gap-2 text-xs no-print">
+                    <div className="flex items-center gap-1.5 font-bold text-slate-700">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>สีประจำรอบเวลา:</span>
+                    </div>
+                    <div className="flex items-center flex-wrap gap-1.5 font-medium text-slate-700">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-sky-50 text-sky-900 border border-sky-200 border-l-4 border-l-sky-500 text-[11px] font-bold">
+                        08:30 ฟ้า
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-900 border border-indigo-200 border-l-4 border-l-indigo-500 text-[11px] font-bold">
+                        09:30 คราม
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 border-l-4 border-l-amber-500 text-[11px] font-bold">
+                        10:30 ทอง
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-orange-50 text-orange-900 border border-orange-200 border-l-4 border-l-orange-500 text-[11px] font-bold">
+                        11:30 ส้ม
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-teal-50 text-teal-900 border border-teal-200 border-l-4 border-l-teal-500 text-[11px] font-bold">
+                        13:00 มิ้นต์
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-purple-50 text-purple-900 border border-purple-200 border-l-4 border-l-purple-500 text-[11px] font-bold">
+                        14:00 ม่วง
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-rose-50 text-rose-900 border border-rose-200 border-l-4 border-l-rose-500 text-[11px] font-bold">
+                        15:00 ชมพู
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-900 border border-emerald-200 border-l-4 border-l-emerald-500 text-[11px] font-bold">
+                        16:00 เขียว
+                      </span>
+                    </div>
+                  </div>
+
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse text-sm sm:text-base">
                       <thead>
@@ -3671,12 +3738,16 @@ export default function AdminDashboardPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {bookings.map((item) => (
+                        {bookings.map((item) => {
+                          const slotStyle = getTimeSlotRowStyle(item.requested_time);
+                          return (
                           <tr
                             key={item.booking_id}
                             onClick={() => setSelectedBooking(item)}
-                            className={`cursor-pointer hover:bg-emerald-50/40 transition ${
-                              selectedBookingIds.includes(item.booking_id) ? 'bg-amber-50/50' : ''
+                            className={`cursor-pointer transition ${
+                              selectedBookingIds.includes(item.booking_id)
+                                ? 'bg-amber-100/70 border-l-[6px] border-l-amber-600'
+                                : slotStyle.rowClass
                             }`}
                           >
                             {isSuperAdmin && (
@@ -3727,7 +3798,7 @@ export default function AdminDashboardPage() {
                               <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                               <span>{item.requested_time}</span>
                               {item.slot_queue_number && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-black border shadow-2xs ${slotStyle.badgeClass}`}>
                                   คิวที่ {item.slot_queue_number}{item.slot_max_capacity ? `/${item.slot_max_capacity}` : ''}
                                 </span>
                               )}
@@ -3858,13 +3929,14 @@ export default function AdminDashboardPage() {
                             </div>
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
           </div>
         )}
 

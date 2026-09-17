@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ตัวอย่างการกำหนดสีพื้นหลังรายการคิวตามช่วงเวลา - PTN Pharma</title>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Prompt', -apple-system, BlinkMacSystemFont, sans-serif; background: #f1f5f9; color: #1e293b; padding: 24px; line-height: 1.5; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .max-container { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+    
+    /* Card Container */
+    .card { background: #ffffff; border-radius: 20px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); overflow: hidden; }
+    .header-card { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+    @media (min-width: 768px) {
+      .header-card { flex-direction: row; align-items: center; justify-content: space-between; }
+    }
+    
+    /* Tabs */
+    .tab-bar { display: flex; flex-wrap: wrap; gap: 6px; background: #f1f5f9; padding: 6px; border-radius: 14px; border: 1px solid #e2e8f0; }
+    .tab-btn { border: none; background: transparent; padding: 8px 16px; border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.2s; }
+    .tab-btn:hover { color: #0f172a; }
+    .tab-btn.active { background: #ffffff; color: #047857; font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+    
+    /* Description Banner */
+    .desc-banner { padding: 16px 20px; border-radius: 16px; font-size: 14px; display: flex; align-items: flex-start; gap: 14px; }
+    .desc-badge { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #ffffff; flex-shrink: 0; }
+    
+    /* Table Styling */
+    .table-responsive { width: 100%; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px; }
+    thead th { background: #f8fafc; color: #475569; font-weight: 700; font-size: 12px; text-transform: uppercase; padding: 14px 16px; border-bottom: 2px solid #e2e8f0; letter-spacing: 0.5px; }
+    tbody tr { transition: background 0.15s ease; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+    tbody td { padding: 14px 16px; vertical-align: middle; }
+    
+    /* Badges */
+    .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid transparent; }
+    .id-tag { background: #ffffff; padding: 4px 8px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; color: #0f172a; }
+    
+    /* Status Badges */
+    .status-completed { background: #ccfbf1; color: #115e59; border-color: #99f6e4; }
+    .status-receiving { background: #e0e7ff; color: #3730a3; border-color: #c7d2fe; }
+    .status-approved { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+    .status-pending { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+    
+    /* Legend Grid */
+    .legend-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; padding-top: 10px; }
+    .legend-item { padding: 10px; border-radius: 12px; border: 1px solid #cbd5e1; text-align: center; }
+    
+    /* Time slot colors with High Contrast / Clear Tint */
+    /* Mode 1: Soft Tint + 6px Solid Left Accent Border */
+    .m1-slot-0830 { background-color: #e0f2fe !important; border-left: 6px solid #0284c7 !important; }
+    .m1-slot-0930 { background-color: #e0e7ff !important; border-left: 6px solid #4f46e5 !important; }
+    .m1-slot-1030 { background-color: #fef3c7 !important; border-left: 6px solid #d97706 !important; }
+    .m1-slot-1130 { background-color: #ffedd5 !important; border-left: 6px solid #ea580c !important; }
+    .m1-slot-1300 { background-color: #ccfbf1 !important; border-left: 6px solid #0d9488 !important; }
+    .m1-slot-1400 { background-color: #f3e8ff !important; border-left: 6px solid #9333ea !important; }
+    .m1-slot-1500 { background-color: #ffe4e6 !important; border-left: 6px solid #e11d48 !important; }
+    .m1-slot-1600 { background-color: #d1fae5 !important; border-left: 6px solid #059669 !important; }
+
+    /* Mode 2: Morning (Sky Blue / Cyan) vs Afternoon (Warm Amber / Gold) */
+    .m2-slot-morning { background-color: #e0f2fe !important; border-left: 6px solid #0284c7 !important; }
+    .m2-slot-afternoon { background-color: #fef3c7 !important; border-left: 6px solid #d97706 !important; }
+
+    /* Mode 3: Vibrant Color Rows (Full Fill, No Border) */
+    .m3-slot-0830 { background-color: #bae6fd !important; }
+    .m3-slot-0930 { background-color: #c7d2fe !important; }
+    .m3-slot-1030 { background-color: #fde68a !important; }
+    .m3-slot-1130 { background-color: #fed7aa !important; }
+    .m3-slot-1300 { background-color: #99f6e4 !important; }
+    .m3-slot-1400 { background-color: #e9d5ff !important; }
+    .m3-slot-1500 { background-color: #fecdd3 !important; }
+    .m3-slot-1600 { background-color: #a7f3d0 !important; }
+  </style>
+</head>
+<body>
+  <div class="max-container">
+
+    <!-- Header Card -->
+    <div class="card header-card">
+      <div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+          <span style="background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700;">
+            UI Color Preview Mockup
+          </span>
+          <span style="font-size: 12px; color: #64748b;">ระบบจองคิวขนส่ง PTN Pharma</span>
+        </div>
+        <h1 style="font-size: 22px; font-weight: 800; color: #0f172a;">
+          ตัวอย่างกำหนดสีพื้นหลังรายการจองคิวตามช่วงเวลา (Time Slot Color Coding)
+        </h1>
+        <p style="font-size: 13px; color: #475569; margin-top: 4px;">
+          เปรียบเทียบ 3 แนวทางการใส่สีพื้นหลังตารางคิวในหน้า Admin ให้เจ้าหน้าที่แยกแยะรอบเวลาได้ชัดเจนทันที
+        </p>
+      </div>
+
+      <!-- Mode Tabs -->
+      <div class="tab-bar">
+        <button onclick="switchMode(1)" id="tab-1" class="tab-btn active">
+          แบบที่ 1: สีพาสเทล + แถบสีด้านข้าง 6px (แนะนำ ⭐)
+        </button>
+        <button onclick="switchMode(2)" id="tab-2" class="tab-btn">
+          แบบที่ 2: แบ่ง 2 โทน (เช้า ฟ้า 🌤️ / บ่าย ส้ม ☀️)
+        </button>
+        <button onclick="switchMode(3)" id="tab-3" class="tab-btn">
+          แบบที่ 3: สีเด่นชัดเต็มแถว (8 เฉดสี)
+        </button>
+      </div>
+    </div>
+
+    <!-- Mode Description Banner -->
+    <div id="desc-box" class="desc-banner" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #064e3b;">
+      <div id="desc-badge" class="desc-badge" style="background: #059669;">1</div>
+      <div>
+        <div id="desc-title" style="font-weight: 700; font-size: 15px; margin-bottom: 2px;">
+          แบบที่ 1 (แนะนำมากที่สุด): สีพาสเทลแยก 8 รอบเวลา + แถบสีสันหนา 6px ด้านซ้าย
+        </div>
+        <div id="desc-text" style="font-size: 13px; line-height: 1.6; color: #047857;">
+          มีแถบสีสดชัดเจน 6px อยู่ริมซ้ายสุดของแต่ละแถว และพื้นหลังแถวเป็นสีประจำรอบเวลาแบบพาสเทลที่มองเห็นได้ชัดเจน สบายตา ตัวหนังสือและ Badge สถานะอ่านง่าย 100% ไม่หลอกตา
+        </div>
+      </div>
+    </div>
+
+    <!-- Table Card -->
+    <div class="card">
+      <div style="padding: 16px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #10b981;"></span>
+          <strong style="font-size: 16px; color: #0f172a;">รายการคิวรับสินค้าประจำวัน (17 ก.ย. 2569)</strong>
+          <span style="background: #e2e8f0; color: #334155; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">
+            เรียงตามรอบเวลา เช้า ➔ บ่าย
+          </span>
+        </div>
+        <span style="font-size: 12px; color: #64748b;">แสดงตัวอย่างคิวจำลองทั้ง 8 ช่วงเวลา</span>
+      </div>
+
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40px; text-align: center;">#</th>
+              <th style="width: 140px;">Booking ID</th>
+              <th style="width: 220px;">รอบเวลานัดหมาย & ลำดับคิว</th>
+              <th>บริษัทขนส่ง</th>
+              <th>เจ้าของสินค้า / ผู้ส่ง</th>
+              <th style="width: 90px; text-align: center;">จำนวน</th>
+              <th style="width: 140px; text-align: center;">สถานะ</th>
+            </tr>
+          </thead>
+          <tbody id="queue-table-body">
+            <!-- Rendered by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Legend Palette Reference -->
+    <div class="card" style="padding: 20px;">
+      <div style="font-weight: 700; font-size: 14px; color: #0f172a; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+        <span>🎨 โค้ดสีประจำรอบเวลา (Color Reference)</span>
+      </div>
+      <div id="legend-container" class="legend-grid">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const sampleData = [
+      {
+        id: 'PTN-20260917-A101',
+        slot: '08:30 - 09:30',
+        slotKey: '0830',
+        order: 1,
+        cap: 3,
+        carrier: 'Kerry Express',
+        client: 'บจก. เบอร์ลี่ ยุคเกอร์ เมดิคอล',
+        pallets: '15 ลัง',
+        status: 'ตรวจรับเสร็จสิ้น',
+        statusClass: 'status-completed',
+        colorName: 'ฟ้าคราม (Sky Blue)'
+      },
+      {
+        id: 'PTN-20260917-A102',
+        slot: '08:30 - 09:30',
+        slotKey: '0830',
+        order: 2,
+        cap: 3,
+        carrier: 'Flash Express',
+        client: 'บจก. โอสถสภา จำกัด (มหาชน)',
+        pallets: '8 ลัง',
+        status: 'กำลังตรวจรับ',
+        statusClass: 'status-receiving',
+        colorName: 'ฟ้าคราม (Sky Blue)'
+      },
+      {
+        id: 'PTN-20260917-B201',
+        slot: '09:30 - 10:30',
+        slotKey: '0930',
+        order: 1,
+        cap: 4,
+        carrier: 'DHL Supply Chain',
+        client: 'บจก. ซิลลิค ฟาร์มา',
+        pallets: '32 ลัง',
+        status: 'อนุมัติแล้ว',
+        statusClass: 'status-approved',
+        colorName: 'ม่วงคราม (Indigo)'
+      },
+      {
+        id: 'PTN-20260917-B202',
+        slot: '09:30 - 10:30',
+        slotKey: '0930',
+        order: 2,
+        cap: 4,
+        carrier: 'J&T Express',
+        client: 'บจก. ดีเคเอสเอช (ประเทศไทย)',
+        pallets: '12 ลัง',
+        status: 'รอตรวจสอบ',
+        statusClass: 'status-pending',
+        colorName: 'ม่วงคราม (Indigo)'
+      },
+      {
+        id: 'PTN-20260917-C301',
+        slot: '10:30 - 11:30',
+        slotKey: '1030',
+        order: 1,
+        cap: 4,
+        carrier: 'SCG Logistics',
+        client: 'บจก. บางกอกแล็ป แอนด์ คอสเมติค',
+        pallets: '20 ลัง',
+        status: 'อนุมัติแล้ว',
+        statusClass: 'status-approved',
+        colorName: 'ทองอำพัน (Amber)'
+      },
+      {
+        id: 'PTN-20260917-D401',
+        slot: '11:30 - 12:30',
+        slotKey: '1130',
+        order: 1,
+        cap: 2,
+        carrier: 'นิ่มซี่เส็งขนส่ง',
+        client: 'บจก. ทีแมน ฟาร์มา',
+        pallets: '10 ลัง',
+        status: 'อนุมัติแล้ว',
+        statusClass: 'status-approved',
+        colorName: 'ส้มสว่าง (Orange)'
+      },
+      {
+        id: 'PTN-20260917-E501',
+        slot: '13:00 - 14:00',
+        slotKey: '1300',
+        order: 1,
+        cap: 4,
+        carrier: 'KEX Logistics',
+        client: 'บจก. เมดดิซีน ซัพพลาย',
+        pallets: '25 ลัง',
+        status: 'อนุมัติแล้ว',
+        statusClass: 'status-approved',
+        colorName: 'เขียวมิ้นต์ (Teal)'
+      },
+      {
+        id: 'PTN-20260917-F601',
+        slot: '14:00 - 15:00',
+        slotKey: '1400',
+        order: 1,
+        cap: 4,
+        carrier: 'ไปรษณีย์ไทย (EMS)',
+        client: 'องค์การเภสัชกรรม (GPO)',
+        pallets: '14 ลัง',
+        status: 'อนุมัติแล้ว',
+        statusClass: 'status-approved',
+        colorName: 'ม่วงลาเวนเดอร์ (Purple)'
+      },
+      {
+        id: 'PTN-20260917-G701',
+        slot: '15:00 - 16:00',
+        slotKey: '1500',
+        order: 1,
+        cap: 3,
+        carrier: 'CJ Logistics',
+        client: 'บจก. สยามฟาร์มาซูติคอล',
+        pallets: '18 ลัง',
+        status: 'อนุมัติแล้ว',
+        statusClass: 'status-approved',
+        colorName: 'กุหลาบชมพู (Rose)'
+      },
+      {
+        id: 'PTN-20260917-H801',
+        slot: '16:00 - 17:00',
+        slotKey: '1600',
+        order: 1,
+        cap: 3,
+        carrier: 'Best Express',
+        client: 'บจก. เมด้า ฟาร์มาซูติคอล',
+        pallets: '9 ลัง',
+        status: 'อนุมัติแล้ว',
+        statusClass: 'status-approved',
+        colorName: 'เขียวมรกต (Emerald)'
+      }
+    ];
+
+    const slotLegend = [
+      { slot: '08:30 - 09:30', key: '0830', name: 'ฟ้าคราม', m1Class: 'm1-slot-0830', m2Class: 'm2-slot-morning', m3Class: 'm3-slot-0830' },
+      { slot: '09:30 - 10:30', key: '0930', name: 'ม่วงคราม', m1Class: 'm1-slot-0930', m2Class: 'm2-slot-morning', m3Class: 'm3-slot-0930' },
+      { slot: '10:30 - 11:30', key: '1030', name: 'ทองอำพัน', m1Class: 'm1-slot-1030', m2Class: 'm2-slot-morning', m3Class: 'm3-slot-1030' },
+      { slot: '11:30 - 12:30', key: '1130', name: 'ส้มสว่าง', m1Class: 'm1-slot-1130', m2Class: 'm2-slot-morning', m3Class: 'm3-slot-1130' },
+      { slot: '13:00 - 14:00', key: '1300', name: 'เขียวมิ้นต์', m1Class: 'm1-slot-1300', m2Class: 'm2-slot-afternoon', m3Class: 'm3-slot-1300' },
+      { slot: '14:00 - 15:00', key: '1400', name: 'ม่วงเข้ม', m1Class: 'm1-slot-1400', m2Class: 'm2-slot-afternoon', m3Class: 'm3-slot-1400' },
+      { slot: '15:00 - 16:00', key: '1500', name: 'กุหลาบชมพู', m1Class: 'm1-slot-1500', m2Class: 'm2-slot-afternoon', m3Class: 'm3-slot-1500' },
+      { slot: '16:00 - 17:00', key: '1600', name: 'เขียวมรกต', m1Class: 'm1-slot-1600', m2Class: 'm2-slot-afternoon', m3Class: 'm3-slot-1600' }
+    ];
+
+    let currentMode = 1;
+
+    function getRowClass(slotKey, slot) {
+      if (currentMode === 1) {
+        return `m1-slot-${slotKey}`;
+      } else if (currentMode === 2) {
+        const isMorning = ['0830', '0930', '1030', '1130'].includes(slotKey);
+        return isMorning ? 'm2-slot-morning' : 'm2-slot-afternoon';
+      } else {
+        return `m3-slot-${slotKey}`;
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('queue-table-body');
+      let html = '';
+
+      sampleData.forEach((item, idx) => {
+        const rowClass = getRowClass(item.slotKey, item.slot);
+        html += `
+          <tr class="${rowClass}">
+            <td style="text-align: center; font-size: 11px; font-weight: 700; color: #64748b;">${idx + 1}</td>
+            <td class="font-mono" style="font-weight: 700; color: #0f172a;">
+              <span class="id-tag">${item.id}</span>
+            </td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span style="font-weight: 800; color: #0f172a; font-size: 14px;">${item.slot}</span>
+                <span class="badge" style="background: #ffffff; color: #0f172a; border-color: #94a3b8; font-weight: 800;">
+                  คิวที่ ${item.order}/${item.cap}
+                </span>
+              </div>
+            </td>
+            <td style="font-weight: 700; color: #1e293b;">${item.carrier}</td>
+            <td style="color: #334155;">${item.client}</td>
+            <td style="text-align: center; font-weight: 800; color: #0f172a;">${item.pallets}</td>
+            <td style="text-align: center;">
+              <span class="badge ${item.statusClass}">${item.status}</span>
+            </td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+
+      // Render legend
+      const legContainer = document.getElementById('legend-container');
+      let legHtml = '';
+      slotLegend.forEach(leg => {
+        let cls = '';
+        if (currentMode === 1) cls = leg.m1Class;
+        else if (currentMode === 2) cls = leg.m2Class;
+        else cls = leg.m3Class;
+
+        legHtml += `
+          <div class="legend-item ${cls}">
+            <div style="font-weight: 800; font-size: 13px; color: #0f172a;">${leg.slot}</div>
+            <div style="font-size: 11px; color: #475569; margin-top: 2px;">${leg.name}</div>
+          </div>
+        `;
+      });
+      legContainer.innerHTML = legHtml;
+    }
+
+    function switchMode(mode) {
+      currentMode = mode;
+      for (let i = 1; i <= 3; i++) {
+        const btn = document.getElementById(`tab-${i}`);
+        if (i === mode) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      }
+
+      const descBox = document.getElementById('desc-box');
+      const descBadge = document.getElementById('desc-badge');
+      const descTitle = document.getElementById('desc-title');
+      const descText = document.getElementById('desc-text');
+
+      if (mode === 1) {
+        descBox.style.background = '#ecfdf5';
+        descBox.style.borderColor = '#a7f3d0';
+        descBox.style.color = '#064e3b';
+        descBadge.style.background = '#059669';
+        descBadge.innerText = '1';
+        descTitle.innerText = 'แบบที่ 1 (แนะนำมากที่สุด): สีพาสเทลแยก 8 รอบเวลา + แถบสีสันหนา 6px ด้านซ้าย';
+        descText.innerText = 'มีแถบสีสดชัดเจน 6px อยู่ริมซ้ายสุดของแต่ละแถว และพื้นหลังแถวเป็นสีประจำรอบเวลาแบบพาสเทลที่มองเห็นได้ชัดเจน สบายตา ตัวหนังสือและ Badge สถานะอ่านง่าย 100% ไม่หลอกตา';
+      } else if (mode === 2) {
+        descBox.style.background = '#eff6ff';
+        descBox.style.borderColor = '#bfdbfe';
+        descBox.style.color = '#1e3a8a';
+        descBadge.style.background = '#2563eb';
+        descBadge.innerText = '2';
+        descTitle.innerText = 'แบบที่ 2: แบ่ง 2 โทนสีหลัก (รอบเช้า โทนฟ้าคราม 🌤️ vs รอบบ่าย โทนส้มทอง ☀️)';
+        descText.innerText = 'ลดความหลากหลายของสีลง เหมาะสำหรับผู้ที่ชอบความเรียบง่าย โดยกลุ่มรอบเช้า (08:30 - 12:30 น.) จะเป็นโทนสีฟ้าคราม และรอบบ่าย (13:00 - 17:00 น.) จะเป็นโทนสีส้มทอง';
+      } else {
+        descBox.style.background = '#faf5ff';
+        descBox.style.borderColor = '#e9d5ff';
+        descBox.style.color = '#581c87';
+        descBadge.style.background = '#7e22ce';
+        descBadge.innerText = '3';
+        descTitle.innerText = 'แบบที่ 3: สีเด่นชัดเต็มแถว (8 เฉดสี Full Color Row)';
+        descText.innerText = 'ลงสีพื้นหลังเข้มชัดเต็มพื้นที่ของทั้งแถวตามแต่ละช่วงเวลา แยกแต่ละรอบออกจากกันได้อย่างเด่นชัดที่สุดในระยะไกล';
+      }
+
+      renderTable();
+    }
+
+    renderTable();
+  </script>
+</body>
+</html>
