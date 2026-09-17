@@ -1507,6 +1507,15 @@ export class DataStore {
       throw new Error(`วันที่ ${data.requested_date} ปิดรับจองคิวส่งของ`);
     }
 
+    // Count currently active bookings in this slot for this date
+    const allBookings = await this.getAllBookings();
+    const currentBooked = allBookings.filter(
+      (b) => b.requested_date === data.requested_date &&
+             b.requested_time === data.requested_time &&
+             b.status !== 'Cancelled' &&
+             b.status !== 'Rejected'
+    ).length;
+
     // Check if slot is active and not past
     const slotObj = slots.find((s: TimeSlot) => s.slot_name === data.requested_time);
     if (slotObj) {
@@ -1524,13 +1533,6 @@ export class DataStore {
       }
 
       // Check slot capacity limit for this specific date
-      const allBookings = await this.getAllBookings();
-      const currentBooked = allBookings.filter(
-        (b) => b.requested_date === data.requested_date &&
-               b.requested_time === data.requested_time &&
-               b.status !== 'Cancelled' &&
-               b.status !== 'Rejected'
-      ).length;
       if (currentBooked >= slotObj.max_capacity) {
         throw new Error(`รอบเวลา ${data.requested_time} ของวันที่ ${data.requested_date} เต็มแล้ว (${currentBooked}/${slotObj.max_capacity} คิว) กรุณาเลือกรอบเวลาอื่น`);
       }
