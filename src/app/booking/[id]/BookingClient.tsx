@@ -610,59 +610,73 @@ ${url}`;
     switch (booking.status) {
       case 'Approved':
         return {
-          badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          icon: <CheckCircle2 className="w-6 h-6 text-emerald-600" />,
+          badgeBg: 'bg-emerald-50/90 text-emerald-950 border-2 border-emerald-400 shadow-sm shadow-emerald-100',
+          iconBox: 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30',
+          icon: <CheckCircle2 className="w-7 h-7 text-white stroke-[2.5]" />,
           title: 'อนุมัติคิวเรียบร้อย (Approved)',
-          desc: 'สามารถนำรถและสินค้าเข้าส่งตามวันและเวลาที่ระบุได้',
+          desc: 'สามารถนำรถและสินค้าเข้าส่งตามวันและเวลาที่ระบุได้ตามกำหนด',
           headerBg: 'from-emerald-600 to-teal-700',
+          reasonBg: 'bg-white/90 border-emerald-200 text-emerald-900',
         };
       case 'CheckedIn':
         return {
-          badgeBg: 'bg-blue-50 text-blue-700 border-blue-200',
-          icon: <CheckCircle2 className="w-6 h-6 text-blue-600" />,
+          badgeBg: 'bg-blue-50/90 text-blue-950 border-2 border-blue-400 shadow-sm shadow-blue-100',
+          iconBox: 'bg-blue-600 text-white shadow-md shadow-blue-600/30',
+          icon: <CheckCircle2 className="w-7 h-7 text-white stroke-[2.5]" />,
           title: 'ตรวจสอบเข้าพื้นที่แล้ว (Checked-in)',
           desc: 'เจ้าหน้าที่ตรวจสอบคิวส่งได้สแกนรับรถเข้าพื้นที่แล้ว กรุณารอเรียกเข้าช่องจอดเทียบ',
           headerBg: 'from-blue-600 to-indigo-700',
+          reasonBg: 'bg-white/90 border-blue-200 text-blue-900',
         };
       case 'Receiving':
         return {
-          badgeBg: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-          icon: <Truck className="w-6 h-6 text-indigo-600 animate-bounce" />,
+          badgeBg: 'bg-indigo-50/90 text-indigo-950 border-2 border-indigo-400 shadow-sm shadow-indigo-100',
+          iconBox: 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30',
+          icon: <Truck className="w-7 h-7 text-white stroke-[2.5] animate-bounce" />,
           title: 'กำลังลงสินค้า (Receiving / Unloading)',
           desc: 'กำลังดำเนินการตรวจนับและถ่ายสินค้าเข้าคลังสินค้า',
           headerBg: 'from-indigo-600 to-purple-700',
+          reasonBg: 'bg-white/90 border-indigo-200 text-indigo-900',
         };
       case 'Completed':
         return {
-          badgeBg: 'bg-teal-50 text-teal-800 border-teal-200',
-          icon: <CheckCircle2 className="w-6 h-6 text-teal-600" />,
+          badgeBg: 'bg-teal-50/90 text-teal-950 border-2 border-teal-400 shadow-sm shadow-teal-100',
+          iconBox: 'bg-teal-600 text-white shadow-md shadow-teal-600/30',
+          icon: <CheckCircle2 className="w-7 h-7 text-white stroke-[2.5]" />,
           title: 'รับสินค้าเสร็จสิ้นสมบูรณ์ (Completed)',
           desc: 'สินค้าได้รับการตรวจรับและลงบันทึกเข้าระบบคลังสินค้าเรียบร้อยแล้ว',
           headerBg: 'from-teal-700 to-slate-800',
+          reasonBg: 'bg-white/90 border-teal-200 text-teal-900',
         };
       case 'Rejected':
         return {
-          badgeBg: 'bg-rose-50 text-rose-700 border-rose-200',
-          icon: <XCircle className="w-6 h-6 text-rose-600" />,
-          title: 'ไม่อนุมัติคิว (Rejected)',
-          desc: 'คิวนี้ถูกปฏิเสธโดยเจ้าหน้าที่คลังสินค้า',
+          badgeBg: 'bg-rose-50/90 text-rose-950 border-2 border-rose-400 shadow-sm shadow-rose-100',
+          iconBox: 'bg-rose-600 text-white shadow-md shadow-rose-600/30',
+          icon: <XCircle className="w-7 h-7 text-white stroke-[2.5]" />,
+          title: 'ไม่อนุมัติคิวส่งสินค้า (Rejected)',
+          desc: 'คิวนี้ถูกปฏิเสธโดยเจ้าหน้าที่คลังสินค้า กรุณาตรวจสอบเหตุผลด้านล่าง',
           headerBg: 'from-rose-600 to-red-700',
+          reasonBg: 'bg-white border-rose-300 text-rose-950',
         };
       case 'Cancelled':
         return {
-          badgeBg: 'bg-slate-100 text-slate-700 border-slate-300',
-          icon: <AlertCircle className="w-6 h-6 text-slate-600" />,
-          title: 'ยกเลิกคิวแล้ว (Cancelled)',
-          desc: 'คิวนี้ถูกยกเลิกแล้ว',
+          badgeBg: 'bg-slate-100 text-slate-900 border-2 border-slate-400 shadow-sm',
+          iconBox: 'bg-slate-600 text-white shadow-md shadow-slate-600/30',
+          icon: <AlertCircle className="w-7 h-7 text-white stroke-[2.5]" />,
+          title: 'ยกเลิกคิวส่งสินค้าแล้ว (Cancelled)',
+          desc: 'คิวนี้ถูกยกเลิกเรียบร้อยแล้ว ไม่สามารถนำมาใช้ตรวจรับเข้าคลังได้อีก',
           headerBg: 'from-slate-700 to-slate-800',
+          reasonBg: 'bg-white border-slate-300 text-slate-900',
         };
       default:
         return {
-          badgeBg: 'bg-amber-50 text-amber-800 border-amber-200',
-          icon: <Clock className="w-6 h-6 text-amber-600 animate-pulse" />,
-          title: 'รอการตรวจสอบ (Pending)',
-          desc: 'ระบบได้บันทึกคิวแล้ว เจ้าหน้าที่คลังสินค้ากำลังตรวจสอบ',
+          badgeBg: 'bg-amber-50/90 text-amber-950 border-2 border-amber-400 shadow-sm shadow-amber-100',
+          iconBox: 'bg-amber-500 text-white shadow-md shadow-amber-500/30',
+          icon: <Clock className="w-7 h-7 text-white stroke-[2.5] animate-pulse" />,
+          title: 'รอการตรวจสอบคิว (Pending)',
+          desc: 'ระบบได้บันทึกคิวแล้ว เจ้าหน้าที่คลังสินค้ากำลังตรวจสอบรายละเอียดก่อนอนุมัติ',
           headerBg: 'from-amber-600 to-emerald-800',
+          reasonBg: 'bg-white/90 border-amber-200 text-amber-900',
         };
     }
   };
@@ -761,22 +775,26 @@ ${url}`;
               </div>
             )}
 
-            {/* Status Alert Banner */}
-            <div className={`p-5 rounded-2xl border flex items-start gap-4 ${statusInfo.badgeBg}`}>
-              <div className="shrink-0 mt-0.5">{statusInfo.icon}</div>
-              <div>
-                <h3 className="font-bold text-lg sm:text-xl">{statusInfo.title}</h3>
-                <p className="text-sm sm:text-base mt-1 opacity-95">{statusInfo.desc}</p>
+            {/* Status Alert Banner (Big Font & Prominent Icon Box) */}
+            <div className={`p-5 sm:p-6 rounded-3xl border flex items-start gap-4 sm:gap-5 ${statusInfo.badgeBg}`}>
+              <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center shrink-0 ${statusInfo.iconBox}`}>
+                {statusInfo.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-black text-xl sm:text-2xl tracking-tight leading-snug">
+                  {statusInfo.title}
+                </h3>
+                <p className="text-sm sm:text-base mt-1 font-medium opacity-90 leading-relaxed">
+                  {statusInfo.desc}
+                </p>
                 {booking.admin_reason && (
-                  <div className="mt-3 p-3 bg-white/90 rounded-xl border border-rose-200 text-sm text-rose-900 font-medium">
-                    <span className="font-bold">เหตุผลจากเจ้าหน้าที่:</span> {booking.admin_reason}
+                  <div className={`mt-3.5 p-3.5 sm:p-4 rounded-2xl border text-sm font-medium shadow-2xs ${statusInfo.reasonBg}`}>
+                    <span className="font-bold block mb-0.5">⚠️ บันทึกเหตุผลจากเจ้าหน้าที่:</span>
+                    <span className="leading-relaxed">{booking.admin_reason}</span>
                   </div>
                 )}
               </div>
             </div>
-
-            {/* 🔔 Web Push Notification Prompt Banner & Toggle */}
-            <NotificationPrompt booking={booking} />
 
             {/* Quick Action Buttons Bar (Save Image, Share LINE, Google Maps) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 no-print">
