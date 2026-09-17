@@ -29,6 +29,8 @@ export interface Booking {
   receiving_photo_urls?: string[];
   has_return?: boolean;
   return_ticket_id?: string | null;
+  slot_queue_number?: number | null;
+  slot_max_capacity?: number | null;
 }
 
 export type ReturnStatus = 'Pending_Pickup' | 'Returned';

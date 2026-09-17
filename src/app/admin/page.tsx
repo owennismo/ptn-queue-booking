@@ -3723,9 +3723,14 @@ export default function AdminDashboardPage() {
                               <Calendar className="w-4 h-4 text-emerald-600 shrink-0" />
                               <span>{formatThaiShortDate(item.requested_date)}</span>
                             </div>
-                            <div className="text-xs sm:text-sm text-slate-600 font-medium flex items-center gap-1.5 mt-0.5">
+                            <div className="text-xs sm:text-sm text-slate-700 font-medium flex items-center flex-wrap gap-1.5 mt-0.5">
                               <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                               <span>{item.requested_time}</span>
+                              {item.slot_queue_number && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                  คิวที่ {item.slot_queue_number}{item.slot_max_capacity ? `/${item.slot_max_capacity}` : ''}
+                                </span>
+                              )}
                             </div>
                             {item.created_at && (
                               <div className="text-[11px] text-slate-500 font-normal flex items-center gap-1 mt-1.5 pt-1 border-t border-slate-100">
@@ -7193,10 +7198,17 @@ export default function AdminDashboardPage() {
               </div>
 
               <div className="p-4 bg-slate-50/90 border border-slate-200/70 rounded-2xl space-y-1">
-                <span className="text-xs sm:text-sm font-semibold text-slate-500 flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-indigo-600" />
-                  รอบเวลานัดหมาย
-                </span>
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <span className="text-xs sm:text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-indigo-600" />
+                    รอบเวลานัดหมาย
+                  </span>
+                  {selectedBooking.slot_queue_number && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      ลำดับคิวที่ {selectedBooking.slot_queue_number}{selectedBooking.slot_max_capacity ? `/${selectedBooking.slot_max_capacity}` : ''}
+                    </span>
+                  )}
+                </div>
                 <span className="text-lg sm:text-xl font-black text-slate-900 block">
                   {selectedBooking.requested_time}
                 </span>

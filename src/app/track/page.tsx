@@ -273,9 +273,14 @@ export default function TrackPage() {
         </div>
         <div>
           <span className="text-slate-500 block text-xs font-medium">ช่วงเวลานัด</span>
-          <span className="font-bold text-slate-900 flex items-center gap-1.5 mt-0.5 text-base">
+          <span className="font-bold text-slate-900 flex items-center flex-wrap gap-1.5 mt-0.5 text-base">
             <Clock className="w-4 h-4 text-emerald-600 shrink-0" />
-            {item.requested_time}
+            <span>{item.requested_time}</span>
+            {item.slot_queue_number && (
+              <span className="px-1.5 py-0.5 rounded-md text-2xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                คิวที่ {item.slot_queue_number}
+              </span>
+            )}
           </span>
         </div>
         <div>

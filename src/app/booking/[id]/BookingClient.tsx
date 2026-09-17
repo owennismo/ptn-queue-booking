@@ -261,6 +261,7 @@ export default function BookingDetailPage({
 📌 รหัสคิว: ${booking.booking_id}
 📅 วันที่นัดหมาย: ${dateText}
 ⏰ รอบเวลา: ${booking.requested_time}
+🔢 ลำดับคิวในรอบ: คิวที่ ${booking.slot_queue_number || 1}${booking.slot_max_capacity ? ` (จาก ${booking.slot_max_capacity} คิว)` : ''}
 🏢 ขนส่ง: ${booking.carrier_name}
 📦 สินค้า: ${booking.cargo_type || 'ยาและเวชภัณฑ์'} (${booking.pallet_count} ลัง)
 🚛 ประเภทรถ: ${booking.vehicle_type || 'รถกระบะ'} (${booking.vehicle_count} คัน)
@@ -716,8 +717,16 @@ ${url}`;
               บริษัท พีทีเอ็น ฟาร์มาเซ็นเตอร์ จำกัด (พัฒนาเภสัช)
             </p>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">บัตรคิวเข้าส่งสินค้าดิจิทัล</h1>
-            <div className="mt-4 inline-block bg-white/15 backdrop-blur-md px-5 py-2 rounded-full border border-white/30 text-base sm:text-lg font-mono font-bold tracking-wider">
-              {booking.booking_id}
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <div className="inline-block bg-white/15 backdrop-blur-md px-5 py-2 rounded-full border border-white/30 text-base sm:text-lg font-mono font-bold tracking-wider">
+                {booking.booking_id}
+              </div>
+              <div className="inline-flex items-center gap-1.5 bg-amber-400 text-slate-950 px-4 py-2 rounded-full font-black text-sm sm:text-base shadow-md">
+                <span>🎯 คิวที่ {booking.slot_queue_number || 1}</span>
+                <span className="text-xs font-bold text-slate-700">
+                  (รอบ {booking.requested_time})
+                </span>
+              </div>
             </div>
           </div>
 
@@ -863,11 +872,19 @@ ${url}`;
               </div>
 
               {/* Time Slot */}
-              <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1">
+              <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1.5">
                 <span className="text-sm text-slate-600 font-semibold flex items-center gap-1.5">
                   <Clock className="w-4 h-4 text-emerald-600" /> ช่วงเวลานัดหมาย
                 </span>
-                <p className="font-bold text-slate-900 text-lg">{booking.requested_time}</p>
+                <div className="flex items-center justify-between flex-wrap gap-1.5">
+                  <p className="font-bold text-slate-900 text-lg">{booking.requested_time}</p>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    ลำดับคิวที่ {booking.slot_queue_number || 1}{booking.slot_max_capacity ? `/${booking.slot_max_capacity}` : ''}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  คุณเป็นคิวที่ {booking.slot_queue_number || 1} ในรอบเวลานี้{booking.slot_max_capacity ? ` (ความจุ ${booking.slot_max_capacity} คิว)` : ''}
+                </p>
               </div>
 
               {/* Carrier */}

@@ -30,6 +30,8 @@ export interface Booking {
   receiving_notes?: string | null;
   received_by?: string | null;
   receiving_completed_at?: string | null;
+  slot_queue_number?: number | null;
+  slot_max_capacity?: number | null;
   created_at: string;
 }
 
@@ -1117,6 +1119,54 @@ export class DataStore {
     return globalStore.bookings;
   }
 
+  decorateSlotQueueNumbers(bookings: Booking[]): Booking[] {
+    const defaultSlots = [
+      { slot_name: '08:30 - 09:30', max_capacity: 3 },
+      { slot_name: '09:30 - 10:30', max_capacity: 4 },
+      { slot_name: '10:30 - 11:30', max_capacity: 4 },
+      { slot_name: '11:30 - 12:30', max_capacity: 2 },
+      { slot_name: '13:00 - 14:00', max_capacity: 4 },
+      { slot_name: '14:00 - 15:00', max_capacity: 4 },
+      { slot_name: '15:00 - 16:00', max_capacity: 3 },
+      { slot_name: '16:00 - 17:00', max_capacity: 2 },
+    ];
+    const capMap = new Map<string, number>();
+    const currentSlots = globalStore.slots && globalStore.slots.length > 0 ? globalStore.slots : defaultSlots;
+    for (const s of currentSlots) {
+      capMap.set(s.slot_name, s.max_capacity || 4);
+    }
+
+    // Group active bookings by date + requested_time
+    const slotGroups = new Map<string, Booking[]>();
+    for (const b of bookings) {
+      if (b.status !== 'Cancelled' && b.status !== 'Rejected') {
+        const key = `${b.requested_date}__${b.requested_time}`;
+        const list = slotGroups.get(key) || [];
+        list.push(b);
+        slotGroups.set(key, list);
+      }
+    }
+
+    // For each group, sort chronologically by created_at ASC to determine fallback position
+    const bookingOrderMap = new Map<string, number>();
+    for (const [, group] of slotGroups.entries()) {
+      const sortedGroup = [...group].sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+      sortedGroup.forEach((item, index) => {
+        bookingOrderMap.set(item.booking_id, index + 1);
+      });
+    }
+
+    return bookings.map((b) => {
+      const cap = b.slot_max_capacity || capMap.get(b.requested_time) || 4;
+      const order = b.slot_queue_number || bookingOrderMap.get(b.booking_id) || 1;
+      return {
+        ...b,
+        slot_queue_number: order,
+        slot_max_capacity: cap,
+      };
+    });
+  }
+
   async clearAllBookings(operator = 'Super Admin', ip = '127.0.0.1'): Promise<number> {
     const previousCount = (await this.getAllBookings()).length;
     globalStore.bookings = [];
@@ -1486,6 +1536,9 @@ export class DataStore {
       }
     }
 
+    const slotQueueNumber = currentBooked + 1;
+    const slotMaxCapacity = slotObj?.max_capacity || 4;
+
     const cleanDate = data.requested_date.replace(/-/g, '');
     const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
     const bookingId = `PTN-${cleanDate}-${randomChars}`;
@@ -1511,6 +1564,8 @@ export class DataStore {
         : (data.photo_url ? [data.photo_url] : []),
       receiving_photo_url: null,
       receiving_photo_urls: [],
+      slot_queue_number: slotQueueNumber,
+      slot_max_capacity: slotMaxCapacity,
       status: 'Pending',
       created_at: nowStr,
     };
@@ -1525,13 +1580,15 @@ export class DataStore {
 
   async getBookingById(id: string): Promise<Booking | null> {
     const cleanId = id.trim().toUpperCase();
-    const bookings = await this.getAllBookings();
+    const rawBookings = await this.getAllBookings();
+    const bookings = this.decorateSlotQueueNumbers(rawBookings);
     const item = bookings.find((b: Booking) => b.booking_id.toUpperCase() === cleanId);
     return item || null;
   }
 
   async searchBookings(phone?: string, id?: string, ids?: string[]): Promise<Booking[]> {
-    const bookings = await this.getAllBookings();
+    const rawBookings = await this.getAllBookings();
+    const bookings = this.decorateSlotQueueNumbers(rawBookings);
     if (id) {
       const cleanId = id.trim().toUpperCase();
       return bookings.filter((b: Booking) => b.booking_id.toUpperCase().includes(cleanId));
@@ -1660,7 +1717,8 @@ export class DataStore {
       completed: number;
     };
   }> {
-    const bookings = await this.getAllBookings();
+    const rawBookings = await this.getAllBookings();
+    const bookings = this.decorateSlotQueueNumbers(rawBookings);
     const { todayStr, currentTimeStr } = getBangkokDateTime();
 
     const isBookingOverdue = (b: Booking): boolean => {
@@ -1727,6 +1785,30 @@ export class DataStore {
         results = results.filter((b: Booking) => b.status === status);
       }
     }
+
+    // Sort bookings for operational warehouse efficiency:
+    // 1. Requested Date (ASC)
+    // 2. Requested Time slot start time (ASC: morning 08:30 -> 09:30 -> ... -> 16:00)
+    // 3. Slot Queue Number (ASC: queue 1 -> 2 -> 3...)
+    // 4. Creation timestamp (ASC)
+    results.sort((a: any, b: any) => {
+      if (a.requested_date !== b.requested_date) {
+        return (a.requested_date || '').localeCompare(b.requested_date || '');
+      }
+      const extractStartMinutes = (slotStr?: string | null) => {
+        if (!slotStr) return 9999;
+        const start = slotStr.split('-')[0].trim();
+        return timeStrToMinutes(start);
+      };
+      const timeDiff = extractStartMinutes(a.requested_time) - extractStartMinutes(b.requested_time);
+      if (timeDiff !== 0) return timeDiff;
+
+      const qA = a.slot_queue_number ?? 999;
+      const qB = b.slot_queue_number ?? 999;
+      if (qA !== qB) return qA - qB;
+
+      return (a.created_at || '').localeCompare(b.created_at || '');
+    });
 
     return { bookings: results, stats };
   }
