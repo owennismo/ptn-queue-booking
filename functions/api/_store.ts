@@ -2339,6 +2339,8 @@ export class DataStore {
 
     const current = list[index];
     const isHandover = updates.status === 'Returned' && current.status !== 'Returned';
+    const isRevertToPending = updates.status === 'Pending_Pickup' && current.status === 'Returned';
+    const isStatusChanged = updates.status && updates.status !== current.status;
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
     const updated: ReturnTicket = {
@@ -2350,6 +2352,9 @@ export class DataStore {
     if (isHandover) {
       updated.handover_at = nowStr;
       updated.handover_by = updates.handover_by || operator;
+    } else if (isRevertToPending) {
+      updated.handover_at = null;
+      updated.handover_by = null;
     }
 
     list[index] = updated;
@@ -2360,6 +2365,20 @@ export class DataStore {
       await this.addAuditLog(
         'HANDOVER_RETURN',
         `บันทึกการส่งมอบสินค้าตีคืนสำเร็จ: ${updated.id} (${updated.supplier_name}, คนขับ: ${updated.driver_name || 'ไม่ระบุ'}, ทะเบียน: ${updated.driver_license_plate || '-'})`,
+        operator,
+        ip
+      );
+    } else if (isRevertToPending) {
+      await this.addAuditLog(
+        'UPDATE_RETURN_STATUS',
+        `เปลี่ยนสถานะสินค้าตีคืน ${updated.id} กลับเป็น "รอขนส่งมารับ (Pending Pickup)"`,
+        operator,
+        ip
+      );
+    } else if (isStatusChanged) {
+      await this.addAuditLog(
+        'UPDATE_RETURN_STATUS',
+        `เปลี่ยนสถานะสินค้าตีคืน ${updated.id} เป็น "${updated.status}"`,
         operator,
         ip
       );

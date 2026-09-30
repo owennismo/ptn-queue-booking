@@ -47,9 +47,16 @@ export async function onRequestPatch(context: { params: any; request: Request; e
       });
     }
 
+    const userRole = auth.payload?.role;
+    if (userRole === 'security_gate') {
+      return new Response(
+        JSON.stringify({ error: 'เจ้าหน้าที่ รปภ. ไม่มีสิทธิ์แก้ไขสถานะหรือข้อมูลสินค้าตีคืน' }),
+        { status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+      );
+    }
+
     // Permission check for editing master ticket info
     const isMasterEdit = items_detail !== undefined || quantity !== undefined || reason !== undefined || storage_location !== undefined || supplier_name !== undefined || carrier_name !== undefined || contact_phone !== undefined || invoice_or_po_no !== undefined || notes !== undefined;
-    const userRole = auth.payload?.role;
     if (isMasterEdit && userRole !== 'super_admin' && userRole !== 'admin' && userRole !== 'supervisor') {
       return new Response(
         JSON.stringify({ error: 'คุณไม่มีสิทธิ์ในการแก้ไขข้อมูลสินค้าตีคืน (สงวนสิทธิ์เฉพาะ Super Admin และ Supervisor เท่านั้น)' }),

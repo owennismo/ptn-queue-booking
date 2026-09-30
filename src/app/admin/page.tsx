@@ -18,6 +18,7 @@ import {
   Download,
   Printer,
   ChevronRight,
+  ChevronDown,
   ShieldCheck,
   Building2,
   Truck,
@@ -421,6 +422,7 @@ export default function AdminDashboardPage() {
   // Edit Return Ticket Modal State
   const [editReturnModalOpen, setEditReturnModalOpen] = useState<boolean>(false);
   const [editingReturnTicket, setEditingReturnTicket] = useState<ReturnTicket | null>(null);
+  const [editReturnStatus, setEditReturnStatus] = useState<ReturnStatus>('Pending_Pickup');
   const [editReturnSupplier, setEditReturnSupplier] = useState<string>('');
   const [editReturnCarrier, setEditReturnCarrier] = useState<string>('');
   const [editReturnPhone, setEditReturnPhone] = useState<string>('');
@@ -433,6 +435,15 @@ export default function AdminDashboardPage() {
   const [editReturnPhotos, setEditReturnPhotos] = useState<ReceivingPhotoItem[]>([]);
   const [compressingEditReturnPhoto, setCompressingEditReturnPhoto] = useState<boolean>(false);
   const [submittingEditReturn, setSubmittingEditReturn] = useState<boolean>(false);
+
+  // Edit Return Status Modal State (เปลี่ยนสถานะสินค้าตีคืนอย่างรวดเร็วจากรายการ)
+  const [editReturnStatusModalOpen, setEditReturnStatusModalOpen] = useState<boolean>(false);
+  const [editingStatusReturnTicket, setEditingStatusReturnTicket] = useState<ReturnTicket | null>(null);
+  const [targetReturnStatus, setTargetReturnStatus] = useState<ReturnStatus>('Pending_Pickup');
+  const [statusReturnDriverName, setStatusReturnDriverName] = useState<string>('');
+  const [statusReturnLicensePlate, setStatusReturnLicensePlate] = useState<string>('');
+  const [statusReturnNotes, setStatusReturnNotes] = useState<string>('');
+  const [submittingReturnStatus, setSubmittingReturnStatus] = useState<boolean>(false);
 
   // Manual Create Return Ticket Modal State
   const [createReturnModalOpen, setCreateReturnModalOpen] = useState<boolean>(false);
@@ -2026,6 +2037,7 @@ export default function AdminDashboardPage() {
   // Open Edit Return Ticket Modal
   const openEditReturnModal = (ticket: ReturnTicket) => {
     setEditingReturnTicket(ticket);
+    setEditReturnStatus(ticket.status || 'Pending_Pickup');
     setEditReturnSupplier(ticket.supplier_name || '');
     setEditReturnCarrier(ticket.carrier_name || '');
     setEditReturnPhone(ticket.contact_phone || '');
@@ -2119,6 +2131,7 @@ export default function AdminDashboardPage() {
       const res = await authFetch(`/api/admin/returns/${editingReturnTicket.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
+          status: editReturnStatus,
           supplier_name: editReturnSupplier.trim(),
           carrier_name: editReturnCarrier.trim() || null,
           contact_phone: editReturnPhone.trim() || null,
@@ -2145,6 +2158,54 @@ export default function AdminDashboardPage() {
       showToast(err.message || 'เกิดข้อผิดพลาดในการแก้ไขข้อมูลสินค้าตีคืน', 'error');
     } finally {
       setSubmittingEditReturn(false);
+    }
+  };
+
+  // Open Edit Return Status Modal
+  const openEditReturnStatusModal = (ticket: ReturnTicket, initialStatus?: ReturnStatus) => {
+    setEditingStatusReturnTicket(ticket);
+    setTargetReturnStatus(initialStatus || ticket.status);
+    setStatusReturnDriverName(ticket.driver_name || '');
+    setStatusReturnLicensePlate(ticket.driver_license_plate || '');
+    setStatusReturnNotes(ticket.handover_notes || '');
+    setEditReturnStatusModalOpen(true);
+  };
+
+  // Handle Edit Return Status Submit
+  const handleReturnStatusSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStatusReturnTicket) return;
+
+    setSubmittingReturnStatus(true);
+    try {
+      const body: any = {
+        status: targetReturnStatus,
+      };
+      if (targetReturnStatus === 'Returned') {
+        if (statusReturnDriverName.trim()) body.driver_name = statusReturnDriverName.trim();
+        if (statusReturnLicensePlate.trim()) body.driver_license_plate = statusReturnLicensePlate.trim();
+        if (statusReturnNotes.trim()) body.handover_notes = statusReturnNotes.trim();
+      }
+
+      const res = await authFetch(`/api/admin/returns/${editingStatusReturnTicket.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'เปลี่ยนสถานะไม่สำเร็จ');
+
+      const statusThai = targetReturnStatus === 'Returned' ? 'ส่งมอบคืนสำเร็จ' : 'รอขนส่งมารับ';
+      showToast(`อัปเดตสถานะใบคืน ${editingStatusReturnTicket.id} เป็น "${statusThai}" เรียบร้อยแล้ว`);
+      setEditReturnStatusModalOpen(false);
+      setEditingStatusReturnTicket(null);
+      fetchReturnTickets();
+      if (viewingTicket?.id === editingStatusReturnTicket.id && data.return_ticket) {
+        setViewingTicket(data.return_ticket);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'เกิดข้อผิดพลาดในการเปลี่ยนสถานะ', 'error');
+    } finally {
+      setSubmittingReturnStatus(false);
     }
   };
 
@@ -4290,21 +4351,56 @@ export default function AdminDashboardPage() {
                             </div>
                           </td>
 
-                          <td className="p-3.5 sm:p-4 align-top">
-                            {ticket.status === 'Pending_Pickup' ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                                <span>รอขนส่งมารับ</span>
-                              </span>
+                          <td className="p-3.5 sm:p-4 align-top" onClick={(e) => e.stopPropagation()}>
+                            {canEditReturn ? (
+                              <div className="space-y-1">
+                                <button
+                                  type="button"
+                                  onClick={() => openEditReturnStatusModal(ticket)}
+                                  className={`group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition shadow-2xs hover:shadow-xs active:scale-95 ${
+                                    ticket.status === 'Pending_Pickup'
+                                      ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 hover:border-amber-400'
+                                      : 'bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100 hover:border-emerald-400'
+                                  }`}
+                                  title="คลิกเพื่อแก้ไขสถานะสินค้าตีคืน (สิทธิ์ Supervisor / Admin)"
+                                >
+                                  {ticket.status === 'Pending_Pickup' ? (
+                                    <>
+                                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                                      <span>รอขนส่งมารับ</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                      <span>ส่งคืนสำเร็จ</span>
+                                    </>
+                                  )}
+                                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 transition" />
+                                </button>
+                                {ticket.status === 'Returned' && ticket.handover_at && (
+                                  <div className="text-[11px] text-slate-400">
+                                    เมื่อ: {formatThaiDateTime(ticket.handover_at)}
+                                  </div>
+                                )}
+                              </div>
                             ) : (
                               <div>
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                  <span>ส่งคืนสำเร็จ</span>
-                                </span>
-                                {ticket.handover_at && (
-                                  <div className="text-[11px] text-slate-400 mt-1">
-                                    เมื่อ: {formatThaiDateTime(ticket.handover_at)}
+                                {ticket.status === 'Pending_Pickup' ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                                    <span>รอขนส่งมารับ</span>
+                                  </span>
+                                ) : (
+                                  <div>
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                      <span>ส่งคืนสำเร็จ</span>
+                                    </span>
+                                    {ticket.handover_at && (
+                                      <div className="text-[11px] text-slate-400 mt-1">
+                                        เมื่อ: {formatThaiDateTime(ticket.handover_at)}
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -8571,9 +8667,22 @@ export default function AdminDashboardPage() {
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       สถานะ: ส่งมอบคืนสินค้าเรียบร้อยแล้ว
                     </span>
-                    <span className="text-[11px] bg-emerald-200 text-emerald-900 font-black px-2.5 py-0.5 rounded-full">
-                      Completed POD
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] bg-emerald-200 text-emerald-900 font-black px-2.5 py-0.5 rounded-full">
+                        Completed POD
+                      </span>
+                      {canEditReturn && (
+                        <button
+                          type="button"
+                          onClick={() => openEditReturnStatusModal(viewingTicket)}
+                          className="text-[11px] bg-white hover:bg-slate-100 text-slate-700 font-bold px-2.5 py-1 rounded-lg border border-slate-300 shadow-2xs transition flex items-center gap-1 active:scale-95"
+                          title="แก้ไขสถานะใบคืนนี้"
+                        >
+                          <Edit className="w-3 h-3 text-slate-500" />
+                          <span>แก้ไขสถานะ</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div><b>ซัพพลายเออร์:</b> {viewingTicket.supplier_name}</div>
                   {viewingTicket.carrier_name && (
@@ -8615,9 +8724,22 @@ export default function AdminDashboardPage() {
                       <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
                       สถานะ: รอขนส่งมารับคืน
                     </span>
-                    <span className="text-[11px] bg-amber-200 text-amber-900 font-black px-2.5 py-0.5 rounded-full">
-                      Pending Pickup
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] bg-amber-200 text-amber-900 font-black px-2.5 py-0.5 rounded-full">
+                        Pending Pickup
+                      </span>
+                      {canEditReturn && (
+                        <button
+                          type="button"
+                          onClick={() => openEditReturnStatusModal(viewingTicket)}
+                          className="text-[11px] bg-white hover:bg-slate-100 text-slate-700 font-bold px-2.5 py-1 rounded-lg border border-slate-300 shadow-2xs transition flex items-center gap-1 active:scale-95"
+                          title="แก้ไขสถานะใบคืนนี้"
+                        >
+                          <Edit className="w-3 h-3 text-slate-500" />
+                          <span>แก้ไขสถานะ</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div><b>ซัพพลายเออร์:</b> {viewingTicket.supplier_name}</div>
                   {viewingTicket.carrier_name && (
@@ -8800,6 +8922,194 @@ export default function AdminDashboardPage() {
         onClose={() => setHandoverPrintModalOpen(false)}
       />
 
+      {/* 🔄 Edit Return Status Modal (แก้ไขสถานะสินค้าตีคืนอย่างรวดเร็ว) */}
+      {editReturnStatusModalOpen && editingStatusReturnTicket && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-slate-200 flex flex-col space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-3 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                  <RefreshCw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">แก้ไขสถานะสินค้าตีคืน</h3>
+                  <p className="text-xs text-slate-500 font-mono">
+                    ใบคืน: <strong>{editingStatusReturnTicket.id}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditReturnStatusModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Info Summary Box */}
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">ซัพพลายเออร์:</span>
+                <span className="font-bold text-slate-900 truncate max-w-[220px]">{editingStatusReturnTicket.supplier_name}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">รายการสินค้า:</span>
+                <span className="font-semibold text-rose-700 truncate max-w-[220px]">{editingStatusReturnTicket.items_detail}</span>
+              </div>
+              {editingStatusReturnTicket.quantity && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">จำนวน:</span>
+                  <span className="font-mono text-slate-800">{editingStatusReturnTicket.quantity}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Status Options */}
+            <form onSubmit={handleReturnStatusSubmit} className="space-y-4 text-xs sm:text-sm">
+              <div>
+                <label className="block font-bold text-slate-700 text-xs mb-2">
+                  เลือกสถานะใหม่ <span className="text-rose-600">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setTargetReturnStatus('Pending_Pickup')}
+                    className={`p-3 rounded-2xl border-2 text-left transition flex flex-col gap-1 ${
+                      targetReturnStatus === 'Pending_Pickup'
+                        ? 'bg-amber-50/80 border-amber-500 ring-2 ring-amber-400/40 text-amber-950 font-bold'
+                        : 'bg-white border-slate-200 hover:border-amber-300 text-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+                      <span className="text-xs font-bold">รอขนส่งมารับ</span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 font-normal">Pending Pickup</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTargetReturnStatus('Returned')}
+                    className={`p-3 rounded-2xl border-2 text-left transition flex flex-col gap-1 ${
+                      targetReturnStatus === 'Returned'
+                        ? 'bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-400/40 text-emerald-950 font-bold'
+                        : 'bg-white border-slate-200 hover:border-emerald-300 text-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="text-xs font-bold">ส่งมอบคืนสำเร็จ</span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 font-normal">Returned</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Conditional Fields when Returned */}
+              {targetReturnStatus === 'Returned' && (
+                <div className="p-3.5 bg-emerald-50/60 rounded-2xl border border-emerald-200 space-y-2.5 animate-in fade-in duration-200">
+                  <div className="text-xs font-bold text-emerald-900 flex items-center gap-1">
+                    <Truck className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>ข้อมูลผู้รับสินค้า (ไม่บังคับ - สามารถระบุภายหลังได้)</span>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-0.5">
+                      ชื่อคนขับรถ / ผู้มารับสินค้า
+                    </label>
+                    <input
+                      type="text"
+                      value={statusReturnDriverName}
+                      onChange={(e) => setStatusReturnDriverName(e.target.value)}
+                      placeholder="เช่น สมชาย ใจดี (คนขับ Kerry)"
+                      className="w-full p-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-emerald-500 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-0.5">
+                      ทะเบียนรถ
+                    </label>
+                    <input
+                      type="text"
+                      value={statusReturnLicensePlate}
+                      onChange={(e) => setStatusReturnLicensePlate(e.target.value)}
+                      placeholder="เช่น 1ฒข 9876 กทม."
+                      className="w-full p-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-emerald-500 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-0.5">
+                      หมายเหตุการส่งมอบ
+                    </label>
+                    <input
+                      type="text"
+                      value={statusReturnNotes}
+                      onChange={(e) => setStatusReturnNotes(e.target.value)}
+                      placeholder="เช่น ส่งคืนพร้อมบิลกำกับภาษี"
+                      className="w-full p-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-emerald-500 font-medium"
+                    />
+                  </div>
+                  <div className="pt-1 border-t border-emerald-200/80">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditReturnStatusModalOpen(false);
+                        openHandoverModal(editingStatusReturnTicket);
+                      }}
+                      className="text-[11px] text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 hover:underline"
+                    >
+                      <span>📷 ต้องการแนบลายเซ็น & รูปถ่าย POD หรือไม่? คลิกเปิดหน้าส่งมอบเต็มรูปแบบ</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Conditional Notice when Reverting to Pending */}
+              {targetReturnStatus === 'Pending_Pickup' && editingStatusReturnTicket.status === 'Returned' && (
+                <div className="p-3 bg-amber-50 rounded-2xl border border-amber-300 text-xs text-amber-900 space-y-1 animate-in fade-in duration-200">
+                  <div className="font-bold flex items-center gap-1 text-amber-800">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span>แจ้งเตือนการเปลี่ยนสถานะกลับ</span>
+                  </div>
+                  <p className="text-[11px] text-amber-800/90 leading-relaxed">
+                    ระบบจะปรับสถานะกลับเป็น <strong>"รอขนส่งมารับ"</strong> และล้างข้อมูลบันทึกวันเวลาและผู้ส่งมอบเดิม
+                  </p>
+                </div>
+              )}
+
+              {/* Footer Buttons */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditReturnStatusModalOpen(false)}
+                  disabled={submittingReturnStatus}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingReturnStatus}
+                  className={`px-4 py-2 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs ${
+                    targetReturnStatus === 'Returned'
+                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                      : 'bg-amber-600 hover:bg-amber-700'
+                  }`}
+                >
+                  {submittingReturnStatus ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Check className="w-3.5 h-3.5" />
+                  )}
+                  <span>{submittingReturnStatus ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนสถานะ'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* ✏️ Edit Return Ticket Modal */}
       {editReturnModalOpen && editingReturnTicket && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
@@ -8824,6 +9134,39 @@ export default function AdminDashboardPage() {
             </div>
 
             <form id="formEditReturn" onSubmit={handleEditReturnSubmit} className="space-y-3 overflow-y-auto flex-1 pr-1 text-xs sm:text-sm">
+              {/* Return Status Field */}
+              <div>
+                <label className="block font-bold text-slate-700 text-xs mb-1.5">
+                  สถานะสินค้าตีคืน (Return Status) <span className="text-rose-600">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditReturnStatus('Pending_Pickup')}
+                    className={`p-2.5 rounded-xl border-2 font-bold text-xs flex items-center justify-center gap-1.5 transition ${
+                      editReturnStatus === 'Pending_Pickup'
+                        ? 'bg-amber-50 border-amber-500 text-amber-950 shadow-xs ring-2 ring-amber-400/30'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span>รอขนส่งมารับ (Pending)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditReturnStatus('Returned')}
+                    className={`p-2.5 rounded-xl border-2 font-bold text-xs flex items-center justify-center gap-1.5 transition ${
+                      editReturnStatus === 'Returned'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-950 shadow-xs ring-2 ring-emerald-400/30'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>ส่งคืนสำเร็จ (Returned)</span>
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block font-bold text-slate-700 text-xs mb-1">
                   ชื่อซัพพลายเออร์ (Supplier) <span className="text-rose-600">*</span>
